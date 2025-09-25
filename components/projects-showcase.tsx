@@ -293,14 +293,14 @@ export function ProjectsShowcase() {
             <h2 className="text-3xl font-bold text-foreground">Client Favorite</h2>
           </div>
 
-          <Card className="overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-500 max-w-4xl mx-auto">
+          <Card className="overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-500 max-w-4xl mx-auto p-0">
             <div className="grid lg:grid-cols-2 gap-0">
-              <div className="relative h-96 lg:h-[600px]">
+              <div className="relative h-96 lg:h-[600px] m-0">
                 <div className="absolute inset-0 premium-gradient-1 opacity-20 z-10 mix-blend-multiply"></div>
                 <div className="absolute top-4 right-4 z-30 space-y-2">
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full flex items-center gap-2">
-                    <Award className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm font-bold text-emerald-500">{mostLikedProject.likes} likes</span>
+                  <div className="bg-gradient-to-r from-emerald-500/90 to-emerald-400/90 backdrop-blur-sm border border-white/20 shadow-lg px-3 py-1.5 rounded-full flex items-center gap-2 transform hover:scale-105 transition-all duration-300">
+                    <Award className="w-4 h-4 text-white animate-pulse" />
+                    <span className="text-sm font-bold text-white drop-shadow-sm">{mostLikedProject.likes} likes</span>
                   </div>
                 </div>
                 <Image
@@ -390,14 +390,17 @@ export function ProjectsShowcase() {
             {trendingProjects.map((project) => (
               <Card
                 key={project.id}
-                className="flex-shrink-0 w-80 overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300"
+                className="flex-shrink-0 w-80 overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300 p-0"
               >
-                <div className="relative h-80">
+                <div className="relative h-80 overflow-hidden m-0">
                   <div className="absolute top-3 left-3 z-20 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">
                     <TrendingUp className="w-3 h-3 text-emerald-500" />
                   </div>
-                  <div className="absolute top-3 right-3 z-20 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">
-                    <span className="text-xs font-medium text-emerald-500">{project.likes} likes</span>
+                  <div className="absolute top-3 right-3 z-20 bg-gradient-to-r from-emerald-500/90 to-emerald-400/90 backdrop-blur-sm border border-white/20 shadow-lg px-2.5 py-1 rounded-full transform hover:scale-105 transition-all duration-300">
+                    <span className="text-xs font-bold text-white drop-shadow-sm flex items-center gap-1">
+                      <Heart className="w-3 h-3 fill-white animate-pulse" />
+                      {project.likes}
+                    </span>
                   </div>
                   <Image
                     src={project.images?.[0] || "/placeholder.svg"}
@@ -482,12 +485,15 @@ export function ProjectsShowcase() {
             {filteredProjects.slice(0, visibleProjects).map((project) => (
               <Card
                 key={project.id}
-                className="overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300 group"
+                className="overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300 group p-0"
               >
-                <div className="relative h-80 overflow-hidden">
+                <div className="relative h-80 overflow-hidden m-0">
                   <div className="absolute inset-0 premium-gradient-1 opacity-10 z-10 mix-blend-multiply"></div>
-                  <div className="absolute top-3 right-3 z-20 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">
-                    <span className="text-xs font-medium text-emerald-500">{project.likes} likes</span>
+                  <div className="absolute top-3 right-3 z-20 bg-gradient-to-r from-emerald-500/90 to-emerald-400/90 backdrop-blur-sm border border-white/20 shadow-lg px-2.5 py-1 rounded-full transform hover:scale-105 transition-all duration-300">
+                    <span className="text-xs font-bold text-white drop-shadow-sm flex items-center gap-1">
+                      <Heart className="w-3 h-3 fill-white animate-pulse" />
+                      {project.likes}
+                    </span>
                   </div>
                   {project.trending && (
                     <div className="absolute top-3 left-3 z-20 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">
