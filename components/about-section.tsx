@@ -35,7 +35,7 @@ export function AboutSection() {
               <Badge variant="outline" className="border-emerald-500 text-emerald-500">
                 About HexCode
               </Badge>
-              <h2 className="text-4xl lg:text-5xl font-bold text-balance">Crafting Digital Excellence Since 2019</h2>
+              <h2 className="text-4xl lg:text-5xl font-bold text-balance">Crafting Digital Excellence Since 2023</h2>
               <p className="text-lg text-muted-foreground text-pretty">
                 HexCode is a forward-thinking software development company specializing in creating innovative digital
                 solutions. We combine technical expertise with creative vision to build applications that drive business
@@ -46,7 +46,10 @@ export function AboutSection() {
             <div className="space-y-4">
               <h3 className="text-xl font-semibold">Our Expertise</h3>
               <div className="flex flex-wrap gap-2">
-                {["React", "Next.js", "Node.js", "Python", "TypeScript", "AWS", "Docker", "PostgreSQL"].map((tech) => (
+                {
+                // 
+                ["Web Development", "Mobile Apps/Software", "Cloud Solutions", "UI/UX Design", "API Integration"]
+                .map((tech) => (
                   <Badge
                     key={tech}
                     variant="secondary"

@@ -1,6 +1,24 @@
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp, TrendingDown, Users, Eye, Mail, FolderOpen } from "lucide-react"
+import { TrendingUp, TrendingDown, Users, Eye, Mail, FolderOpen, Code, Award, Zap, Globe, Shield } from "lucide-react"
+
+interface AnalyticsCardProps {
+  icon: React.ElementType;
+  value: string;
+  title: string;
+  description: string;
+}
+
+function AnalyticsCard({ icon: Icon, value, title, description }: AnalyticsCardProps) {
+  return (
+    <Card className="flex flex-col items-center p-6 bg-card border border-border rounded-lg">
+      <Icon className="w-10 h-10 text-emerald-500" />
+      <h2 className="text-xl font-bold mt-4">{value}</h2>
+      <p className="text-sm text-muted-foreground">{title}</p>
+      <p className="text-xs text-muted-foreground">{description}</p>
+    </Card>
+  )
+}
 
 export function AnalyticsOverview() {
   const stats = [
@@ -112,6 +130,46 @@ export function AnalyticsOverview() {
           </div>
         </Card>
       </div>
+
+      {/* Additional Stats Section */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+        <AnalyticsCard
+          icon={Code}
+          value="20+"
+          title="Projects Completed"
+          description="Successful software projects delivered"
+        />
+        <AnalyticsCard
+          icon={Users}
+          value="10+"
+          title="Happy Clients"
+          description="Businesses we've helped grow"
+        />
+        <AnalyticsCard
+          icon={Award}
+          value="2+"
+          title="Years Experience"
+          description="Years of software development expertise"
+        />
+        <AnalyticsCard
+          icon={Zap}
+          value="99%"
+          title="Uptime"
+          description="Average application uptime"
+        />
+        <AnalyticsCard
+          icon={Globe}
+          value="15+"
+          title="Technologies"
+          description="Modern tech stack mastery"
+        />
+        <AnalyticsCard
+          icon={Shield}
+          value="100%"
+          title="Secure"
+          description="Security-first development approach"
+        />
+      </section>
     </div>
   )
 }

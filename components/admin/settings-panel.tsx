@@ -10,12 +10,6 @@ import { Save, Shield, Bell, Globe } from "lucide-react"
 export function SettingsPanel() {
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold">Settings</h2>
-        <p className="text-muted-foreground">Manage your website and admin preferences</p>
-      </div>
-
       <Tabs defaultValue="general" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="general">General</TabsTrigger>

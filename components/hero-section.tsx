@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Code, Zap } from "lucide-react"
+import { ArrowRight, Infinity, Code, Zap, Database } from "lucide-react"
 import Image from "next/image"
 
 export function HeroSection() {
@@ -86,13 +86,13 @@ export function HeroSection() {
                 className="absolute -bottom-6 -left-12 w-14 h-14 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg animate-float hover-lift"
                 style={{ animationDelay: "1s" }}
               >
-                <div className="w-7 h-7 bg-white rounded opacity-80"></div>
+                <Database className="w-7 h-7 text-white" />
               </div>
               <div
                 className="absolute -bottom-8 -right-8 w-16 h-16 bg-emerald-300 rounded-xl flex items-center justify-center shadow-lg animate-float hover-lift"
                 style={{ animationDelay: "1.5s" }}
               >
-                <div className="w-8 h-8 bg-white rounded opacity-80"></div>
+                <Infinity className="w-8 h-8 text-white" />
               </div>
             </div>
           </div>

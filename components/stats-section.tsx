@@ -4,19 +4,19 @@ import { Code, Users, Award, Zap, Globe, Shield } from "lucide-react"
 export function StatsSection() {
   const stats = [
     {
-      number: "50+",
+      number: "20+",
       label: "Projects Completed",
       icon: <Code className="w-6 h-6" />,
       description: "Successful software projects delivered",
     },
     {
-      number: "25+",
+      number: "10+",
       label: "Happy Clients",
       icon: <Users className="w-6 h-6" />,
       description: "Businesses we've helped grow",
     },
     {
-      number: "5+",
+      number: "2+",
       label: "Years Experience",
       icon: <Award className="w-6 h-6" />,
       description: "Years of software development expertise",

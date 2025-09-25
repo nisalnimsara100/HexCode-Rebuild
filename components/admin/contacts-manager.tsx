@@ -53,41 +53,6 @@ export function ContactsManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Contacts Manager</h2>
-          <p className="text-muted-foreground">Manage client inquiries and leads</p>
-        </div>
-        <div className="flex space-x-2">
-          <Button variant="outline">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
-          <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">Export CSV</Button>
-        </div>
-      </div>
-
-      {/* Search and Stats */}
-      <div className="grid lg:grid-cols-4 gap-6">
-        <Card className="lg:col-span-2 p-4 glass-effect">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search contacts..." className="pl-10" />
-          </div>
-        </Card>
-
-        <Card className="p-4 glass-effect text-center">
-          <div className="text-2xl font-bold text-emerald-500">12</div>
-          <div className="text-sm text-muted-foreground">New Inquiries</div>
-        </Card>
-
-        <Card className="p-4 glass-effect text-center">
-          <div className="text-2xl font-bold text-emerald-500">8</div>
-          <div className="text-sm text-muted-foreground">In Progress</div>
-        </Card>
-      </div>
-
       {/* Contacts List */}
       <div className="space-y-4">
         {contacts.map((contact) => (

@@ -34,40 +34,6 @@ export function ProjectsManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Projects Manager</h2>
-          <p className="text-muted-foreground">Manage your project showcase</p>
-        </div>
-        <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Project
-        </Button>
-      </div>
-
-      {/* Search and Filters */}
-      <Card className="p-4 glass-effect">
-        <div className="flex items-center space-x-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search projects..." className="pl-10" />
-          </div>
-          <select className="px-3 py-2 border border-border rounded-lg bg-background">
-            <option>All Categories</option>
-            <option>E-commerce</option>
-            <option>Healthcare</option>
-            <option>FinTech</option>
-          </select>
-          <select className="px-3 py-2 border border-border rounded-lg bg-background">
-            <option>All Status</option>
-            <option>Live</option>
-            <option>In Development</option>
-            <option>Completed</option>
-          </select>
-        </div>
-      </Card>
-
       {/* Projects List */}
       <div className="space-y-4">
         {projects.map((project) => (
