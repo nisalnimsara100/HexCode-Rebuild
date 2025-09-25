@@ -192,9 +192,9 @@ export function ProjectsShowcase() {
       case "Premium Solution":
         return "text-purple-400 bg-purple-400/10 border-purple-400/20"
       case "Enterprise Solution":
-        return "text-[#68e033] bg-[#68e033]/10 border-[#68e033]/20"
+        return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
       default:
-        return "text-[#68e033] bg-[#68e033]/10 border-[#68e033]/20"
+        return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
     }
   }
 
@@ -216,7 +216,7 @@ export function ProjectsShowcase() {
 
   const StartProjectModal = () => (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card rounded-2xl max-w-md w-full p-6 relative animate-fade-in-up border border-[#68e033]/20">
+      <div className="bg-card rounded-2xl max-w-md w-full p-6 relative animate-fade-in-up border border-emerald-500/20">
         <Button
           onClick={() => setShowStartProjectModal(false)}
           variant="ghost"
@@ -227,31 +227,31 @@ export function ProjectsShowcase() {
         </Button>
 
         <div className="text-center mb-6">
-          <div className="w-16 h-16 premium-gradient-1 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <Rocket className="w-8 h-8 text-white" />
           </div>
-          <h3 className="text-2xl font-bold text-[#68e033] mb-2">Start Your Project</h3>
+          <h3 className="text-2xl font-bold text-emerald-500 mb-2">Start Your Project</h3>
           <p className="text-muted-foreground">Let's bring your vision to life with HexCode's expertise</p>
         </div>
 
         <div className="space-y-4">
           <Button
             onClick={() => window.open("mailto:contact@hexcode.com", "_blank")}
-            className="w-full premium-gradient-1 text-white border-0 hover:opacity-90"
+            className="w-full bg-emerald-500 text-white border-0 hover:bg-emerald-600"
           >
             <Mail className="w-4 h-4 mr-2" />
             Email Us
           </Button>
           <Button
             onClick={() => window.open("tel:+1234567890", "_blank")}
-            className="w-full premium-gradient-2 text-white border-0 hover:opacity-90"
+            className="w-full bg-emerald-500 text-white border-0 hover:bg-emerald-600"
           >
             <Phone className="w-4 h-4 mr-2" />
             Schedule Call
           </Button>
           <Button
             onClick={() => window.open("https://wa.me/1234567890", "_blank")}
-            className="w-full premium-gradient-3 text-white border-0 hover:opacity-90"
+            className="w-full bg-emerald-500 text-white border-0 hover:bg-emerald-600"
           >
             <MessageSquare className="w-4 h-4 mr-2" />
             Live Chat
@@ -271,12 +271,12 @@ export function ProjectsShowcase() {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 bg-[#68e033]/10 border border-[#68e033]/20 px-6 py-3 rounded-full mb-8">
-            <Layers3 className="w-5 h-5 text-[#68e033]" />
-            <span className="text-sm font-medium text-[#68e033]">Project Portfolio</span>
+          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500 px-6 py-3 rounded-full mb-8">
+            <Layers3 className="w-5 h-5 text-emerald-500" />
+            <span className="text-sm font-medium text-emerald-500">Project Portfolio</span>
           </div>
 
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-[#68e033] to-[#7ef03f] bg-clip-text text-transparent mb-6">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-400 bg-clip-text text-transparent mb-6">
             Our Creative Solutions
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
@@ -286,44 +286,44 @@ export function ProjectsShowcase() {
 
         <div className="mb-20">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-[#68e033]/10 border border-[#68e033]/20 px-4 py-2 rounded-full mb-4">
-              <Trophy className="w-5 h-5 text-[#68e033]" />
-              <span className="text-sm font-medium text-[#68e033]">Most Popular Project</span>
+            <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500 px-4 py-2 rounded-full mb-4">
+              <Trophy className="w-5 h-5 text-emerald-500" />
+              <span className="text-sm font-medium text-emerald-500">Most Popular Project</span>
             </div>
             <h2 className="text-3xl font-bold text-foreground">Client Favorite</h2>
           </div>
 
-          <Card className="overflow-hidden bg-[#68e033]/5 border-[#68e033]/20 hover:shadow-2xl hover:shadow-[#68e033]/20 transition-all duration-500 max-w-4xl mx-auto">
+          <Card className="overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-500 max-w-4xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-0">
               <div className="relative h-96 lg:h-[600px]">
                 <div className="absolute inset-0 premium-gradient-1 opacity-20 z-10 mix-blend-multiply"></div>
                 <div className="absolute top-4 right-4 z-30 space-y-2">
-                  <div className="bg-[#68e033]/10 border border-[#68e033]/20 px-3 py-1 rounded-full flex items-center gap-2">
-                    <Award className="w-4 h-4 text-[#68e033]" />
-                    <span className="text-sm font-bold text-[#68e033]">{mostLikedProject.likes} likes</span>
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full flex items-center gap-2">
+                    <Award className="w-4 h-4 text-emerald-500" />
+                    <span className="text-sm font-bold text-emerald-500">{mostLikedProject.likes} likes</span>
                   </div>
                 </div>
                 <Image
                   src={mostLikedProject.images?.[0] || "/placeholder.svg"}
                   alt={mostLikedProject.title}
                   fill
-                  className="object-cover"
+                  className="object-cover w-full h-full"
                 />
               </div>
 
               <div className="p-8 lg:p-12 flex flex-col justify-center">
                 <div className="space-y-6">
                   <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="bg-[#68e033]/10 border-[#68e033]/50 text-[#68e033]">
+                    <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/50 text-emerald-500">
                       {mostLikedProject.category}
                     </Badge>
-                    <Badge variant="outline" className="bg-[#68e033]/10 border-[#68e033]/50 text-[#68e033]">
+                    <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/50 text-emerald-500">
                       <Trophy className="w-3 h-3 mr-1" />
                       Featured
                     </Badge>
                   </div>
 
-                  <h3 className="text-3xl font-bold bg-gradient-to-r from-[#68e033] to-[#7ef03f] bg-clip-text text-transparent">
+                  <h3 className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-400 bg-clip-text text-transparent">
                     {mostLikedProject.title}
                   </h3>
                   <p className="text-muted-foreground text-lg leading-relaxed">{mostLikedProject.description}</p>
@@ -331,7 +331,7 @@ export function ProjectsShowcase() {
                   <div className="flex gap-4">
                     <Button
                       onClick={() => window.open(mostLikedProject.liveUrl, "_blank")}
-                      className="premium-gradient-1 text-white border-0 hover:opacity-90"
+                      className="bg-emerald-500 text-white border-0 hover:bg-emerald-600 px-8 py-4 text-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300"
                     >
                       <ExternalLink className="w-4 h-4 mr-2" />
                       View Project
@@ -339,8 +339,8 @@ export function ProjectsShowcase() {
                     <Button
                       onClick={() => handleLike(mostLikedProject.id)}
                       variant="outline"
-                      className={`bg-[#68e033]/10 border-[#68e033]/50 hover:bg-[#68e033]/20 ${
-                        likedProjects.has(mostLikedProject.id) ? "text-red-400" : "text-[#68e033]"
+                      className={`bg-emerald-500/10 border-emerald-500/50 hover:bg-emerald-500/20 ${
+                        likedProjects.has(mostLikedProject.id) ? "text-red-400" : "text-emerald-500"
                       }`}
                     >
                       <Heart
@@ -359,9 +359,9 @@ export function ProjectsShowcase() {
         <div className="mb-20">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <div className="inline-flex items-center gap-2 bg-[#68e033]/10 border border-[#68e033]/20 px-4 py-2 rounded-full">
-                <TrendingUp className="w-5 h-5 text-[#68e033]" />
-                <span className="text-sm font-medium text-[#68e033]">Trending Now</span>
+              <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500 px-4 py-2 rounded-full">
+                <TrendingUp className="w-5 h-5 text-emerald-500" />
+                <span className="text-sm font-medium text-emerald-500">Trending Now</span>
               </div>
               <h2 className="text-2xl font-bold text-foreground">Popular Projects</h2>
             </div>
@@ -371,7 +371,7 @@ export function ProjectsShowcase() {
                 onClick={scrollLeft}
                 variant="outline"
                 size="sm"
-                className="bg-[#68e033]/10 border-[#68e033]/50 text-[#68e033] hover:bg-[#68e033]/20"
+                className="bg-emerald-500/10 border-emerald-500 text-emerald-500 hover:bg-emerald-600"
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -379,7 +379,7 @@ export function ProjectsShowcase() {
                 onClick={scrollRight}
                 variant="outline"
                 size="sm"
-                className="bg-[#68e033]/10 border-[#68e033]/50 text-[#68e033] hover:bg-[#68e033]/20"
+                className="bg-emerald-500/10 border-emerald-500 text-emerald-500 hover:bg-emerald-600"
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -390,14 +390,14 @@ export function ProjectsShowcase() {
             {trendingProjects.map((project) => (
               <Card
                 key={project.id}
-                className="flex-shrink-0 w-80 overflow-hidden bg-[#68e033]/5 border-[#68e033]/20 hover:shadow-xl hover:shadow-[#68e033]/20 transition-all duration-300"
+                className="flex-shrink-0 w-80 overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300"
               >
                 <div className="relative h-80">
-                  <div className="absolute top-3 left-3 z-20 bg-[#68e033]/10 border border-[#68e033]/20 px-2 py-1 rounded-full">
-                    <TrendingUp className="w-3 h-3 text-[#68e033]" />
+                  <div className="absolute top-3 left-3 z-20 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">
+                    <TrendingUp className="w-3 h-3 text-emerald-500" />
                   </div>
-                  <div className="absolute top-3 right-3 z-20 bg-[#68e033]/10 border border-[#68e033]/20 px-2 py-1 rounded-full">
-                    <span className="text-xs font-medium text-[#68e033]">{project.likes} likes</span>
+                  <div className="absolute top-3 right-3 z-20 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">
+                    <span className="text-xs font-medium text-emerald-500">{project.likes} likes</span>
                   </div>
                   <Image
                     src={project.images?.[0] || "/placeholder.svg"}
@@ -409,7 +409,7 @@ export function ProjectsShowcase() {
 
                 <div className="p-6 space-y-4">
                   <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="bg-[#68e033]/10 border-[#68e033]/50 text-[#68e033]">
+                    <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/50 text-emerald-500">
                       {project.category}
                     </Badge>
                     <Button
@@ -431,7 +431,7 @@ export function ProjectsShowcase() {
                     <Button
                       size="sm"
                       onClick={() => window.open(project.liveUrl, "_blank")}
-                      className="flex-1 premium-gradient-1 text-white border-0 hover:opacity-90"
+                      className="flex-1 bg-emerald-500 text-white border-0 hover:bg-emerald-600"
                     >
                       <ExternalLink className="w-3 h-3 mr-1" />
                       View
@@ -445,9 +445,9 @@ export function ProjectsShowcase() {
 
         {/* Filter Section */}
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 bg-[#68e033]/10 border border-[#68e033]/20 px-4 py-2 rounded-full mb-8">
-            <Filter className="w-5 h-5 text-[#68e033]" />
-            <span className="text-sm font-medium text-[#68e033]">Filter Projects</span>
+          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500 px-4 py-2 rounded-full mb-8">
+            <Filter className="w-5 h-5 text-emerald-500" />
+            <span className="text-sm font-medium text-emerald-500">Filter Projects</span>
           </div>
 
           <div className="flex flex-wrap justify-center gap-3 mb-8">
@@ -458,8 +458,8 @@ export function ProjectsShowcase() {
                 variant={category === activeFilter ? "default" : "outline"}
                 className={
                   category === activeFilter
-                    ? "premium-gradient-1 text-white border-0 hover:opacity-90"
-                    : "bg-[#68e033]/10 border-[#68e033]/30 text-muted-foreground hover:border-[#68e033] hover:text-[#68e033] hover:bg-[#68e033]/20"
+                    ? "bg-emerald-500 text-white border-0 hover:bg-emerald-600"
+                    : "bg-emerald-500/10 border-emerald-500/30 text-muted-foreground hover:border-emerald-500 hover:text-emerald-500 hover:bg-emerald-500/20"
                 }
               >
                 {category}
@@ -470,7 +470,7 @@ export function ProjectsShowcase() {
 
         <div className="space-y-12 mb-32">
           <div className="text-center">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-[#68e033] to-[#7ef03f] bg-clip-text text-transparent mb-4">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-400 bg-clip-text text-transparent mb-4">
               All Projects
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -482,16 +482,16 @@ export function ProjectsShowcase() {
             {filteredProjects.slice(0, visibleProjects).map((project) => (
               <Card
                 key={project.id}
-                className="overflow-hidden bg-[#68e033]/5 border-[#68e033]/20 hover:shadow-xl hover:shadow-[#68e033]/20 transition-all duration-300 group"
+                className="overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300 group"
               >
                 <div className="relative h-80 overflow-hidden">
                   <div className="absolute inset-0 premium-gradient-1 opacity-10 z-10 mix-blend-multiply"></div>
-                  <div className="absolute top-3 right-3 z-20 bg-[#68e033]/10 border border-[#68e033]/20 px-2 py-1 rounded-full">
-                    <span className="text-xs font-medium text-[#68e033]">{project.likes} likes</span>
+                  <div className="absolute top-3 right-3 z-20 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">
+                    <span className="text-xs font-medium text-emerald-500">{project.likes} likes</span>
                   </div>
                   {project.trending && (
-                    <div className="absolute top-3 left-3 z-20 bg-[#68e033]/10 border border-[#68e033]/20 px-2 py-1 rounded-full">
-                      <TrendingUp className="w-3 h-3 text-[#68e033]" />
+                    <div className="absolute top-3 left-3 z-20 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">
+                      <TrendingUp className="w-3 h-3 text-emerald-500" />
                     </div>
                   )}
 
@@ -527,7 +527,7 @@ export function ProjectsShowcase() {
                 <div className="p-6 space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="bg-[#68e033]/10 border-[#68e033]/50 text-[#68e033]">
+                      <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/50 text-emerald-500">
                         {project.category}
                       </Badge>
                       <div className="flex items-center gap-2">
@@ -547,19 +547,19 @@ export function ProjectsShowcase() {
                       </div>
                     </div>
 
-                    <h3 className="text-xl font-bold group-hover:text-[#68e033] transition-colors">{project.title}</h3>
+                    <h3 className="text-xl font-bold group-hover:text-emerald-500 transition-colors">{project.title}</h3>
                     <p className="text-muted-foreground text-sm leading-relaxed line-clamp-3">{project.description}</p>
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-1">
                       {project.technologies.slice(0, 3).map((tech) => (
-                        <Badge key={tech} variant="secondary" className="text-xs bg-[#68e033]/10 text-[#68e033]">
+                        <Badge key={tech} variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-500">
                           {tech}
                         </Badge>
                       ))}
                       {project.technologies.length > 3 && (
-                        <Badge variant="secondary" className="text-xs bg-[#68e033]/10">
+                        <Badge variant="secondary" className="text-xs bg-emerald-500/10">
                           +{project.technologies.length - 3}
                         </Badge>
                       )}
@@ -568,13 +568,13 @@ export function ProjectsShowcase() {
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-[#68e033]" />
+                          <Star className="w-3 h-3 text-emerald-500" />
                           {project.stats.stars}
                         </span>
                         <span>{project.duration}</span>
                       </div>
                       <span className="flex items-center gap-1">
-                        <Eye className="w-3 h-3 text-[#68e033]" />
+                        <Eye className="w-3 h-3 text-emerald-500" />
                         {project.stats.views}
                       </span>
                     </div>
@@ -583,7 +583,7 @@ export function ProjectsShowcase() {
                       <Button
                         size="sm"
                         onClick={() => window.open(project.liveUrl, "_blank")}
-                        className="flex-1 premium-gradient-1 text-white border-0 hover:opacity-90"
+                        className="flex-1 bg-emerald-500 text-white border-0 hover:bg-emerald-600"
                       >
                         <ExternalLink className="w-3 h-3 mr-1" />
                         Live Demo
@@ -593,86 +593,86 @@ export function ProjectsShowcase() {
                 </div>
               </Card>
             ))}
+
+            {filteredProjects.length > visibleProjects && (
+              <div className="text-center pt-8">
+                <Button
+                  onClick={() => setVisibleProjects((prev) => prev + 3)}
+                  variant="outline"
+                  className="bg-emerald-500/10 border-emerald-500 text-emerald-500 hover:bg-emerald-600 px-8 py-3"
+                >
+                  Load More Projects
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            )}
           </div>
 
-          {filteredProjects.length > visibleProjects && (
-            <div className="text-center pt-8">
+          <div className="mt-32 text-center">
+            <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500 px-4 py-2 rounded-full mb-8">
+              <Zap className="w-5 h-5 text-emerald-500" />
+              <span className="text-sm font-medium text-emerald-500">Our Creative Process</span>
+            </div>
+
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-400 bg-clip-text text-transparent mb-12">
+              From Concept to Creation
+            </h2>
+
+            <div className="grid md:grid-cols-4 gap-8 relative">
+              <div className="hidden md:block absolute top-12 left-0 right-0 h-0.5 premium-gradient-1 opacity-30"></div>
+
+              {[
+                {
+                  step: "01",
+                  title: "Discovery",
+                  description: "Understanding your vision and requirements through detailed consultation",
+                  icon: Target,
+                },
+                {
+                  step: "02",
+                  title: "Design",
+                  description: "Creating stunning wireframes and prototypes with modern aesthetics",
+                  icon: Layers3,
+                },
+                {
+                  step: "03",
+                  title: "Development",
+                  description: "Building with cutting-edge technologies and best practices",
+                  icon: Zap,
+                },
+                {
+                  step: "04",
+                  title: "Launch",
+                  description: "Deploying and optimizing your solution for maximum performance",
+                  icon: Rocket,
+                },
+              ].map((phase, index) => (
+                <div key={index} className="relative group">
+                  <div className="bg-emerald-500/5 border border-emerald-500/20 p-8 rounded-2xl hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300 group-hover:bg-emerald-500/10 h-80 flex flex-col justify-center items-center text-center">
+                    <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                      <phase.icon className="w-8 h-8 text-white" />
+                    </div>
+                    <div className="absolute -top-3 -right-3 w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                      {phase.step}
+                    </div>
+                    <h3 className="text-xl font-semibold mb-4 group-hover:text-emerald-500 transition-colors">
+                      {phase.title}
+                    </h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">{phase.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-12">
               <Button
-                onClick={() => setVisibleProjects((prev) => prev + 3)}
-                variant="outline"
-                className="bg-[#68e033]/10 border-[#68e033]/50 text-[#68e033] hover:bg-[#68e033]/20 px-8 py-3"
+                onClick={() => setShowStartProjectModal(true)}
+                className="bg-emerald-500 text-white border-0 hover:bg-emerald-600 px-8 py-4 text-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300"
               >
-                Load More Projects
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <Rocket className="w-5 h-5 mr-2" />
+                Start Your Project
               </Button>
             </div>
-          )}
-        </div>
-
-        <div className="mt-32 text-center">
-          <div className="inline-flex items-center gap-2 bg-[#68e033]/10 border border-[#68e033]/20 px-4 py-2 rounded-full mb-8">
-            <Zap className="w-5 h-5 text-[#68e033]" />
-            <span className="text-sm font-medium text-[#68e033]">Our Creative Process</span>
-          </div>
-
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-[#68e033] to-[#7ef03f] bg-clip-text text-transparent mb-12">
-            From Concept to Creation
-          </h2>
-
-          <div className="grid md:grid-cols-4 gap-8 relative">
-            <div className="hidden md:block absolute top-12 left-0 right-0 h-0.5 premium-gradient-1 opacity-30"></div>
-
-            {[
-              {
-                step: "01",
-                title: "Discovery",
-                description: "Understanding your vision and requirements through detailed consultation",
-                icon: Target,
-              },
-              {
-                step: "02",
-                title: "Design",
-                description: "Creating stunning wireframes and prototypes with modern aesthetics",
-                icon: Layers3,
-              },
-              {
-                step: "03",
-                title: "Development",
-                description: "Building with cutting-edge technologies and best practices",
-                icon: Zap,
-              },
-              {
-                step: "04",
-                title: "Launch",
-                description: "Deploying and optimizing your solution for maximum performance",
-                icon: Rocket,
-              },
-            ].map((phase, index) => (
-              <div key={index} className="relative group">
-                <div className="bg-[#68e033]/5 border border-[#68e033]/20 p-8 rounded-2xl hover:shadow-xl hover:shadow-[#68e033]/20 transition-all duration-300 group-hover:bg-[#68e033]/10 h-80 flex flex-col justify-center items-center text-center">
-                  <div className="w-16 h-16 premium-gradient-1 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                    <phase.icon className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="absolute -top-3 -right-3 w-8 h-8 bg-[#68e033] rounded-full flex items-center justify-center text-white text-sm font-bold">
-                    {phase.step}
-                  </div>
-                  <h3 className="text-xl font-semibold mb-4 group-hover:text-[#68e033] transition-colors">
-                    {phase.title}
-                  </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{phase.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-12">
-            <Button
-              onClick={() => setShowStartProjectModal(true)}
-              className="premium-gradient-1 text-white border-0 hover:opacity-90 px-8 py-4 text-lg hover:shadow-xl hover:shadow-[#68e033]/30 transition-all duration-300"
-            >
-              <Rocket className="w-5 h-5 mr-2" />
-              Start Your Project
-            </Button>
           </div>
         </div>
       </div>

@@ -12,7 +12,7 @@ export default function ProjectsPage() {
       {/* Hero Section */}
       <section className="pt-24 pb-16 bg-muted/30">
         <div className="container mx-auto px-4 text-center">
-          <Badge variant="outline" className="border-emerald-500 text-emerald-500 mb-6">
+          <Badge variant="outline" className="border-primary text-primary mb-6">
             Our Work
           </Badge>
           <h1 className="text-5xl lg:text-6xl font-bold text-balance mb-6">Projects That Make a Difference</h1>
