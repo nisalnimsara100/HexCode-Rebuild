@@ -97,8 +97,7 @@ export function AnalyticsOverview() {
             {recentActivity.map((activity, index) => (
               <div
                 key={index}
-                className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-              >
+                className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{activity.action}</p>

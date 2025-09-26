@@ -48,6 +48,7 @@ export function AdminDashboard() {
               {activeTab === "overview" && <AnalyticsOverview />}
               {activeTab === "projects" && <ProjectsManager />}
               {activeTab === "contacts" && <ContactsManager />}
+              {activeTab === "analytics" && <AnalyticsOverview />}
               {activeTab === "settings" && <SettingsPanel />}
             </div>
           </main>
