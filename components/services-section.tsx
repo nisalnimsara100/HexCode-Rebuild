@@ -41,8 +41,8 @@ export function ServicesSection() {
 
           return {
             ...service,
-            icon: icons[index] || <Globe className="w-8 h-8" />, // Default icon if index exceeds
-            color: colors[index] || "emerald", // Default color if index exceeds
+            icon: icons[index] || <Globe className="w-8 h-8" />, 
+            color: colors[index] || "emerald", 
           }
         })
 
