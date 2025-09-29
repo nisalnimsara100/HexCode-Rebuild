@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { AdminSidebar } from "./admin-sidebar"
 import { AdminHeader } from "./admin-header"
-import { OverviewHeader } from "./overview-header" // Fixed import
+import { OverviewHeader } from "./overview-header" 
 import { ProjectsManager } from "./projects-manager"
 import { ContactsManager } from "./contacts-manager"
 import { AnalyticsOverview } from "./analytics-overview"
@@ -13,8 +13,8 @@ import { ProjectsManagerHeader } from "./projects-manager-header"
 import { ContactsManagerHeader } from "./contacts-manager-header"
 import { AnalyticsOverviewHeader } from "./analytics-overview-header"
 import { SettingsPanelHeader } from "./settings-panel-header"
-import { ServicesManager } from "./services-manager" // Fixed import
-import { ServicesManagerHeader } from "./services-manager-header" // Fixed import
+import { ServicesManager } from "./services-manager" 
+import { ServicesManagerHeader } from "./services-manager-header" 
 
 // Standardize header height
 const headerStyles = "text-2xl font-bold text-foreground h-16 flex items-center"
@@ -56,7 +56,7 @@ export function AdminDashboard() {
               {activeTab === "contacts" && <ContactsManager />}
               {activeTab === "analytics" && <AnalyticsOverview />}
               {activeTab === "settings" && <SettingsPanel />}
-              {activeTab === "service" && <ServicesManager />} {/* Render ServicesManager for service tab */}
+              {activeTab === "service" && <ServicesManager />} 
             </div>
           </main>
         </div>
