@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { LayoutDashboard, FolderOpen, Settings, BarChart3, Mail, Shield, LogOut } from "lucide-react"
+import { LayoutDashboard, FolderOpen, Settings, BarChart3, Mail, Shield, LogOut, Globe } from "lucide-react"
 import Image from "next/image"
 
 
@@ -18,6 +18,7 @@ export function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarProps) {
     { id: "contacts", label: "Contacts", icon: <Mail className="w-4 h-4" />, badge: "12" },
     { id: "analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" />, badge: null },
     { id: "settings", label: "Settings", icon: <Settings className="w-4 h-4" />, badge: null },
+    { id: "service", label: "Service", icon: <Globe className="w-4 h-4" />, badge: null },
   ]
 
   return (
@@ -90,7 +91,7 @@ export function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarProps) {
 
       {/* Content Area */}
       <div className="flex-1 p-6 ml-64"> {/* Adjusted layout to remove blank area */}
-        {/* Add other tab components here */}
+        {/* Removed redundant ServicesManager rendering */}
       </div>
     </div>
   )

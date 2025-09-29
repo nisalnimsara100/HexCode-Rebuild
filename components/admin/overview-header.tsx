@@ -1,46 +1,27 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Bell, Search, Plus, Settings } from "lucide-react"
+import { Search, Plus } from "lucide-react"
 
 export function OverviewHeader() {
   return (
-    <div className="flex items-center justify-between p-6 bg-background border-b border-border">
-      <div>
-        <div className="flex items-center space-x-3">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <Badge className="bg-emerald-500">
-            Live
-          </Badge>
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          Welcome back! Here's what's happening with your projects.
-        </p>
-      </div>
-
+    <header className="bg-card border-b border-border p-4 h-20 flex items-center justify-between">
       <div className="flex items-center space-x-3">
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="pl-10 pr-4 py-2 bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-          />
+        <h1 className="text-2xl font-bold text-foreground">Overview Dashboard</h1>
+        <Badge className="bg-emerald-500 text-white">Live</Badge>
+      </div>
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Search overview..." className="pl-10" />
         </div>
-        
-        <div className="relative">
-          <Button variant="outline" size="sm">
-            <Bell className="w-4 h-4" />
-          </Button>
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
-        </div>
-
-        <Button className="bg-emerald-500 hover:bg-emerald-600">
+        <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
           <Plus className="w-4 h-4 mr-2" />
-          Add New
+          Add Overview
         </Button>
       </div>
-    </div>
+    </header>
   )
 }
