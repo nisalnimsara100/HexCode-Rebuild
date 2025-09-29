@@ -3,9 +3,11 @@
 import { useState } from "react"
 import { AdminSidebar } from "./admin-sidebar"
 import { AdminHeader } from "./admin-header"
+import { OverviewHeader } from "./overview-header"
 import { ProjectsManager } from "./projects-manager"
 import { ContactsManager } from "./contacts-manager"
 import { AnalyticsOverview } from "./analytics-overview"
+import { OverviewDashboard } from "./overview-dashboard"
 import { SettingsPanel } from "./settings-panel"
 import { ProjectsManagerHeader } from "./projects-manager-header"
 import { ContactsManagerHeader } from "./contacts-manager-header"
@@ -21,7 +23,7 @@ export function AdminDashboard() {
   const renderHeader = () => {
     switch (activeTab) {
       case "overview":
-        return <AdminHeader />
+        return <OverviewHeader />
       case "projects":
         return <ProjectsManagerHeader />
       case "contacts":
@@ -31,7 +33,7 @@ export function AdminDashboard() {
       case "settings":
         return <SettingsPanelHeader />
       default:
-        return <AdminHeader />
+        return <OverviewHeader />
     }
   }
 
@@ -45,7 +47,7 @@ export function AdminDashboard() {
 
           <main className="flex-1 p-6 bg-card">
             <div className="max-w-7xl mx-auto space-y-6">
-              {activeTab === "overview" && <AnalyticsOverview />}
+              {activeTab === "overview" && <OverviewDashboard />}
               {activeTab === "projects" && <ProjectsManager />}
               {activeTab === "contacts" && <ContactsManager />}
               {activeTab === "analytics" && <AnalyticsOverview />}

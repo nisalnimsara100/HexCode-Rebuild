@@ -1,8 +1,13 @@
-import { Card } from "@/components/ui/card"
-import { Code, Users, Award, Zap, Globe, Shield } from "lucide-react"
+"use client";
+
+import { Card } from "@/components/ui/card";
+import { Code, Users, Award, Zap, Globe, Shield } from "lucide-react";
+import { useState, useEffect } from "react";
+import { database } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
 
 export function StatsSection() {
-  const stats = [
+  const [stats, setStats] = useState([
     {
       number: "20+",
       label: "Projects Completed",
@@ -39,7 +44,25 @@ export function StatsSection() {
       icon: <Shield className="w-6 h-6" />,
       description: "Security-first development approach",
     },
-  ]
+  ]);
+
+  useEffect(() => {
+    const dbRef = ref(database, "analytics/overview/list");
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const updatedStats = stats.map((stat, index) => ({
+          ...stat,
+          number: data[index]?.value || stat.number,
+          label: data[index]?.title || stat.label,
+          description: data[index]?.description || stat.description,
+        }));
+        setStats(updatedStats);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <section className="py-20 bg-muted/30">
@@ -72,5 +95,5 @@ export function StatsSection() {
         </div>
       </div>
     </section>
-  )
+  );
 }
