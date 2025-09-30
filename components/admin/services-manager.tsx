@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Globe, Smartphone, Cloud, Database, Shield, Zap, Check, ArrowRight, Trash, Plus, Save, Star, Edit3, Package, DollarSign, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { Globe, Smartphone, Cloud, Database, Shield, Zap, Check, ArrowRight, Trash, Plus, Save, Star, Edit3, Package, DollarSign, FileText, CheckCircle, AlertCircle, PackageCheck, MonitorCog } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 
@@ -280,9 +280,25 @@ export function ServicesManager() {
     }
   };
 
+  // Add a loading spinner for the entire page
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-emerald-500 mx-auto"></div>
+          <p className="text-muted-foreground">Loading data, please wait...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-16">
       <div className="text-center space-y-4 mb-16">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-600 text-sm font-medium">
+              <MonitorCog className="w-4 h-4" />
+              Services Management
+            </div>
         <h3 className="text-4xl lg:text-5xl font-bold text-balance">Services Section</h3>
         {/* <p className="text-lg text-muted-foreground text-pretty max-w-2xl mx-auto">
           Choose the package that best fits your project requirements and budget.

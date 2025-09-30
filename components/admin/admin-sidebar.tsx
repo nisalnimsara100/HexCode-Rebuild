@@ -14,10 +14,10 @@ interface AdminSidebarProps {
 export function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarProps) {
   const menuItems = [
     { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" />, badge: null },
-    { id: "projects", label: "Projects", icon: <FolderOpen className="w-4 h-4" />, badge: "6" },
-    { id: "service", label: "Service", icon: <Globe className="w-4 h-4" />, badge: null },
-    { id: "contacts", label: "Contacts", icon: <Mail className="w-4 h-4" />, badge: "12" },
     { id: "analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" />, badge: null },
+    { id: "service", label: "Services", icon: <Globe className="w-4 h-4" />, badge: null },
+    { id: "projects", label: "Projects", icon: <FolderOpen className="w-4 h-4" />, badge: "6" },
+    { id: "contacts", label: "Contacts", icon: <Mail className="w-4 h-4" />, badge: "12" },
     { id: "settings", label: "Settings", icon: <Settings className="w-4 h-4" />, badge: null },
   ]
 

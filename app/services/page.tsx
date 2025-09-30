@@ -80,13 +80,15 @@ function ServicesSection({ services, loading }: { services: Service[], loading: 
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
+  const [packages, setPackages] = useState<Package[]>([])
+  const [loadingServices, setLoadingServices] = useState<boolean>(true)
+  const [loadingPackages, setLoadingPackages] = useState<boolean>(true)
 
   // Fetch services from the database
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        setLoading(true)
+        setLoadingServices(true)
         const response = await fetch("https://hexcode-website-897f4-default-rtdb.firebaseio.com/services.json")
         const data = await response.json()
 
@@ -114,59 +116,35 @@ export default function ServicesPage() {
       } catch (error) {
         console.error("Error fetching services:", error)
       } finally {
-        setLoading(false)
+        setLoadingServices(false)
       }
     }
 
     fetchServices()
   }, [])
 
-  const packages: Package[] = [
-    {
-      name: "Starter",
-      price: "$5,000",
-      description: "Perfect for small businesses and startups",
-      features: [
-        "Responsive Web Application",
-        "Basic SEO Optimization",
-        "Contact Form Integration",
-        "3 Months Support",
-        "Mobile Responsive Design",
-      ],
-      popular: false,
-    },
-    {
-      name: "Professional",
-      price: "$15,000",
-      description: "Ideal for growing businesses",
-      features: [
-        "Custom Web Application",
-        "Advanced SEO & Analytics",
-        "Payment Integration",
-        "User Authentication",
-        "6 Months Support",
-        "Performance Optimization",
-        "Third-party Integrations",
-      ],
-      popular: true,
-    },
-    {
-      name: "Enterprise",
-      price: "Custom",
-      description: "For large-scale applications",
-      features: [
-        "Full-scale Application",
-        "Custom Architecture",
-        "Advanced Security",
-        "Scalable Infrastructure",
-        "12 Months Support",
-        "DevOps & CI/CD",
-        "Team Training",
-        "24/7 Monitoring",
-      ],
-      popular: false,
-    },
-  ]
+  // Fetch packages from Firebase
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        setLoadingPackages(true)
+        const response = await fetch("https://hexcode-website-897f4-default-rtdb.firebaseio.com/pricingPackages.json")
+        const data = await response.json()
+
+        if (data && Array.isArray(data)) {
+          setPackages(data)
+        } else {
+          console.error("Invalid data format from Firebase")
+        }
+      } catch (error) {
+        console.error("Error fetching packages from Firebase:", error)
+      } finally {
+        setLoadingPackages(false)
+      }
+    }
+
+    fetchPackages()
+  }, [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -187,7 +165,7 @@ export default function ServicesPage() {
       </section>
 
       {/* Services Section */}
-      <ServicesSection services={services} loading={loading} />
+      <ServicesSection services={services} loading={loadingServices} />
 
       {/* Pricing Section */}
       <section className="py-20 bg-muted/30">
@@ -199,50 +177,56 @@ export default function ServicesPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {packages.map((pkg, index) => (
-              <Card
-                key={index}
-                className={`p-8 glass-effect hover:shadow-xl transition-all duration-300 relative ${
-                  pkg.popular ? "border-emerald-500 shadow-emerald-500/20" : ""
-                }`}
-              >
-                {pkg.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white">
-                    Most Popular
-                  </Badge>
-                )}
+          {loadingPackages ? (
+            <div className="flex justify-center items-center h-40">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-emerald-500"></div>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {packages.map((pkg, index) => (
+                <Card
+                  key={index}
+                  className={`p-8 glass-effect hover:shadow-xl transition-all duration-300 relative ${
+                    pkg.popular ? "border-emerald-500 shadow-emerald-500/20" : ""
+                  }`}
+                >
+                  {pkg.popular && (
+                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white">
+                      Most Popular
+                    </Badge>
+                  )}
 
-                <div className="space-y-6 flex flex-col justify-between h-full">
-                  <div className="text-center space-y-2">
-                    <h3 className="text-2xl font-bold">{pkg.name}</h3>
-                    <div className="text-3xl font-bold text-emerald-500">{pkg.price}</div>
-                    <p className="text-muted-foreground text-sm">{pkg.description}</p>
+                  <div className="space-y-6 flex flex-col justify-between h-full">
+                    <div className="text-center space-y-2">
+                      <h3 className="text-2xl font-bold">{pkg.name}</h3>
+                      <div className="text-3xl font-bold text-emerald-500">{pkg.price}</div>
+                      <p className="text-muted-foreground text-sm">{pkg.description}</p>
+                    </div>
+
+                    <ul className="space-y-3">
+                      {pkg.features.map((feature, idx) => (
+                        <li key={idx} className="flex items-center text-sm">
+                          <Check className="w-4 h-4 text-emerald-500 mr-3 flex-shrink-0" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Button
+                      className={`w-full ${
+                        pkg.popular
+                          ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                          : "border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
+                      }`}
+                    >
+                      Get Started
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
                   </div>
-
-                  <ul className="space-y-3">
-                    {pkg.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-center text-sm">
-                        <Check className="w-4 h-4 text-emerald-500 mr-3 flex-shrink-0" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Button
-                    className={`w-full ${
-                      pkg.popular
-                        ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-                        : "border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
-                    }`}
-                  >
-                    Get Started
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
