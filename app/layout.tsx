@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Inter, Outfit } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
+import { AuthProvider } from "@/components/auth/auth-context"
 import "./globals.css"
 
 const outfit = Outfit({
@@ -35,7 +36,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${outfit.variable} ${inter.variable} font-sans antialiased`}>
-        <Suspense fallback={null}>{children}</Suspense>
+        <AuthProvider>
+          <Suspense fallback={null}>{children}</Suspense>
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

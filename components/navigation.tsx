@@ -13,6 +13,9 @@ const navigation = [
   { name: "Services", href: "/services" },
   { name: "Projects", href: "/projects" },
   { name: "Contact", href: "/contact" },
+  { name: "Employee Portal", href: "/employee" },
+  { name: "Staff Admin", href: "/staff" },
+  { name: "Setup Data", href: "/setup" },
 ]
 
 export function Navigation() {
