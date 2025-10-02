@@ -18,7 +18,14 @@ const currentUser = {
 };
 
 // Mock useAuth hook
-const useAuth = () => ({ user: { uid: '12345' } });
+const useAuth = () => ({
+  user: {
+    uid: '12345',
+    photoURL: '/placeholder-user.jpg',
+    displayName: 'John Doe',
+    role: 'Developer',
+  },
+});
 
 // Define TicketItem type
 interface TicketItem {
@@ -451,12 +458,12 @@ export default function EmployeeView() {
               </Button>
               <div className="flex items-center space-x-3">
                 <Avatar>
-                  <AvatarImage src={currentUser.avatar} />
-                  <AvatarFallback>{currentUser.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                  <AvatarImage src={user?.photoURL || '/placeholder-user.jpg'} />
+                  <AvatarFallback>{user?.displayName?.split(' ').map(n => n[0]).join('') || 'U'}</AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium text-white">{currentUser.name}</p>
-                  <p className="text-xs text-gray-400">{currentUser.role}</p>
+                  <p className="text-sm font-medium text-white">{user?.displayName || 'Employee'}</p>
+                  <p className="text-xs text-gray-400">{user?.role || 'Role'}</p>
                 </div>
               </div>
               <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
@@ -467,345 +474,160 @@ export default function EmployeeView() {
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Dashboard Tab */}
-        {activeTab === "dashboard" && (
-          <div className="space-y-8">
-            {/* Welcome Section */}
-            <div className="text-center">
-              <h2 className="text-3xl font-bold text-white">
-                Welcome back, {currentUser.name.split(' ')[0]}!
-              </h2>
-              <p className="mt-2 text-gray-400">
-                Here's what's happening with your work today.
-              </p>
-            </div>
+        {/* Welcome Section */}
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-white">
+            Welcome back, {user?.displayName?.split(' ')[0] || 'Employee'}!
+          </h2>
+          <p className="mt-2 text-gray-400">
+            Here's what's happening with your work today.
+          </p>
+        </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-              <Card className="bg-gradient-to-br from-blue-900 to-blue-800 border-blue-700">
-                <div className="p-6">
-                  <div className="flex items-center">
-                    <CheckCircle className="h-8 w-8 text-blue-300" />
-                    <div className="ml-4">
-                      <p className="text-sm text-blue-200">Tasks Completed</p>
-                      <p className="text-2xl font-semibold text-white">{completedTasksThisWeek}</p>
-                      <p className="text-xs text-blue-300">This week</p>
-                    </div>
-                  </div>
+        {/* Stats */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
+          <Card className="bg-gradient-to-br from-blue-900 to-blue-800 border-blue-700">
+            <div className="p-6">
+              <div className="flex items-center">
+                <CheckCircle className="h-8 w-8 text-blue-300" />
+                <div className="ml-4">
+                  <p className="text-sm text-blue-200">Tasks Completed</p>
+                  <p className="text-2xl font-semibold text-white">{completedTasksThisWeek}</p>
+                  <p className="text-xs text-blue-300">This week</p>
                 </div>
-              </Card>
-              <Card className="bg-gradient-to-br from-emerald-900 to-emerald-800 border-emerald-700">
-                <div className="p-6">
-                  <div className="flex items-center">
-                    <Clock className="h-8 w-8 text-emerald-300" />
-                    <div className="ml-4">
-                      <p className="text-sm text-emerald-200">Hours Logged</p>
-                      <p className="text-2xl font-semibold text-white">{totalHoursThisWeek}</p>
-                      <p className="text-xs text-emerald-300">This week</p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-              <Card className="bg-gradient-to-br from-orange-900 to-orange-800 border-orange-700">
-                <div className="p-6">
-                  <div className="flex items-center">
-                    <AlertCircle className="h-8 w-8 text-orange-300" />
-                    <div className="ml-4">
-                      <p className="text-sm text-orange-200">Pending Tasks</p>
-                      <p className="text-2xl font-semibold text-white">
-                        {tasks.filter(t => t.status === "pending").length}
-                      </p>
-                      <p className="text-xs text-orange-300">Assigned to you</p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-              <Card className="bg-gradient-to-br from-purple-900 to-purple-800 border-purple-700">
-                <div className="p-6">
-                  <div className="flex items-center">
-                    <Briefcase className="h-8 w-8 text-purple-300" />
-                    <div className="ml-4">
-                      <p className="text-sm text-purple-200">Active Projects</p>
-                      <p className="text-2xl font-semibold text-white">{projects.length}</p>
-                      <p className="text-xs text-purple-300">Participating</p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Current Tasks & Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Current Tasks */}
-              <Card className="bg-gray-800 border-gray-700">
-                <div className="p-6">
-                  <h3 className="text-lg font-medium text-white mb-4">Active Tasks</h3>
-                  <div className="space-y-4">
-                    {tasks
-                      .filter(task => task.status === "in-progress" || task.status === "pending")
-                      .slice(0, 3)
-                      .map((task) => {
-                        const timeRemaining = getTimeRemaining(task.dueDate);
-                        const currentTime = timers[task.id] || task.timeSpent;
-                        
-                        return (
-                          <div key={task.id} className="bg-gray-700 p-4 rounded-lg">
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <h4 className="font-medium text-white truncate">{task.title}</h4>
-                                <p className="text-sm text-gray-400 mt-1">{task.project}</p>
-                              </div>
-                              <div className="flex items-center space-x-2 ml-4">
-                                <Badge className={getPriorityColor(task.priority)}>
-                                  {task.priority}
-                                </Badge>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => toggleTimer(task.id)}
-                                  className={`${
-                                    task.isTimerRunning 
-                                      ? "text-red-400 hover:text-red-300" 
-                                      : "text-emerald-400 hover:text-emerald-300"
-                                  }`}
-                                >
-                                  {task.isTimerRunning ? (
-                                    <PauseCircle className="h-4 w-4" />
-                                  ) : (
-                                    <PlayCircle className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className={`${timeRemaining.color} ${timeRemaining.urgent ? "font-semibold" : ""}`}>
-                                {timeRemaining.text}
-                              </span>
-                              <span className="text-gray-400 font-mono">
-                                {formatTime(currentTime)}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              </Card>
-
-              {/* Notifications */}
-              <Card className="bg-gray-800 border-gray-700">
-                <div className="p-6">
-                  <h3 className="text-lg font-medium text-white mb-4">Recent Notifications</h3>
-                  <div className="space-y-3">
-                    {notifications.slice(0, 5).map((notification) => (
-                      <div key={notification.id} className={`p-3 rounded-lg border-l-4 ${
-                        notification.type === "info" ? "bg-blue-900/20 border-blue-500" :
-                        notification.type === "success" ? "bg-emerald-900/20 border-emerald-500" :
-                        notification.type === "warning" ? "bg-orange-900/20 border-orange-500" :
-                        "bg-red-900/20 border-red-500"
-                      } ${!notification.read ? "bg-opacity-80" : "bg-opacity-40"}`}>
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="text-sm font-medium text-white">{notification.title}</h4>
-                            <p className="text-xs text-gray-400 mt-1">{notification.message}</p>
-                          </div>
-                          {!notification.read && (
-                            <div className="h-2 w-2 bg-emerald-500 rounded-full"></div>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          {new Date(notification.timestamp).toLocaleString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {/* Tasks Tab */}
-        {activeTab === "tasks" && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">My Tasks</h2>
-              <div className="flex space-x-2">
-                <Input
-                  placeholder="Search tasks..."
-                  className="w-64 bg-gray-700 border-gray-600 text-white"
-                />
               </div>
             </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-emerald-900 to-emerald-800 border-emerald-700">
+            <div className="p-6">
+              <div className="flex items-center">
+                <Clock className="h-8 w-8 text-emerald-300" />
+                <div className="ml-4">
+                  <p className="text-sm text-emerald-200">Hours Logged</p>
+                  <p className="text-2xl font-semibold text-white">{totalHoursThisWeek}</p>
+                  <p className="text-xs text-emerald-300">This week</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-orange-900 to-orange-800 border-orange-700">
+            <div className="p-6">
+              <div className="flex items-center">
+                <AlertCircle className="h-8 w-8 text-orange-300" />
+                <div className="ml-4">
+                  <p className="text-sm text-orange-200">Pending Tasks</p>
+                  <p className="text-2xl font-semibold text-white">
+                    {tasks.filter(t => t.status === "pending").length}
+                  </p>
+                  <p className="text-xs text-orange-300">Assigned to you</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-purple-900 to-purple-800 border-purple-700">
+            <div className="p-6">
+              <div className="flex items-center">
+                <Briefcase className="h-8 w-8 text-purple-300" />
+                <div className="ml-4">
+                  <p className="text-sm text-purple-200">Active Projects</p>
+                  <p className="text-2xl font-semibold text-white">{projects.length}</p>
+                  <p className="text-xs text-purple-300">Participating</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
 
-            <div className="space-y-4">
-              {tasks.map((task) => {
-                const timeRemaining = getTimeRemaining(task.dueDate);
-                const currentTime = timers[task.id] || task.timeSpent;
-                
-                return (
-                  <Card key={task.id} className="bg-gray-800 border-gray-700">
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="text-lg font-semibold text-white">{task.title}</h3>
-                            <Badge className={getStatusColor(task.status)}>
-                              {task.status.charAt(0).toUpperCase() + task.status.slice(1).replace('-', ' ')}
-                            </Badge>
+        {/* Current Tasks & Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Current Tasks */}
+          <Card className="bg-gray-800 border-gray-700">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-white mb-4">Active Tasks</h3>
+              <div className="space-y-4">
+                {tasks
+                  .filter(task => task.status === "in-progress" || task.status === "pending")
+                  .slice(0, 3)
+                  .map((task) => {
+                    const timeRemaining = getTimeRemaining(task.dueDate);
+                    const currentTime = timers[task.id] || task.timeSpent;
+
+                    return (
+                      <div key={task.id} className="bg-gray-700 p-4 rounded-lg">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-white truncate">{task.title}</h4>
+                            <p className="text-sm text-gray-400 mt-1">{task.project}</p>
+                          </div>
+                          <div className="flex items-center space-x-2 ml-4">
                             <Badge className={getPriorityColor(task.priority)}>
-                              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                              {task.priority}
                             </Badge>
-                          </div>
-                          <p className="text-gray-400 mb-3">{task.description}</p>
-                          <div className="flex items-center space-x-6 text-sm text-gray-400">
-                            <span>Project: {task.project}</span>
-                            <span className={timeRemaining.color}>
-                              Due: {timeRemaining.text}
-                            </span>
-                            <span>Estimated: {task.estimatedHours}h</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleTimer(task.id)}
+                              className={`${
+                                task.isTimerRunning
+                                  ? "text-red-400 hover:text-red-300"
+                                  : "text-emerald-400 hover:text-emerald-300"
+                              }`}
+                            >
+                              {task.isTimerRunning ? (
+                                <PauseCircle className="h-4 w-4" />
+                              ) : (
+                                <PlayCircle className="h-4 w-4" />
+                              )}
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2 ml-4">
-                          <div className="text-right">
-                            <p className="text-sm text-gray-400">Time Spent</p>
-                            <p className="text-lg font-mono text-white">{formatTime(currentTime)}</p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleTimer(task.id)}
-                            className={`${
-                              task.isTimerRunning 
-                                ? "text-red-400 hover:text-red-300" 
-                                : "text-emerald-400 hover:text-emerald-300"
-                            }`}
-                          >
-                            {task.isTimerRunning ? (
-                              <PauseCircle className="h-5 w-5" />
-                            ) : (
-                              <PlayCircle className="h-5 w-5" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="mb-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm text-gray-400">Progress</span>
-                          <span className="text-sm font-medium text-white">
-                            {Math.round((currentTime / (task.estimatedHours * 3600)) * 100) || 0}%
+                        <div className="flex items-center justify-between text-sm">
+                          <span className={`${timeRemaining.color} ${timeRemaining.urgent ? "font-semibold" : ""}`}>
+                            {timeRemaining.text}
+                          </span>
+                          <span className="text-gray-400 font-mono">
+                            {formatTime(currentTime)}
                           </span>
                         </div>
-                        <Progress
-                          value={Math.min((currentTime / (task.estimatedHours * 3600)) * 100, 100) || 0}
-                          className="h-2"
-                        />
                       </div>
-                    </div>
-                  </Card>
-                );
-              })}
+                    );
+                  })}
+              </div>
             </div>
-          </div>
-        )}
+          </Card>
 
-        {/* Projects Tab */}
-        {activeTab === "projects" && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white">My Projects</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => (
-                <Card key={project.id} className="bg-gray-800 border-gray-700">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white">{project.name}</h3>
-                        <p className="text-sm text-gray-400 mt-1">{project.description}</p>
+          {/* Notifications */}
+          <Card className="bg-gray-800 border-gray-700">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-white mb-4">Recent Notifications</h3>
+              <div className="space-y-3">
+                {notifications.slice(0, 5).map((notification) => (
+                  <div key={notification.id} className={`p-3 rounded-lg border-l-4 ${
+                    notification.type === "info" ? "bg-blue-900/20 border-blue-500" :
+                    notification.type === "success" ? "bg-emerald-900/20 border-emerald-500" :
+                    notification.type === "warning" ? "bg-orange-900/20 border-orange-500" :
+                    "bg-red-900/20 border-red-500"
+                  } ${!notification.read ? "bg-opacity-80" : "bg-opacity-40"}`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-white">{notification.title}</h4>
+                        <p className="text-xs text-gray-400 mt-1">{notification.message}</p>
                       </div>
-                      <Badge className={
-                        project.status === "active" ? "bg-emerald-100 text-emerald-800 border-emerald-200" :
-                        project.status === "planning" ? "bg-blue-100 text-blue-800 border-blue-200" :
-                        project.status === "on-hold" ? "bg-orange-100 text-orange-800 border-orange-200" :
-                        "bg-gray-100 text-gray-800 border-gray-200"
-                      }>
-                        {project.status.charAt(0).toUpperCase() + project.status.slice(1).replace('-', ' ')}
-                      </Badge>
+                      {!notification.read && (
+                        <div className="h-2 w-2 bg-emerald-500 rounded-full"></div>
+                      )}
                     </div>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm text-gray-400">Progress</span>
-                          <span className="text-sm font-medium text-white">{project.progress}%</span>
-                        </div>
-                        <Progress value={project.progress} className="h-2" />
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center text-gray-400">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          <span>Due: {new Date(project.dueDate).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center text-gray-400">
-                          <Users className="h-4 w-4 mr-1" />
-                          <span>{project.teamSize} members</span>
-                        </div>
-                      </div>
-                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {new Date(notification.timestamp).toLocaleString()}
+                    </p>
                   </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Timesheet Tab */}
-        {activeTab === "timesheet" && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Time Tracking</h2>
-              <div className="text-right">
-                <p className="text-sm text-gray-400">This Week</p>
-                <p className="text-2xl font-bold text-white">{totalHoursThisWeek} hours</p>
+                ))}
               </div>
             </div>
-
-            <Card className="bg-gray-800 border-gray-700">
-              <div className="p-6">
-                <h3 className="text-lg font-medium text-white mb-4">Recent Time Entries</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-700">
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Date</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Task</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Project</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">Hours</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {timeEntries.map((entry) => (
-                        <tr key={entry.id} className="border-b border-gray-700">
-                          <td className="py-3 px-4 text-sm text-white">
-                            {new Date(entry.date).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-white">{entry.task}</td>
-                          <td className="py-3 px-4 text-sm text-gray-400">{entry.project}</td>
-                          <td className="py-3 px-4 text-sm text-white text-right font-mono">
-                            {entry.hours}h
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
+          </Card>
+        </div>
       </div>
     </div>
   );

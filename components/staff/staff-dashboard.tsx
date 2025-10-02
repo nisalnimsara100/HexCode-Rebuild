@@ -2,376 +2,427 @@
 
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { useAuth } from "@/components/auth/auth-context";
-import EmployeeView from "./employee-view-simple";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CountdownTimer } from "@/components/ui/countdown-timer";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { database } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
+import { useAuth } from "@/components/auth/auth-context";
 import {
-  Users,
-  FolderOpen,
-  Ticket,
-  TrendingUp,
   Calendar,
   Clock,
-  AlertCircle,
+  AlertTriangle,
   CheckCircle,
-  Plus,
-  ArrowRight,
+  User,
+  Zap,
   Activity,
-  Target,
+  AlertCircle,
+  XCircle,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 
-interface DashboardStats {
-  totalEmployees: number;
-  activeProjects: number;
-  openTickets: number;
-  completedTasks: number;
-}
-
-interface RecentActivity {
+interface TicketItem {
   id: string;
-  type: "project" | "ticket" | "employee";
   title: string;
   description: string;
-  time: string;
-  status: "success" | "warning" | "info";
+  status: 'open' | 'in-progress' | 'review' | 'closed';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  assignedTo: {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string;
+  };
+  dueDate: string;
+  estimatedHours: number;
+  actualHours: number;
+  timeSpent: number;
+  tags: string[];
+  project: string;
+  department: string;
+  adminNotes?: string;
+  extraTimeReason?: string;
+  extraTimeAdded?: number;
+  ruralSituations?: {
+    type: string;
+    description: string;
+    timeExtension: number;
+    timestamp: string;
+  }[];
 }
 
-export function StaffDashboard() {
+export default function EmployeeView() {
   const { userProfile } = useAuth();
-  
-  // If user is an employee, show the focused employee view
-  if (userProfile?.role === "employee") {
-    return <EmployeeView />;
-  }
-
-  // For admin and manager roles, show the full dashboard
-  const [stats, setStats] = useState<DashboardStats>({
-    totalEmployees: 0,
-    activeProjects: 0,
-    openTickets: 0,
-    completedTasks: 0,
-  });
-  const [recentActivities] = useState<RecentActivity[]>([
-    {
-      id: "1",
-      type: "project",
-      title: "New Project Created",
-      description: "E-commerce Platform v2.0 has been created",
-      time: "2 hours ago",
-      status: "success",
-    },
-    {
-      id: "2",
-      type: "ticket",
-      title: "High Priority Ticket",
-      description: "Database performance issue reported",
-      time: "4 hours ago",
-      status: "warning",
-    },
-    {
-      id: "3",
-      type: "employee",
-      title: "New Employee Added",
-      description: "John Smith joined as Senior Developer",
-      time: "1 day ago",
-      status: "info",
-    },
-  ]);
+  const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeSidebar, setActiveSidebar] = useState("dashboard");
 
+  // Update current time every second
   useEffect(() => {
-    // Simulate fetching dashboard data
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        // In real implementation, fetch from Firebase
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setStats({
-          totalEmployees: 24,
-          activeProjects: 8,
-          openTickets: 15,
-          completedTasks: 127,
-        });
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
 
-    fetchDashboardData();
+    return () => clearInterval(timer);
   }, []);
 
-  const statCards = [
-    {
-      title: "Total Employees",
-      value: stats.totalEmployees,
-      icon: Users,
-      change: "+2 this month",
-      changeType: "positive" as const,
-      href: "/staff/employees",
-    },
-    {
-      title: "Active Projects",
-      value: stats.activeProjects,
-      icon: FolderOpen,
-      change: "+1 this week",
-      changeType: "positive" as const,
-      href: "/staff/projects",
-    },
-    {
-      title: "Open Tickets",
-      value: stats.openTickets,
-      icon: Ticket,
-      change: "-3 since yesterday",
-      changeType: "positive" as const,
-      href: "/staff/tickets",
-    },
-    {
-      title: "Completed Tasks",
-      value: stats.completedTasks,
-      icon: CheckCircle,
-      change: "+12 this week",
-      changeType: "positive" as const,
-      href: "/staff/assignments",
-    },
-  ];
+  // Fetch tickets assigned to current user
+  useEffect(() => {
+    if (!userProfile?.uid) {
+      setLoading(false);
+      return;
+    }
 
-  const quickActions = [
-    {
-      title: "Add Employee",
-      description: "Register new team member",
-      icon: Users,
-      href: "/staff/employees",
-      color: "bg-orange-600 hover:bg-orange-700",
-    },
-    {
-      title: "Create Project",
-      description: "Start new project",
-      icon: FolderOpen,
-      href: "/staff/projects",
-      color: "bg-orange-600 hover:bg-orange-700",
-    },
-    {
-      title: "Create Ticket",
-      description: "Add new task or issue",
-      icon: Ticket,
-      href: "/staff/tickets",
-      color: "bg-red-600 hover:bg-red-700",
-    },
-    {
-      title: "Assign Task",
-      description: "Delegate work to team",
-      icon: Target,
-      href: "/staff/assignments",
-      color: "bg-orange-600 hover:bg-orange-700",
-    },
-  ];
+    const ticketsRef = ref(database, 'tickets');
+    const unsubscribe = onValue(ticketsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const ticketsData = snapshot.val();
+        const ticketsList = Object.entries(ticketsData)
+          .map(([id, data]: [string, any]) => ({
+            id,
+            ...data
+          }))
+          .filter((ticket: TicketItem) => {
+            // Check if ticket has assignedTo and assignedTo has id
+            return ticket.assignedTo && 
+                   ticket.assignedTo.id && 
+                   ticket.assignedTo.id === userProfile.uid;
+          })
+          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        
+        setTickets(ticketsList);
+      } else {
+        // Add sample data when Firebase is empty
+        const sampleTickets: TicketItem[] = [
+          {
+            id: '1',
+            title: 'Website Bug Fix',
+            description: 'Fix responsive design issues on mobile devices',
+            status: 'in-progress',
+            priority: 'high',
+            assignedTo: {
+              id: userProfile.uid,
+              name: userProfile.name || 'Employee',
+              email: userProfile.email || '',
+              avatar: ''
+            },
+            dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
+            estimatedHours: 8,
+            actualHours: 0,
+            timeSpent: 3,
+            tags: ['frontend', 'css', 'responsive'],
+            project: 'Company Website',
+            department: 'Development'
+          },
+          {
+            id: '2',
+            title: 'Database Optimization',
+            description: 'Optimize database queries for better performance',
+            status: 'open',
+            priority: 'medium',
+            assignedTo: {
+              id: userProfile.uid,
+              name: userProfile.name || 'Employee',
+              email: userProfile.email || '',
+              avatar: ''
+            },
+            dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
+            estimatedHours: 12,
+            actualHours: 0,
+            timeSpent: 0,
+            tags: ['backend', 'database', 'performance'],
+            project: 'Internal Tools',
+            department: 'Development'
+          }
+        ];
+        setTickets(sampleTickets);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userProfile?.uid]);
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'open':
+        return <AlertCircle className="h-4 w-4 text-orange-400" />;
+      case 'in-progress':
+        return <Activity className="h-4 w-4 text-blue-400" />;
+      case 'review':
+        return <Clock className="h-4 w-4 text-yellow-400" />;
+      case 'closed':
+        return <CheckCircle className="h-4 w-4 text-green-400" />;
+      default:
+        return <XCircle className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open':
+        return "bg-orange-900 text-orange-300 border-orange-600";
+      case 'in-progress':
+        return "bg-blue-900 text-blue-300 border-blue-600";
+      case 'review':
+        return "bg-yellow-900 text-yellow-300 border-yellow-600";
+      case 'closed':
+        return "bg-green-900 text-green-300 border-green-600";
+      default:
+        return "bg-gray-900 text-gray-300 border-gray-600";
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'critical':
+        return <Zap className="h-3 w-3" />;
+      case 'high':
+        return <AlertTriangle className="h-3 w-3" />;
+      default:
+        return null;
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'critical':
+        return "bg-red-900 text-red-300 border-red-600";
+      case 'high':
+        return "bg-orange-900 text-orange-300 border-orange-600";
+      case 'medium':
+        return "bg-yellow-900 text-yellow-300 border-yellow-600";
+      case 'low':
+        return "bg-green-900 text-green-300 border-green-600";
+      default:
+        return "bg-gray-900 text-gray-300 border-gray-600";
+    }
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-orange-500 mx-auto"></div>
-          <p className="text-gray-400">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="text-gray-400">Loading your tasks...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="md:flex md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold leading-7 text-white sm:truncate sm:text-3xl sm:tracking-tight">
-            Staff Dashboard
-          </h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Welcome back! Here's what's happening with your team today.
-          </p>
+    <div className="min-h-screen bg-black p-4 sm:p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <div className="flex items-center justify-center space-x-4 mb-6">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={userProfile?.profilePicture || '/placeholder-user.jpg'} />
+              <AvatarFallback className="bg-blue-600 text-white font-bold">
+                {userProfile?.name?.split(' ').map((n: string) => n[0]).join('') || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="text-left">
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-white">
+                {getGreeting()}, {userProfile?.name || 'Employee'}!
+              </h1>
+              <p className="text-lg text-gray-300 mt-2">
+                Happy coding as a {userProfile?.role || 'team member'}!
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-center space-x-4 text-sm text-gray-400">
+            <div className="flex items-center space-x-2">
+              <Clock className="h-4 w-4" />
+              <span>{currentTime.toLocaleTimeString()}</span>
+            </div>
+            <Separator orientation="vertical" className="h-4" />
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4" />
+              <span>{currentTime.toLocaleDateString()}</span>
+            </div>
+          </div>
         </div>
-        <div className="mt-4 flex md:ml-4 md:mt-0">
-          <Button className="bg-orange-600 hover:bg-orange-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Quick Actions
-          </Button>
-        </div>
-      </div>
 
-      {/* Section Separator */}
-      <div className="border-t border-orange-500/20"></div>
+        {/* Section Separator */}
+        <div className="border-t border-orange-500/20"></div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card key={stat.title} className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors">
-            <div className="p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <stat.icon className="h-8 w-8 text-orange-500" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-400 truncate">
-                      {stat.title}
-                    </dt>
-                    <dd className="text-3xl font-semibold text-white">{stat.value}</dd>
-                  </dl>
-                </div>
+        {/* Tasks Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Card className="bg-gray-900/50 border-orange-700/50 p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-300">
+                {tickets.filter(t => t.status === 'open').length}
               </div>
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex items-center text-sm text-orange-400">
-                                  <TrendingUp className="h-6 w-6 text-yellow-400" />
-                  {stat.change}
-                </div>
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
+              <div className="text-sm text-orange-400">Open Tasks</div>
             </div>
           </Card>
-        ))}
-      </div>
-
-      {/* Section Separator */}
-      <div className="border-t border-orange-500/20"></div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* Quick Actions */}
-        <div className="lg:col-span-1">
-          <Card className="bg-gray-800 border-gray-700">
-            <div className="p-6">
-              <h3 className="text-lg font-medium text-white mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                {quickActions.map((action) => (
-                  <Button
-                    key={action.title}
-                    variant="ghost"
-                    className={`w-full justify-start h-auto p-4 ${action.color} text-white hover:text-white`}
-                  >
-                    <action.icon className="h-5 w-5 mr-3" />
-                    <div className="text-left">
-                      <div className="font-medium">{action.title}</div>
-                      <div className="text-sm opacity-80">{action.description}</div>
-                    </div>
-                  </Button>
-                ))}
+          <Card className="bg-gray-900/50 border-red-700/50 p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-300">
+                {tickets.filter(t => t.status === 'in-progress').length}
               </div>
+              <div className="text-sm text-red-400">In Progress</div>
+            </div>
+          </Card>
+          <Card className="bg-gray-900/50 border-yellow-700/50 p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-yellow-300">
+                {tickets.filter(t => t.status === 'review').length}
+              </div>
+              <div className="text-sm text-yellow-400">In Review</div>
+            </div>
+          </Card>
+          <Card className="bg-gray-900/50 border-green-700/50 p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-300">
+                {tickets.filter(t => t.status === 'closed').length}
+              </div>
+              <div className="text-sm text-green-400">Completed</div>
             </div>
           </Card>
         </div>
 
-        {/* Recent Activity */}
-        <div className="lg:col-span-2">
-          <Card className="bg-gray-800 border-gray-700">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-white">Recent Activity</h3>
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                  View All
-                </Button>
+        {/* Section Separator */}
+        <div className="border-t border-orange-500/20"></div>
+
+        {/* Task Cards */}
+        <div className="space-y-4">
+          {tickets.length === 0 ? (
+            <Card className="bg-gray-900 border-gray-700 p-8 text-center">
+              <div className="text-gray-400 space-y-2">
+                <CheckCircle className="h-12 w-12 mx-auto text-orange-400" />
+                <h3 className="text-lg font-medium text-white">No tasks assigned</h3>
+                <p>You don't have any tasks assigned at the moment.</p>
               </div>
-              <div className="space-y-4">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      {activity.status === "success" && (
-                        <CheckCircle className="h-5 w-5 text-orange-500" />
-                      )}
-                      {activity.status === "warning" && (
-                        <AlertCircle className="h-5 w-5 text-yellow-500" />
-                      )}
-                      {activity.status === "info" && (
-                        <Activity className="h-5 w-5 text-orange-500" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{activity.title}</p>
-                      <p className="text-sm text-gray-400">{activity.description}</p>
-                      <div className="mt-1 flex items-center space-x-2">
-                                        <Clock className="h-6 w-6 text-red-400" />
-                        <span className="text-xs text-gray-500">{activity.time}</span>
+            </Card>
+          ) : (
+            tickets.map((ticket) => (
+              <Card key={ticket.id} className="bg-gray-900 border-gray-700 hover:bg-gray-800 transition-all duration-200">
+                <div className="p-4 sm:p-6">
+                  <div className="space-y-4">
+                    
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <div className="flex items-center space-x-2 min-w-0 flex-1">
+                            {getStatusIcon(ticket.status)}
+                            <h3 className="text-lg font-semibold text-white truncate">
+                              {ticket.title}
+                            </h3>
+                          </div>
+                          <div className="flex flex-wrap gap-2 shrink-0">
+                            <Badge className={getStatusColor(ticket.status)}>
+                              {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1).replace('-', ' ')}
+                            </Badge>
+                            <Badge className={getPriorityColor(ticket.priority)}>
+                              <div className="flex items-center space-x-1">
+                                {getPriorityIcon(ticket.priority)}
+                                <span>{ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}</span>
+                              </div>
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-gray-400 text-sm sm:text-base mb-3 line-clamp-2">
+                          {ticket.description}
+                        </p>
                       </div>
                     </div>
+
+                    {/* Countdown Timer - Prominent Display */}
+                    <div className="mb-4">
+                      <CountdownTimer 
+                        dueDate={ticket.dueDate}
+                        priority={ticket.priority}
+                        size="lg"
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Admin Notes & Rural Situations */}
+                    {(ticket.adminNotes || ticket.extraTimeReason || ticket.ruralSituations?.length) && (
+                      <Card className="bg-gray-900/50 border-gray-600 p-3">
+                        <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
+                          <User className="h-4 w-4 mr-2" />
+                          Admin Notes
+                        </h4>
+                        
+                        {ticket.adminNotes && (
+                          <div className="text-sm text-gray-400 mb-2">
+                            <strong>Note:</strong> {ticket.adminNotes}
+                          </div>
+                        )}
+                        
+                        {ticket.extraTimeReason && (
+                          <div className="text-sm text-green-400 mb-2">
+                            <strong>Extra Time Added:</strong> {ticket.extraTimeAdded} hours - {ticket.extraTimeReason}
+                          </div>
+                        )}
+                        
+                        {ticket.ruralSituations?.map((situation, index) => (
+                          <div key={index} className="text-sm text-yellow-400 mb-1 flex items-center">
+                            {situation.type === 'electricity' ? <WifiOff className="h-3 w-3 mr-2" /> : <Wifi className="h-3 w-3 mr-2" />}
+                            <strong>{situation.type}:</strong> {situation.description} 
+                            <span className="text-gray-400 ml-2">
+                              (+{situation.timeExtension}h on {new Date(situation.timestamp).toLocaleDateString()})
+                            </span>
+                          </div>
+                        ))}
+                      </Card>
+                    )}
+
+                    {/* Task Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                      <div className="flex items-center text-gray-400">
+                        <Calendar className="h-4 w-4 mr-2 shrink-0" />
+                        <span>Due: {new Date(ticket.dueDate).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center text-gray-400">
+                        <Clock className="h-4 w-4 mr-2 shrink-0" />
+                        <span>Est: {ticket.estimatedHours}h</span>
+                      </div>
+                      <div className="flex items-center text-gray-400">
+                        <Activity className="h-4 w-4 mr-2 shrink-0" />
+                        <span>Project: {ticket.project}</span>
+                      </div>
+                    </div>
+
+                    {/* Tags */}
+                    {ticket.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {ticket.tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="outline"
+                            className="text-xs border-gray-600 text-gray-300"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
                   </div>
-                ))}
-              </div>
-            </div>
-          </Card>
+                </div>
+              </Card>
+            ))
+          )}
         </div>
-      </div>
 
-      {/* Section Separator */}
-      <div className="border-t border-orange-500/20"></div>
-
-      {/* Bottom Section - Today's Schedule */}
-      <Card className="bg-gray-800 border-gray-700">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-white flex items-center">
-              <Calendar className="h-5 w-5 mr-2" />
-              Today's Schedule
-            </h3>
-            <Badge variant="outline" className="border-gray-600 text-gray-300">
-              {new Date().toLocaleDateString()}
-            </Badge>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-300">Meetings</h4>
-              <div className="text-sm text-gray-400">
-                <div className="flex justify-between">
-                  <span>Team Standup</span>
-                  <span>09:00 AM</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Project Review</span>
-                  <span>02:00 PM</span>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-300">Deadlines</h4>
-              <div className="text-sm text-gray-400">
-                <div className="flex justify-between">
-                  <span>Website Redesign</span>
-                  <span>Today</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Bug Fixes</span>
-                  <span>Tomorrow</span>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-300">Team Status</h4>
-              <div className="text-sm text-gray-400">
-                <div className="flex justify-between">
-                  <span>Available</span>
-                  <span className="text-orange-400">18</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>On Leave</span>
-                  <span className="text-yellow-400">3</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Remote</span>
-                  <span className="text-orange-400">6</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Footer */}
-      <div className="mt-6 text-center text-xs text-orange-500">
-        <img src="/placeholder-logo.png" alt="HexCode Staff Logo" className="mx-auto h-12 w-auto" />
-        <p>HexCode Staff Portal © 2025</p>
-        <p>For support, contact IT Department</p>
       </div>
     </div>
   );

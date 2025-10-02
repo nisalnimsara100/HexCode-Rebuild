@@ -1,5 +1,5 @@
-import { StaffDashboard } from "@/components/staff/staff-dashboard";
+import EmployeeView from "@/components/staff/staff-dashboard";
 
 export default function StaffDashboardPage() {
-  return <StaffDashboard />;
+  return <EmployeeView />;
 }

@@ -23,31 +23,31 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-context";
 import { useSidebar } from "@/app/staff/layout";
 
-const getNavigationByRole = (role: string) => {
+const getNavigationByRole = (role: string, pathname: string) => {
   const baseNavigation = [
-    { name: "Dashboard", href: "/staff", icon: Home, current: true },
+    { name: "Dashboard", href: "/staff/dashboard", icon: Home, current: pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard") },
   ];
 
   if (role === "employee") {
     return [
       ...baseNavigation,
-      { name: "My Projects", href: "/staff/projects", icon: FolderOpen, current: false },
-      { name: "My Tickets", href: "/staff/tickets", icon: Ticket, current: false },
-      { name: "My Assignments", href: "/staff/assignments", icon: ClipboardList, current: false },
-      { name: "Settings", href: "/staff/settings", icon: Settings, current: false },
+      { name: "My Projects", href: "/staff/projects", icon: FolderOpen, current: pathname === "/staff/projects" },
+      { name: "My Tickets", href: "/staff/tickets", icon: Ticket, current: pathname === "/staff/tickets" },
+      { name: "My Assignments", href: "/staff/assignments", icon: ClipboardList, current: pathname === "/staff/assignments" },
+      { name: "Settings", href: "/staff/settings", icon: Settings, current: pathname === "/staff/settings" },
     ];
   }
 
   // For admin and manager roles
   return [
     ...baseNavigation,
-    { name: "Employees", href: "/staff/employees", icon: Users, current: false },
-    { name: "Projects", href: "/staff/projects", icon: FolderOpen, current: false },
-    { name: "Tickets", href: "/staff/tickets", icon: Ticket, current: false },
-    { name: "Teams", href: "/staff/teams", icon: UserCheck, current: false },
-    { name: "Assignments", href: "/staff/assignments", icon: ClipboardList, current: false },
-    { name: "Reports", href: "/staff/reports", icon: BarChart3, current: false },
-    { name: "Settings", href: "/staff/settings", icon: Settings, current: false },
+    { name: "Employees", href: "/staff/employees", icon: Users, current: pathname === "/staff/employees" },
+    { name: "Projects", href: "/staff/projects", icon: FolderOpen, current: pathname === "/staff/projects" },
+    { name: "Tickets", href: "/staff/tickets", icon: Ticket, current: pathname === "/staff/tickets" },
+    { name: "Teams", href: "/staff/teams", icon: UserCheck, current: pathname === "/staff/teams" },
+    { name: "Assignments", href: "/staff/assignments", icon: ClipboardList, current: pathname === "/staff/assignments" },
+    { name: "Reports", href: "/staff/reports", icon: BarChart3, current: pathname === "/staff/reports" },
+    { name: "Settings", href: "/staff/settings", icon: Settings, current: pathname === "/staff/settings" },
   ];
 };
 
@@ -65,6 +65,9 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
   const { userProfile } = useAuth();
   const [localCollapsed, setLocalCollapsed] = useState(false);
   
+  // Debug: log the current pathname
+  console.log('Current pathname:', pathname);
+  
   // Try to use context, fallback to local state
   let collapsed = localCollapsed;
   let toggleCollapsed = () => setLocalCollapsed(!localCollapsed);
@@ -77,7 +80,7 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
     // Context not available, use local state
   }
   
-  const navigation = getNavigationByRole(userProfile?.role || "employee");
+  const navigation = getNavigationByRole(userProfile?.role || "employee", pathname);
 
   return (
     <>
@@ -142,7 +145,8 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                               <Link
                                 href={item.href}
                                 className={classNames(
-                                  pathname === item.href
+                                  (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) || 
+                                  (item.name !== "Dashboard" && pathname === item.href)
                                     ? "bg-orange-700 text-white"
                                     : "text-gray-300 hover:text-white hover:bg-gray-800",
                                   "group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
@@ -150,7 +154,8 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                               >
                                 <item.icon
                                   className={classNames(
-                                    pathname === item.href
+                                    (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) || 
+                                    (item.name !== "Dashboard" && pathname === item.href)
                                       ? "text-white"
                                       : "text-gray-400 group-hover:text-white",
                                     "h-6 w-6 shrink-0"
@@ -206,7 +211,8 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                       <Link
                         href={item.href}
                         className={classNames(
-                          pathname === item.href
+                          (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) || 
+                          (item.name !== "Dashboard" && pathname === item.href)
                             ? "bg-orange-700 text-white"
                             : "text-gray-300 hover:text-white hover:bg-gray-800",
                           "group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold",
@@ -216,7 +222,8 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                       >
                         <item.icon
                           className={classNames(
-                            pathname === item.href
+                            (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) || 
+                            (item.name !== "Dashboard" && pathname === item.href)
                               ? "text-white"
                               : "text-gray-400 group-hover:text-white",
                             "h-6 w-6 shrink-0"
