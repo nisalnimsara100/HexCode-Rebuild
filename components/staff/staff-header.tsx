@@ -49,7 +49,7 @@ export function StaffHeader({ setSidebarOpen }: StaffHeaderProps) {
   };
 
   return (
-    <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-800 bg-gray-900 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+    <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-orange-500 bg-black px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
       <Button
         variant="ghost"
         className="-m-2.5 p-2.5 text-gray-400 lg:hidden"
@@ -60,7 +60,7 @@ export function StaffHeader({ setSidebarOpen }: StaffHeaderProps) {
       </Button>
 
       {/* Separator */}
-      <div className="h-6 w-px bg-gray-800 lg:hidden" aria-hidden="true" />
+      <div className="h-6 w-px bg-orange-500 lg:hidden" aria-hidden="true" />
 
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex flex-1 items-center">

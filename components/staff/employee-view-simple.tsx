@@ -197,7 +197,7 @@ export default function EmployeeView() {
       case 'low':
         return "bg-green-900 text-green-300 border-green-600";
       default:
-        return "bg-gray-900 text-gray-300 border-gray-600";
+        return "bg-black text-black border-black";
     }
   };
 

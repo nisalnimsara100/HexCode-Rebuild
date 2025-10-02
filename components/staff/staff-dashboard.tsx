@@ -366,6 +366,13 @@ export function StaffDashboard() {
           </div>
         </div>
       </Card>
+
+      {/* Footer */}
+      <div className="mt-6 text-center text-xs text-orange-500">
+        <img src="/placeholder-logo.png" alt="HexCode Staff Logo" className="mx-auto h-12 w-auto" />
+        <p>HexCode Staff Portal © 2025</p>
+        <p>For support, contact IT Department</p>
+      </div>
     </div>
   );
 }

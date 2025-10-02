@@ -17,6 +17,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  CircleUser
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-context";
@@ -173,10 +174,10 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
 
       {/* Static sidebar for desktop */}
       <div className={`hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ${collapsed ? 'lg:w-20' : 'lg:w-72'}`}>
-        <div className={`flex grow flex-col gap-y-5 overflow-y-auto bg-black pb-4 transition-all duration-300 ${collapsed ? 'px-3' : 'px-6'}`}>
+        <div className={`flex grow flex-col gap-y-5 overflow-y-auto bg-black pb-4 transition-all duration-300 ${collapsed ? 'px-3' : 'px-6'} border-r border-orange-500`}> 
           <div className="flex h-16 shrink-0 items-center justify-between">
             <div className="flex items-center">
-              <Building2 className="h-8 w-8 text-orange-500" />
+              <CircleUser className="h-8 w-8 text-orange-500" />
               {!collapsed && (
                 <span className="ml-2 text-xl font-bold text-white">
                   HexCode Staff

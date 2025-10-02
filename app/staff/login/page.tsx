@@ -44,8 +44,8 @@ export default function StaffLoginPage() {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Card className="bg-gray-900/80 backdrop-blur-sm border-orange-500/30 shadow-2xl">
-          <h2 className="text-2xl font-bold text-center mb-6 text-white">
+        <Card className="bg-gray-900/80 backdrop-blur-sm border-orange-500 shadow-2xl">
+          <h2 className="text-2xl font-bold text-center mb-6 text-orange-500">
             Staff Login
           </h2>
 
@@ -108,8 +108,7 @@ export default function StaffLoginPage() {
             </Button>
           </form>
         </Card>
-
-        <div className="mt-6 text-center text-xs text-gray-500">
+        <div className="mt-6 text-center text-xs text-orange-500">
           <p>HexCode Staff Portal © 2025</p>
           <p>For support, contact IT Department</p>
         </div>

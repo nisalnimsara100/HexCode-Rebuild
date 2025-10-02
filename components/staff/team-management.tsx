@@ -549,7 +549,7 @@ export function TeamManagement() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-blue-600 text-blue-400 hover:bg-blue-950"
+                  className="border-black text-black hover:bg-black"
                 >
                   <MessageCircle className="h-4 w-4" />
                 </Button>

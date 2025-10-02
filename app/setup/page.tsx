@@ -97,8 +97,8 @@ export default function SetupPage() {
                 </ul>
               </div>
 
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                <p className="text-blue-400 font-medium mb-3">🔑 Test Credentials:</p>
+              <div className="bg-black border border-black rounded-lg p-4">
+                <p className="text-white font-medium mb-3">🔑 Test Credentials:</p>
                 <div className="grid gap-3">
                   <div className="bg-slate-700/50 rounded p-3">
                     <p className="text-white font-medium">Admin Account</p>
