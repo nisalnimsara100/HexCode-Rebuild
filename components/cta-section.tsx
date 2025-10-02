@@ -1,8 +1,13 @@
+"use client";
+
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowRight, Mail, Phone } from "lucide-react"
+import { ClientAuthModal } from "@/components/client/client-auth-modal"
+import { useState } from "react"
 
 export function CTASection() {
+  const [showAuthModal, setShowAuthModal] = useState(false)
   return (
     <section className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -22,7 +27,11 @@ export function CTASection() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="bg-emerald-500 text-white hover:bg-emerald-600 px-8 group">
+              <Button 
+                size="lg" 
+                className="bg-emerald-500 text-white hover:bg-emerald-600 px-8 group"
+                onClick={() => setShowAuthModal(true)}
+              >
                 <Mail className="w-5 h-5 mr-2" />
                 Start Your Project
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -54,6 +63,12 @@ export function CTASection() {
           </div>
         </Card>
       </div>
+
+      {/* Client Auth Modal */}
+      <ClientAuthModal 
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </section>
   )
 }

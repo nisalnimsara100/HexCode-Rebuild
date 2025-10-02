@@ -1,8 +1,13 @@
+"use client";
+
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Infinity, Code, Zap, Database } from "lucide-react"
 import Image from "next/image"
+import { ClientAuthModal } from "@/components/client/client-auth-modal"
+import { useState } from "react"
 
 export function HeroSection() {
+  const [showAuthModal, setShowAuthModal] = useState(false)
   return (
     <section className="relative min-h-screen bg-background flex items-center overflow-hidden pt-16">
       <div className="absolute inset-0 opacity-5">
@@ -33,7 +38,11 @@ export function HeroSection() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button size="lg" className="bg-emerald-500 text-white hover:bg-emerald-600 px-8 group hover-lift">
+            <Button 
+              size="lg" 
+              className="bg-emerald-500 text-white hover:bg-emerald-600 px-8 group hover-lift"
+              onClick={() => setShowAuthModal(true)}
+            >
               Start Your Project
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
@@ -98,6 +107,12 @@ export function HeroSection() {
           </div>
         </div>
       </div>
+
+      {/* Client Auth Modal */}
+      <ClientAuthModal 
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </section>
   )
 }

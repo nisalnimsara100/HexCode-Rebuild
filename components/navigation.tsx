@@ -6,6 +6,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ClientAuthModal } from "@/components/client/client-auth-modal"
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -21,6 +22,7 @@ const navigation = [
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -60,7 +62,12 @@ export function Navigation() {
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-emerald-500 transition-all duration-300 group-hover:w-full"></span>
               </Link>
             ))}
-            <Button className="animate-pulse-glow hover-lift bg-emerald-500 hover:bg-emerald-600">Get Started</Button>
+            <Button 
+              className="animate-pulse-glow hover-lift bg-emerald-500 hover:bg-emerald-600"
+              onClick={() => setShowAuthModal(true)}
+            >
+              Get Started
+            </Button>
           </div>
 
           {/* Mobile menu button */}
@@ -85,11 +92,25 @@ export function Navigation() {
                   {item.name}
                 </Link>
               ))}
-              <Button className="w-full hover-lift bg-emerald-500 hover:bg-emerald-600">Get Started</Button>
+              <Button 
+                className="w-full hover-lift bg-emerald-500 hover:bg-emerald-600"
+                onClick={() => {
+                  setShowAuthModal(true);
+                  setIsOpen(false);
+                }}
+              >
+                Get Started
+              </Button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Client Auth Modal */}
+      <ClientAuthModal 
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </nav>
   )
 }
