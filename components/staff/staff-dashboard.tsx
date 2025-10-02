@@ -236,10 +236,10 @@ export default function EmployeeView() {
             </Avatar>
             <div className="text-left">
               <h1 className="text-3xl sm:text-4xl font-extrabold text-white">
-                {getGreeting()}, {userProfile?.name || 'Employee'}!
+                {getGreeting()}, {userProfile?.name || 'Team Member'}!
               </h1>
               <p className="text-lg text-gray-300 mt-2">
-                Happy coding as a {userProfile?.role || 'team member'}!
+                Welcome to your workspace, {userProfile?.role === 'admin' ? 'Administrator' : userProfile?.role === 'manager' ? 'Manager' : 'Developer'}!
               </p>
             </div>
           </div>

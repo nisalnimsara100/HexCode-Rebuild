@@ -10,11 +10,17 @@ export default function StaffPage() {
 
   useEffect(() => {
     if (userProfile) {
-      // User is authenticated, redirect to dashboard
-      router.push("/staff/dashboard");
+      // Redirect based on user role
+      if (userProfile.role === "admin") {
+        router.push("/admin/dashboard");
+      } else if (userProfile.role === "manager" || userProfile.role === "employee") {
+        router.push("/staff/dashboard");
+      } else {
+        router.push("/unauthorized");
+      }
     } else {
       // User is not authenticated, redirect to login
-      router.push("/login");
+      router.push("/staff/login");
     }
   }, [userProfile, router]);
 

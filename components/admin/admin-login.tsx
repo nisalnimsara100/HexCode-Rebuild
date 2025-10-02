@@ -3,6 +3,8 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/auth/auth-context"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,16 +16,35 @@ import Image from "next/image"
 export function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const { signIn } = useAuth()
+  const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate login process
-    setTimeout(() => {
+    setError("")
+    
+    // Get form data
+    const formData = new FormData(e.target as HTMLFormElement)
+    const email = formData.get('email') as string
+    const password = formData.get('password') as string
+    
+    try {
+      const userProfile = await signIn(email, password)
+      
+      // Check if user is admin
+      if (userProfile.role === 'admin') {
+        // Successful admin login
+        router.push('/admin')
+      } else {
+        setError('Access denied. Admin privileges required.')
+      }
+    } catch (error) {
+      setError('Invalid email or password. Please try again.')
+    } finally {
       setIsLoading(false)
-      // Redirect to admin dashboard
-      window.location.href = "/admin"
-    }, 2000)
+    }
   }
 
   return (
@@ -58,11 +79,18 @@ export function AdminLogin() {
 
           {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-4">
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-900/20 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="admin@hexcode.dev" className="pl-10" required />
+                <Input id="email" name="email" type="email" placeholder="admin@hexcode.dev" className="pl-10" required />
               </div>
             </div>
 
@@ -72,6 +100,7 @@ export function AdminLogin() {
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   className="pl-10 pr-10"
@@ -107,6 +136,16 @@ export function AdminLogin() {
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
+
+          {/* Registration Link */}
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              Need an admin account?{" "}
+              <a href="/admin/register" className="text-orange-500 hover:text-orange-600 font-medium">
+                Register here
+              </a>
+            </p>
+          </div>
 
           {/* Security Notice */}
           <div className="text-center">

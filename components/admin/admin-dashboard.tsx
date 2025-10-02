@@ -1,66 +1,911 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/auth/auth-context"
 import { AdminSidebar } from "./admin-sidebar"
 import { AdminHeader } from "./admin-header"
-import { OverviewHeader } from "./overview-header" 
-import { ProjectsManager } from "./projects-manager"
-import { ContactsManager } from "./contacts-manager"
-import { AnalyticsOverview } from "./analytics-overview"
-import { OverviewDashboard } from "./overview-dashboard"
-import { SettingsPanel } from "./settings-panel"
+import { ServicesManager } from "./services-manager" 
+import { WebsiteOverview, ServicesManagement, PortfolioManagement, WebsiteStats, ContentManagement, WebsiteSettings, PricePackagesManagement } from "./website-components-fixed"
+import {
+  BarChart3,
+  Users,
+  FolderOpen,
+  Settings,
+  AlertCircle,
+  TrendingUp,
+  Activity,
+  Shield,
+  Clock,
+  Calendar,
+  AlertTriangle,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Plus,
+  MoreHorizontal,
+  Ticket,
+  CheckSquare,
+  Globe,
+  UserCheck,
+  Edit,
+  Trash2,
+  Eye,
+  Save,
+  X,
+  Image,
+  FileText,
+  PieChart,
+  Briefcase,
+  Package,
+  DollarSign
+} from "lucide-react" 
+import { OverviewHeader } from "./overview-header"
 import { ProjectsManagerHeader } from "./projects-manager-header"
 import { ContactsManagerHeader } from "./contacts-manager-header"
 import { AnalyticsOverviewHeader } from "./analytics-overview-header"
 import { SettingsPanelHeader } from "./settings-panel-header"
-import { ServicesManager } from "./services-manager" 
-import { ServicesManagerHeader } from "./services-manager-header" 
+import { ServicesManagerHeader } from "./services-manager-header"
 
-// Standardize header height
-const headerStyles = "text-2xl font-bold text-foreground h-16 flex items-center"
-
-export function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overview")
-
-  const renderHeader = () => {
-    switch (activeTab) {
-      case "overview":
-        return <OverviewHeader />
-      case "projects":
-        return <ProjectsManagerHeader />
-      case "contacts":
-        return <ContactsManagerHeader />
-      case "analytics":
-        return <AnalyticsOverviewHeader />
-      case "settings":
-        return <SettingsPanelHeader />
-      case "service":
-        return <ServicesManagerHeader />
-      default:
-        return <OverviewHeader />
-    }
-  }
+// Staff Management Components
+function StaffOverviewDashboard() {
+  const [staffStats] = useState({
+    totalStaff: 12,
+    activeTickets: 24,
+    completedTasks: 89,
+    pendingAssignments: 7,
+    onlineStaff: 8,
+    projectsInProgress: 5
+  })
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex">
-        <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="space-y-6">
+      {/* Staff Overview Header */}
+      <div className="bg-gradient-to-r from-orange-500 to-red-600 text-white p-8 rounded-xl">
+        <h2 className="text-3xl font-bold mb-2">Staff Management Overview</h2>
+        <p className="text-orange-100">Monitor and manage your team's productivity and assignments</p>
+      </div>
 
-        <div className="flex-1 flex flex-col"> {/* Removed 'ml-64' to align content properly */}
-          {renderHeader()} {/* Dynamically render headers based on activeTab */}
-
-          <main className="flex-1 p-6 bg-card">
-            <div className="max-w-7xl mx-auto space-y-6">
-              {activeTab === "overview" && <OverviewDashboard />}
-              {activeTab === "projects" && <ProjectsManager />}
-              {activeTab === "contacts" && <ContactsManager />}
-              {activeTab === "analytics" && <AnalyticsOverview />}
-              {activeTab === "settings" && <SettingsPanel />}
-              {activeTab === "service" && <ServicesManager />} 
+      {/* Staff Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-orange-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-orange-400 font-semibold">Total Staff</h3>
+              <p className="text-3xl font-bold text-white">{staffStats.totalStaff}</p>
+              <p className="text-gray-400 text-sm">{staffStats.onlineStaff} currently online</p>
             </div>
-          </main>
+            <Users className="w-12 h-12 text-orange-500" />
+          </div>
+        </div>
+
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-blue-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-blue-400 font-semibold">Active Tickets</h3>
+              <p className="text-3xl font-bold text-white">{staffStats.activeTickets}</p>
+              <p className="text-gray-400 text-sm">{staffStats.pendingAssignments} pending assignment</p>
+            </div>
+            <AlertCircle className="w-12 h-12 text-blue-500" />
+          </div>
+        </div>
+
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-green-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-green-400 font-semibold">Completed Tasks</h3>
+              <p className="text-3xl font-bold text-white">{staffStats.completedTasks}</p>
+              <p className="text-gray-400 text-sm">This month</p>
+            </div>
+            <Activity className="w-12 h-12 text-green-500" />
+          </div>
+        </div>
+
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-purple-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-purple-400 font-semibold">Projects</h3>
+              <p className="text-3xl font-bold text-white">{staffStats.projectsInProgress}</p>
+              <p className="text-gray-400 text-sm">In progress</p>
+            </div>
+            <FolderOpen className="w-12 h-12 text-purple-500" />
+          </div>
+        </div>
+
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-yellow-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-yellow-400 font-semibold">Productivity</h3>
+              <p className="text-3xl font-bold text-white">94%</p>
+              <p className="text-gray-400 text-sm">Team efficiency</p>
+            </div>
+            <TrendingUp className="w-12 h-12 text-yellow-500" />
+          </div>
+        </div>
+
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-red-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-red-400 font-semibold">Overdue</h3>
+              <p className="text-3xl font-bold text-white">3</p>
+              <p className="text-gray-400 text-sm">Tasks need attention</p>
+            </div>
+            <Clock className="w-12 h-12 text-red-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <button className="bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
+          <AlertCircle className="w-6 h-6" />
+          <span className="font-medium">Assign New Ticket</span>
+        </button>
+        <button className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
+          <Users className="w-6 h-6" />
+          <span className="font-medium">Manage Staff</span>
+        </button>
+        <button className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
+          <FolderOpen className="w-6 h-6" />
+          <span className="font-medium">Create Project</span>
+        </button>
+        <button className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
+          <BarChart3 className="w-6 h-6" />
+          <span className="font-medium">View Reports</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SystemManagementPanel() {
+  return (
+    <div className="space-y-6">
+      <div className="bg-gray-900 p-6 rounded-xl">
+        <h2 className="text-2xl font-bold text-white mb-4">System Management</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-green-400 font-semibold">Server Status</h3>
+            <p className="text-xl font-bold text-white">Online</p>
+            <p className="text-gray-400 text-sm">99.9% uptime</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-yellow-400 font-semibold">CPU Usage</h3>
+            <p className="text-xl font-bold text-white">45%</p>
+            <p className="text-gray-400 text-sm">Normal load</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-blue-400 font-semibold">Memory</h3>
+            <p className="text-xl font-bold text-white">67%</p>
+            <p className="text-gray-400 text-sm">8GB used</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-purple-400 font-semibold">Storage</h3>
+            <p className="text-xl font-bold text-white">234GB</p>
+            <p className="text-gray-400 text-sm">Available</p>
+          </div>
+        </div>
+        <div className="flex space-x-4">
+          <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+            System Health Check
+          </button>
+          <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
+            Restart Services
+          </button>
+          <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
+            Emergency Shutdown
+          </button>
         </div>
       </div>
     </div>
   )
 }
+
+function SecurityManagementPanel() {
+  return (
+    <div className="space-y-6">
+      <div className="bg-gray-900 p-6 rounded-xl">
+        <h2 className="text-2xl font-bold text-white mb-4">Security Management</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-green-400 font-semibold">Security Score</h3>
+            <p className="text-2xl font-bold text-white">A+</p>
+            <p className="text-gray-400 text-sm">Excellent</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-yellow-400 font-semibold">Threats Blocked</h3>
+            <p className="text-2xl font-bold text-white">47</p>
+            <p className="text-gray-400 text-sm">This month</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-red-400 font-semibold">Failed Logins</h3>
+            <p className="text-2xl font-bold text-white">3</p>
+            <p className="text-gray-400 text-sm">Last 24 hours</p>
+          </div>
+        </div>
+        <div className="flex space-x-4">
+          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+            Security Scan
+          </button>
+          <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
+            Update Firewall
+          </button>
+          <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+            Generate Report
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StaffTicketManagement() {
+  const [tickets] = useState([
+    { 
+      id: 1, 
+      title: "Fix responsive design issues on mobile", 
+      description: "Mobile layout breaks on devices smaller than 768px",
+      assignee: "John Smith", 
+      assigneeEmail: "john@hexcode.com",
+      status: "open", 
+      priority: "high", 
+      created: "2025-10-01",
+      dueDate: "2025-10-05",
+      estimatedHours: 8,
+      category: "Frontend",
+      project: "E-commerce Platform"
+    },
+    { 
+      id: 2, 
+      title: "Update API documentation", 
+      description: "Update REST API docs with new endpoints",
+      assignee: "Sarah Johnson", 
+      assigneeEmail: "sarah@hexcode.com",
+      status: "in-progress", 
+      priority: "medium", 
+      created: "2025-09-30",
+      dueDate: "2025-10-03",
+      estimatedHours: 4,
+      category: "Documentation",
+      project: "Internal Tools"
+    },
+    { 
+      id: 3, 
+      title: "Database performance optimization", 
+      description: "Optimize slow queries in user management module",
+      assignee: "Mike Davis", 
+      assigneeEmail: "mike@hexcode.com",
+      status: "review", 
+      priority: "high", 
+      created: "2025-09-29",
+      dueDate: "2025-10-02",
+      estimatedHours: 12,
+      category: "Backend",
+      project: "User Management"
+    },
+    { 
+      id: 4, 
+      title: "Implement dark mode toggle", 
+      description: "Add dark/light mode switch in user preferences",
+      assignee: "Emily Chen", 
+      assigneeEmail: "emily@hexcode.com",
+      status: "closed", 
+      priority: "low", 
+      created: "2025-09-28",
+      dueDate: "2025-10-01",
+      estimatedHours: 6,
+      category: "UI/UX",
+      project: "Dashboard Redesign"
+    },
+  ])
+
+  const [availableStaff] = useState([
+    { name: "John Smith", email: "john@hexcode.com", department: "Frontend", workload: 75 },
+    { name: "Sarah Johnson", email: "sarah@hexcode.com", department: "Documentation", workload: 60 },
+    { name: "Mike Davis", email: "mike@hexcode.com", department: "Backend", workload: 90 },
+    { name: "Emily Chen", email: "emily@hexcode.com", department: "UI/UX", workload: 45 },
+    { name: "Alex Rodriguez", email: "alex@hexcode.com", department: "DevOps", workload: 30 },
+  ])
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open': return 'bg-orange-500'
+      case 'in-progress': return 'bg-blue-500'
+      case 'review': return 'bg-yellow-500'
+      case 'closed': return 'bg-green-500'
+      default: return 'bg-gray-500'
+    }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'critical': return 'text-red-600 bg-red-100'
+      case 'high': return 'text-red-400 bg-red-900/20'
+      case 'medium': return 'text-yellow-400 bg-yellow-900/20'
+      case 'low': return 'text-green-400 bg-green-900/20'
+      default: return 'text-gray-400 bg-gray-900/20'
+    }
+  }
+
+  const getWorkloadColor = (workload: number) => {
+    if (workload >= 80) return 'text-red-400'
+    if (workload >= 60) return 'text-yellow-400'
+    return 'text-green-400'
+  }
+
+  const isOverdue = (dueDate: string) => {
+    return new Date(dueDate) < new Date()
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-gray-900 p-6 rounded-xl">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Staff Ticket Management</h2>
+            <p className="text-gray-400">Assign and track tickets across your team</p>
+          </div>
+          <div className="flex space-x-3">
+            <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4" />
+              <span>Create Ticket</span>
+            </button>
+            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+              <Users className="w-4 h-4" />
+              <span>Bulk Assign</span>
+            </button>
+          </div>
+        </div>
+        
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-orange-400 font-semibold">Open</h3>
+            <p className="text-2xl font-bold text-white">{tickets.filter(t => t.status === 'open').length}</p>
+            <p className="text-gray-400 text-xs">Need assignment</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-blue-400 font-semibold">In Progress</h3>
+            <p className="text-2xl font-bold text-white">{tickets.filter(t => t.status === 'in-progress').length}</p>
+            <p className="text-gray-400 text-xs">Active work</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-yellow-400 font-semibold">In Review</h3>
+            <p className="text-2xl font-bold text-white">{tickets.filter(t => t.status === 'review').length}</p>
+            <p className="text-gray-400 text-xs">Pending approval</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-green-400 font-semibold">Completed</h3>
+            <p className="text-2xl font-bold text-white">{tickets.filter(t => t.status === 'closed').length}</p>
+            <p className="text-gray-400 text-xs">This month</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-red-400 font-semibold">Overdue</h3>
+            <p className="text-2xl font-bold text-white">{tickets.filter(t => isOverdue(t.dueDate) && t.status !== 'closed').length}</p>
+            <p className="text-gray-400 text-xs">Need attention</p>
+          </div>
+        </div>
+
+        {/* Tickets Table */}
+        <div className="bg-gray-800 rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Ticket Details</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Assigned To</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Priority</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Due Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {tickets.map((ticket) => (
+                  <tr key={ticket.id} className="hover:bg-gray-700/50">
+                    <td className="px-6 py-4">
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-white">{ticket.title}</div>
+                        <div className="text-xs text-gray-400">#{ticket.id} • {ticket.project}</div>
+                        <div className="text-xs text-gray-500">{ticket.category} • {ticket.estimatedHours}h estimated</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                          {ticket.assignee.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <div>
+                          <div className="text-sm text-white">{ticket.assignee}</div>
+                          <div className="text-xs text-gray-400">{ticket.assigneeEmail}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(ticket.status)} text-white`}>
+                        {ticket.status.replace('-', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(ticket.priority)}`}>
+                        {ticket.priority.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-white">{ticket.dueDate}</div>
+                      {isOverdue(ticket.dueDate) && ticket.status !== 'closed' && (
+                        <div className="text-xs text-red-400">Overdue</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex space-x-2">
+                        <button className="text-blue-400 hover:text-blue-300 text-xs bg-blue-900/20 px-2 py-1 rounded">Edit</button>
+                        <button className="text-green-400 hover:text-green-300 text-xs bg-green-900/20 px-2 py-1 rounded">Reassign</button>
+                        <button className="text-yellow-400 hover:text-yellow-300 text-xs bg-yellow-900/20 px-2 py-1 rounded">Update</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Staff Workload Overview */}
+      <div className="bg-gray-900 p-6 rounded-xl">
+        <h3 className="text-xl font-bold text-white mb-4">Staff Workload Overview</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {availableStaff.map((staff, index) => (
+            <div key={index} className="bg-gray-800 p-4 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                    {staff.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-white">{staff.name}</div>
+                    <div className="text-xs text-gray-400">{staff.department}</div>
+                  </div>
+                </div>
+                <div className={`text-sm font-medium ${getWorkloadColor(staff.workload)}`}>
+                  {staff.workload}%
+                </div>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    staff.workload >= 80 ? 'bg-red-500' : 
+                    staff.workload >= 60 ? 'bg-yellow-500' : 'bg-green-500'
+                  }`}
+                  style={{ width: `${staff.workload}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <span className="text-xs text-gray-400">Workload</span>
+                <button className="text-xs text-orange-400 hover:text-orange-300">Assign Task</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function AdminDashboard() {
+  const { userProfile } = useAuth()
+  const [activeTab, setActiveTab] = useState("staff-overview")
+  const [activeSection, setActiveSection] = useState<"staff" | "website">("staff")
+
+  return (
+    <div className="min-h-screen bg-black">
+      {/* Modern Admin Header */}
+      <header className="bg-gray-900 border-b border-orange-500/20 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">H</span>
+                </div>
+                <span className="text-white text-xl font-bold">HexCode Admin</span>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right text-sm">
+                <p className="text-white font-medium">{userProfile?.name || 'Administrator'}</p>
+                <p className="text-orange-400">{userProfile?.role?.toUpperCase() || 'ADMIN'} • {userProfile?.department || 'Management'}</p>
+              </div>
+              <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold">
+                  {userProfile?.name?.split(' ').map((n: string) => n[0]).join('') || 'A'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Section Toggle */}
+      <div className="bg-gray-900/50 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-1 py-2">
+            <button
+              onClick={() => {
+                setActiveSection("staff")
+                setActiveTab("staff-overview")
+              }}
+              className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors ${
+                activeSection === "staff"
+                  ? 'bg-orange-500 text-white'
+                  : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
+              }`}
+            >
+              <Users className="w-4 h-4 inline mr-2" />
+              Staff Management
+            </button>
+            <button
+              onClick={() => {
+                setActiveSection("website")
+                setActiveTab("website-overview")
+              }}
+              className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors ${
+                activeSection === "website"
+                  ? 'bg-orange-500 text-white'
+                  : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
+              }`}
+            >
+              <Globe className="w-4 h-4 inline mr-2" />
+              Website Management
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="bg-gray-900/50 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-8">
+            {(activeSection === "staff" ? [
+              { id: 'staff-overview', label: 'Staff Overview', icon: <BarChart3 className="w-4 h-4" /> },
+              { id: 'tickets', label: 'Ticket Management', icon: <AlertCircle className="w-4 h-4" /> },
+              { id: 'assignments', label: 'Task Assignments', icon: <Users className="w-4 h-4" /> },
+              { id: 'projects', label: 'Project Management', icon: <FolderOpen className="w-4 h-4" /> },
+              { id: 'team', label: 'Team Management', icon: <Users className="w-4 h-4" /> },
+              { id: 'reports', label: 'Staff Reports', icon: <TrendingUp className="w-4 h-4" /> },
+              { id: 'settings', label: 'Staff Settings', icon: <Settings className="w-4 h-4" /> }
+            ] : [
+              { id: 'website-overview', label: 'Website Overview', icon: <Globe className="w-4 h-4" /> },
+              { id: 'services', label: 'Services Management', icon: <Package className="w-4 h-4" /> },
+              { id: 'packages', label: 'Price Packages', icon: <DollarSign className="w-4 h-4" /> },
+              { id: 'portfolio', label: 'Portfolio Management', icon: <Briefcase className="w-4 h-4" /> },
+              { id: 'analytics', label: 'Website Analytics', icon: <BarChart3 className="w-4 h-4" /> },
+              { id: 'content', label: 'Content Management', icon: <FileText className="w-4 h-4" /> },
+              { id: 'web-settings', label: 'Website Settings', icon: <Settings className="w-4 h-4" /> }
+            ]).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-orange-500 text-orange-500'
+                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Staff Management Section */}
+        {activeSection === "staff" && (
+          <>
+            {activeTab === "staff-overview" && <StaffOverviewDashboard />}
+            {activeTab === "tickets" && <StaffTicketManagement />}
+            {activeTab === "assignments" && <TaskAssignmentPanel />}
+            {activeTab === "projects" && <StaffProjectManagement />}
+            {activeTab === "team" && <TeamManagementPanel />}
+            {activeTab === "reports" && <StaffReportsPanel />}
+            {activeTab === "settings" && <StaffSettingsPanel />}
+          </>
+        )}
+
+        {/* Website Management Section */}
+        {activeSection === "website" && (
+          <>
+            {activeTab === "website-overview" && <WebsiteOverview />}
+            {activeTab === "services" && <ServicesManagement />}
+            {activeTab === "packages" && <PricePackagesManagement />}
+            {activeTab === "portfolio" && <PortfolioManagement />}
+            {activeTab === "analytics" && <WebsiteStats />}
+            {activeTab === "content" && <ContentManagement />}
+            {activeTab === "web-settings" && <WebsiteSettings />}
+          </>
+        )}
+      </main>
+    </div>
+  )
+}
+
+function TaskAssignmentPanel() {
+  const [assignments] = useState([
+    {
+      id: 1,
+      title: "Code Review - Authentication Module",
+      assignedTo: "Sarah Johnson",
+      assignedBy: "Admin",
+      deadline: "2025-10-03",
+      status: "pending",
+      priority: "high",
+      description: "Review new authentication code and provide feedback",
+      estimatedHours: 3,
+      progress: 0
+    },
+    {
+      id: 2,
+      title: "Database Migration Testing",
+      assignedTo: "Mike Davis",
+      assignedBy: "Admin",
+      deadline: "2025-10-05",
+      status: "in-progress",
+      priority: "critical",
+      description: "Test database migration scripts on staging environment",
+      estimatedHours: 8,
+      progress: 45
+    },
+    {
+      id: 3,
+      title: "UI Component Documentation",
+      assignedTo: "Emily Chen",
+      assignedBy: "Admin",
+      deadline: "2025-10-07",
+      status: "completed",
+      priority: "medium",
+      description: "Document all reusable UI components with examples",
+      estimatedHours: 6,
+      progress: 100
+    }
+  ])
+
+  const [teamMembers] = useState([
+    { name: "John Smith", email: "john@hexcode.com", role: "Senior Developer", availability: "Available" },
+    { name: "Sarah Johnson", email: "sarah@hexcode.com", role: "Frontend Developer", availability: "Busy" },
+    { name: "Mike Davis", email: "mike@hexcode.com", role: "Backend Developer", availability: "Available" },
+    { name: "Emily Chen", email: "emily@hexcode.com", role: "UI/UX Designer", availability: "Available" },
+    { name: "Alex Rodriguez", email: "alex@hexcode.com", role: "DevOps Engineer", availability: "On Leave" }
+  ])
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-500'
+      case 'in-progress': return 'bg-blue-500'
+      case 'completed': return 'bg-green-500'
+      case 'overdue': return 'bg-red-500'
+      default: return 'bg-gray-500'
+    }
+  }
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'critical': return <AlertTriangle className="w-4 h-4 text-red-500" />
+      case 'high': return <ArrowUp className="w-4 h-4 text-orange-500" />
+      case 'medium': return <Minus className="w-4 h-4 text-yellow-500" />
+      case 'low': return <ArrowDown className="w-4 h-4 text-green-500" />
+      default: return <Minus className="w-4 h-4 text-gray-500" />
+    }
+  }
+
+  const getAvailabilityColor = (availability: string) => {
+    switch (availability) {
+      case 'Available': return 'text-green-400'
+      case 'Busy': return 'text-yellow-400'
+      case 'On Leave': return 'text-red-400'
+      default: return 'text-gray-400'
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-gray-900 p-6 rounded-xl">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Task Assignment Dashboard</h2>
+            <p className="text-gray-400">Delegate and track task assignments across your team</p>
+          </div>
+          <div className="flex space-x-3">
+            <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+              <Plus className="w-4 h-4" />
+              <span>New Assignment</span>
+            </button>
+            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+              <Calendar className="w-4 h-4" />
+              <span>Schedule Tasks</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Assignment Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-yellow-400 font-semibold">Pending</h3>
+            <p className="text-2xl font-bold text-white">{assignments.filter(a => a.status === 'pending').length}</p>
+            <p className="text-gray-400 text-xs">Awaiting start</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-blue-400 font-semibold">In Progress</h3>
+            <p className="text-2xl font-bold text-white">{assignments.filter(a => a.status === 'in-progress').length}</p>
+            <p className="text-gray-400 text-xs">Active work</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-green-400 font-semibold">Completed</h3>
+            <p className="text-2xl font-bold text-white">{assignments.filter(a => a.status === 'completed').length}</p>
+            <p className="text-gray-400 text-xs">This week</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-orange-400 font-semibold">Team Load</h3>
+            <p className="text-2xl font-bold text-white">73%</p>
+            <p className="text-gray-400 text-xs">Average capacity</p>
+          </div>
+        </div>
+
+        {/* Active Assignments */}
+        <div className="bg-gray-800 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Active Assignments</h3>
+          <div className="space-y-4">
+            {assignments.map((assignment) => (
+              <div key={assignment.id} className="bg-gray-700 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    {getPriorityIcon(assignment.priority)}
+                    <h4 className="text-white font-medium">{assignment.title}</h4>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(assignment.status)} text-white`}>
+                      {assignment.status.replace('-', ' ')}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm text-gray-400">{assignment.estimatedHours}h estimated</span>
+                    <button className="text-orange-400 hover:text-orange-300">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                  <div>
+                    <span className="text-xs text-gray-400">Assigned To</span>
+                    <p className="text-sm text-white font-medium">{assignment.assignedTo}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400">Deadline</span>
+                    <p className="text-sm text-white">{assignment.deadline}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400">Progress</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="flex-1 bg-gray-600 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            assignment.progress >= 100 ? 'bg-green-500' : 
+                            assignment.progress >= 50 ? 'bg-blue-500' : 'bg-yellow-500'
+                          }`}
+                          style={{ width: `${assignment.progress}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs text-white">{assignment.progress}%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <p className="text-sm text-gray-300 mb-3">{assignment.description}</p>
+                
+                <div className="flex justify-between items-center">
+                  <div className="flex space-x-2">
+                    <button className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Update Progress</button>
+                    <button className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded">Reassign</button>
+                  </div>
+                  <span className="text-xs text-gray-400">Assigned by {assignment.assignedBy}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Team Availability */}
+      <div className="bg-gray-900 p-6 rounded-xl">
+        <h3 className="text-xl font-bold text-white mb-4">Team Availability</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {teamMembers.map((member, index) => (
+            <div key={index} className="bg-gray-800 p-4 rounded-lg">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold">
+                  {member.name.split(' ').map(n => n[0]).join('')}
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-white">{member.name}</div>
+                  <div className="text-xs text-gray-400">{member.role}</div>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className={`text-sm font-medium ${getAvailabilityColor(member.availability)}`}>
+                  {member.availability}
+                </span>
+                <button className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded">
+                  Assign Task
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StaffProjectManagement() {
+  const [projects] = useState([
+    {
+      id: 1,
+      name: "E-commerce Platform Redesign",
+      status: "active",
+      progress: 75,
+      priority: "high",
+      deadline: "2025-10-30",
+      budget: "$50,000",
+      teamSize: 6,
+      lead: "John Smith"
+    }
+  ])
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gray-900 p-6 rounded-xl">
+        <h2 className="text-2xl font-bold text-white">Staff Project Management</h2>
+        <p className="text-gray-400">Oversee and coordinate all team projects</p>
+      </div>
+    </div>
+  )
+}
+
+function TeamManagementPanel() {
+  return (
+    <div className="space-y-6">
+      <div className="bg-gray-900 p-6 rounded-xl">
+        <h2 className="text-2xl font-bold text-white">Team Management Panel</h2>
+        <p className="text-gray-400">Coming soon - comprehensive team management features</p>
+      </div>
+    </div>
+  )
+}
+
+function StaffReportsPanel() {
+  return (
+    <div className="space-y-6">
+      <div className="bg-gray-900 p-6 rounded-xl">
+        <h2 className="text-2xl font-bold text-white">Staff Reports Panel</h2>
+        <p className="text-gray-400">Coming soon - detailed staff performance reports</p>
+      </div>
+    </div>
+  )
+}
+
+function StaffSettingsPanel() {
+  return (
+    <div className="space-y-6">
+      <div className="bg-gray-900 p-6 rounded-xl">
+        <h2 className="text-2xl font-bold text-white">Staff Settings Panel</h2>
+        <p className="text-gray-400">Coming soon - staff-related configuration settings</p>
+      </div>
+    </div>
+  )
+}
+
+export default AdminDashboard
