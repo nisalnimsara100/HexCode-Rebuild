@@ -22,7 +22,8 @@ import {
   Pause,
   CheckCircle2,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Users
 } from "lucide-react";
 
 interface GraphNode {
@@ -243,37 +244,31 @@ export function ProjectRoadmap() {
     return result;
   }, [graphNodes]);
 
-  // Calculate node positions using force-directed layout
+    // Calculate node positions for better graph layout
   const nodePositions = useMemo(() => {
     const positions: { [key: string]: { x: number; y: number } } = {};
-    const levels: { [key: string]: number } = {};
     
-    // Assign levels based on topological order
-    topologicalSort.forEach((nodeId, index) => {
-      levels[nodeId] = Math.floor(index / 2);
-    });
+    // Define specific positions for a clean connected flow
+    const nodeLayout = {
+      discovery: { x: 200, y: 100 },
+      design: { x: 500, y: 100 },
+      database: { x: 200, y: 300 },
+      frontend: { x: 600, y: 300 },
+      backend: { x: 300, y: 500 },
+      integration: { x: 600, y: 500 },
+      testing: { x: 450, y: 700 },
+      deployment: { x: 450, y: 900 }
+    };
     
-    // Position nodes in a curved flow
-    Object.keys(levels).forEach(nodeId => {
-      const level = levels[nodeId];
-      const nodesAtLevel = Object.keys(levels).filter(id => levels[id] === level);
-      const indexAtLevel = nodesAtLevel.indexOf(nodeId);
-      
-      const centerX = 400;
-      const levelHeight = 200;
-      const nodeSpacing = 300;
-      
-      // Create curved flow
-      const curveFactor = Math.sin(level * 0.5) * 100;
-      
-      positions[nodeId] = {
-        x: centerX + (indexAtLevel - (nodesAtLevel.length - 1) / 2) * nodeSpacing + curveFactor,
-        y: level * levelHeight + 100
-      };
+    // Apply the predefined layout
+    graphNodes.forEach(node => {
+      if (nodeLayout[node.id as keyof typeof nodeLayout]) {
+        positions[node.id] = nodeLayout[node.id as keyof typeof nodeLayout];
+      }
     });
     
     return positions;
-  }, [topologicalSort]);
+  }, [graphNodes]);
 
   // Generate connections
   const connections: Connection[] = useMemo(() => {
@@ -339,158 +334,292 @@ export function ProjectRoadmap() {
   };
 
   return (
-    <div className="relative w-full min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
-      {/* Animated background */}
+    <div className="relative w-full min-h-screen bg-black overflow-hidden">
+      {/* Modern grid background */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+      
+      {/* Dynamic floating elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-4 -left-4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-1/3 -right-8 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
+        <div className="absolute top-20 left-20 w-2 h-2 bg-emerald-400 rounded-full animate-ping"></div>
+        <div className="absolute top-40 right-32 w-1 h-1 bg-blue-400 rounded-full animate-pulse"></div>
+        <div className="absolute bottom-32 left-40 w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce"></div>
+        <div className="absolute top-1/3 left-1/4 w-1 h-1 bg-cyan-400 rounded-full animate-pulse delay-1000"></div>
+        <div className="absolute bottom-1/4 right-1/3 w-2 h-2 bg-pink-400 rounded-full animate-ping delay-2000"></div>
       </div>
 
-      {/* Header */}
-      <div className="relative z-10 text-center py-12">
-        <div className="flex items-center justify-center mb-6">
-          <GitBranch className="w-8 h-8 text-emerald-400 mr-3" />
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Project Roadmap Graph
+      {/* Modern glass header */}
+      <div className="relative z-10 text-center py-4 sm:py-8">
+        <div className="inline-flex items-center justify-center mb-4 sm:mb-6 px-4 sm:px-6 py-2 sm:py-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
+          <GitBranch className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400 mr-2 sm:mr-3" />
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
+            Development Roadmap
           </h1>
-          <Sparkles className="w-8 h-8 text-purple-400 ml-3 animate-spin" />
+          <div className="ml-3 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
         </div>
-        <p className="text-xl text-gray-300 mb-4">Interactive dependency visualization with real-time progress tracking</p>
-        <div className="w-32 h-1 bg-gradient-to-r from-emerald-400 to-purple-400 mx-auto rounded-full"></div>
+        <p className="text-gray-400 mb-6">Interactive project timeline with dependency tracking</p>
       </div>
 
-      {/* Graph visualization */}
-      <div className="relative z-20 px-8">
-        <svg 
-          width="100%" 
-          height="800" 
-          viewBox="0 0 800 800" 
-          className="absolute top-0 left-0 pointer-events-none"
-        >
-          <defs>
-            <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.8" />
-            </linearGradient>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge> 
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
+      {/* Modern timeline layout */}
+      <div className="relative z-20 max-w-7xl lg:max-w-[90rem] mx-auto px-2 sm:px-4">
+        {/* Enhanced central timeline spine with creative progress fill */}
+        <div className="absolute left-1/2 top-0 bottom-0 transform -translate-x-1">
+          {/* Background spine with subtle glow */}
+          <div className="w-1 h-full bg-gray-700/40 rounded-full shadow-inner"></div>
           
-          {/* Render connections */}
-          {connections.map((conn, index) => {
-            const fromPos = nodePositions[conn.from];
-            const toPos = nodePositions[conn.to];
-            
-            if (!fromPos || !toPos) return null;
-            
-            const isAnimated = animatedConnections.has(`${conn.from}-${conn.to}`);
-            const midX = (fromPos.x + toPos.x) / 2;
-            const midY = (fromPos.y + toPos.y) / 2 - 50; // Curve upward
-            
-            return (
-              <g key={`${conn.from}-${conn.to}`}>
-                <path
-                  d={`M ${fromPos.x} ${fromPos.y + 30} Q ${midX} ${midY} ${toPos.x} ${toPos.y - 30}`}
-                  stroke="url(#connectionGradient)"
-                  strokeWidth={isAnimated ? "3" : "2"}
-                  fill="none"
-                  filter={isAnimated ? "url(#glow)" : "none"}
-                  className={`transition-all duration-500 ${isAnimated ? 'animate-pulse' : ''}`}
-                />
-                
-                {/* Animated particles */}
-                {isAnimated && (
-                  <circle r="4" fill="#10b981" className="animate-ping">
-                    <animateMotion
-                      dur="3s"
-                      repeatCount="indefinite"
-                      path={`M ${fromPos.x} ${fromPos.y + 30} Q ${midX} ${midY} ${toPos.x} ${toPos.y - 30}`}
-                    />
-                  </circle>
-                )}
-                
-                {/* Arrow head */}
-                <polygon
-                  points={`${toPos.x-5},${toPos.y-35} ${toPos.x+5},${toPos.y-35} ${toPos.x},${toPos.y-25}`}
-                  fill="#10b981"
-                  className={isAnimated ? 'animate-pulse' : ''}
-                />
-              </g>
-            );
-          })}
-        </svg>
+          {/* Creative progress-filled spine with animations */}
+          <div className="absolute top-0 left-0 w-1 rounded-full overflow-hidden shadow-lg"
+               style={{ height: `${(() => {
+                 let totalTasks = 0;
+                 let completedTasks = 0;
+                 graphNodes.forEach(node => {
+                   totalTasks += node.tasks.length;
+                   completedTasks += node.tasks.filter(t => t.completed).length;
+                 });
+                 return totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+               })()}%` }}>
+            {/* Multi-layer gradient background */}
+            <div className="w-full h-full bg-gradient-to-b from-emerald-300 via-emerald-400 to-emerald-600 relative">
+              {/* Animated flowing overlay */}
+              <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-emerald-200/20 to-transparent animate-pulse"></div>
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/40 to-transparent animate-ping opacity-60"></div>
+              {/* Progress glow */}
+              <div className="absolute -inset-0.5 bg-emerald-400/50 blur-sm rounded-full"></div>
+            </div>
+          </div>
+          
+          {/* Dynamic progress indicator - stable and consistent */}
+          <div className="absolute w-3 h-3 bg-emerald-500 rounded-full shadow-lg border-2 border-white" 
+               style={{ 
+                 top: `${(() => {
+                   let totalTasks = 0;
+                   let completedTasks = 0;
+                   graphNodes.forEach(node => {
+                     totalTasks += node.tasks.length;
+                     completedTasks += node.tasks.filter(t => t.completed).length;
+                   });
+                   return totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+                 })()}%`, 
+                 left: '-4px',
+                 transform: 'translateY(-50%)'
+               }}>
+            {/* Subtle glow effect instead of aggressive animation */}
+            <div className="absolute -inset-1 bg-emerald-400/30 rounded-full blur-sm"></div>
+          </div>
+        </div>
 
-        {/* Render nodes */}
-        <div className="relative">
-          {graphNodes.map((node) => {
-            const position = nodePositions[node.id];
+        {/* Dependency indicators */}
+        <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-700/30"></div>
+        <div className="absolute right-4 top-0 bottom-0 w-px bg-gray-700/30"></div>
+
+        {/* Modern node cards */}
+        <div className="relative space-y-6 sm:space-y-8 py-4 sm:py-8">
+          {graphNodes.map((node, index) => {
             const actualStatus = getNodeStatus(node);
             const progress = getProgress(node.tasks);
             const isSelected = selectedNode === node.id;
             const isHovered = hoveredNode === node.id;
-            
-            if (!position) return null;
+            const isLeft = index % 2 === 0;
             
             return (
               <div
                 key={node.id}
-                className={`absolute transition-all duration-500 ${
-                  isSelected ? 'scale-110 z-50' : isHovered ? 'scale-105 z-40' : 'z-30'
-                }`}
-                style={{
-                  left: position.x - 80,
-                  top: position.y - 40,
-                  transform: `translateZ(${isSelected ? '50px' : '0px'})`,
-                }}
+                className={`relative flex ${isLeft ? 'justify-start' : 'justify-end'} items-center group`}
                 onMouseEnter={() => setHoveredNode(node.id)}
                 onMouseLeave={() => setHoveredNode(null)}
               >
-                <Card 
-                  className={`w-40 h-20 cursor-pointer transition-all duration-300 backdrop-blur-sm ${
-                    actualStatus === 'completed' ? 'bg-emerald-500/20 border-emerald-500/50 shadow-emerald-500/25' :
-                    actualStatus === 'in-progress' ? 'bg-yellow-500/20 border-yellow-500/50 shadow-yellow-500/25' :
-                    actualStatus === 'blocked' ? 'bg-red-500/20 border-red-500/50 shadow-red-500/25' :
-                    'bg-gray-800/40 border-gray-600/50'
-                  } ${isSelected ? 'shadow-2xl shadow-emerald-500/30' : 'shadow-lg'} 
-                  hover:shadow-xl hover:shadow-emerald-500/20`}
-                  onClick={() => handleNodeClick(node.id)}
-                >
-                  <div className="p-3 h-full flex flex-col justify-between">
-                    <div className="flex items-center justify-between">
-                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${node.color} flex items-center justify-center shadow-lg`}>
-                        <div className="text-white text-xs">{node.icon}</div>
-                      </div>
-                      {getStatusIcon(actualStatus)}
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-bold text-white truncate mb-1">{node.title}</h3>
-                      <div className="w-full bg-gray-700 rounded-full h-1">
-                        <div 
-                          className={`h-1 rounded-full transition-all duration-1000 ${
-                            actualStatus === 'completed' ? 'bg-emerald-500' :
-                            actualStatus === 'in-progress' ? 'bg-yellow-500' :
-                            'bg-gray-500'
-                          }`}
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
+                {/* Clear phase connector with number - aligned with progress line */}
+                <div className="absolute left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center" style={{ top: '1.75rem' }}>
+                  {/* Phase number circle */}
+                  <div className={`relative w-10 h-10 sm:w-8 sm:h-8 rounded-full border-4 sm:border-3 border-white transition-all duration-300 flex items-center justify-center ${
+                    actualStatus === 'completed' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' :
+                    actualStatus === 'in-progress' ? 'bg-yellow-500 shadow-lg shadow-yellow-500/50 animate-pulse' :
+                    actualStatus === 'blocked' ? 'bg-red-500 shadow-lg shadow-red-500/50' :
+                    'bg-gray-600 shadow-lg shadow-gray-600/30'
+                  } ${isHovered ? 'scale-110 shadow-2xl' : ''}`}>
+                    
+                    {/* Phase number or status icon */}
+                    {actualStatus === 'completed' ? (
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    ) : actualStatus === 'in-progress' ? (
+                      <Play className="w-3 h-3 text-white ml-0.5" />
+                    ) : actualStatus === 'blocked' ? (
+                      <Pause className="w-3 h-3 text-white" />
+                    ) : (
+                      <span className="text-white text-xs font-bold">{index + 1}</span>
+                    )}
+                    
+                    {/* Status ring animation */}
+                    {actualStatus === 'in-progress' && (
+                      <div className="absolute inset-0 rounded-full border-2 border-yellow-300 animate-ping"></div>
+                    )}
                   </div>
-                </Card>
+                  
+                  {/* Phase status label */}
+                  <div className={`mt-1 px-2 py-0.5 rounded-full text-xs font-medium backdrop-blur-sm ${
+                    actualStatus === 'completed' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                    actualStatus === 'in-progress' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                    actualStatus === 'blocked' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                    'bg-gray-600/20 text-gray-400 border border-gray-600/30'
+                  }`}>
+                    {actualStatus === 'completed' ? 'Done' :
+                     actualStatus === 'in-progress' ? 'Active' :
+                     actualStatus === 'blocked' ? 'Blocked' : 'Pending'}
+                  </div>
+                </div>
+
+                {/* Enhanced horizontal connector with duration badge - with proper spacing */}
+                <div className={`absolute flex items-center`} style={{ 
+                  top: '1.9rem',
+                  left: isLeft ? 'calc(50% + 24px)' : '4px',
+                  right: isLeft ? '4px' : 'calc(50% + 24px)'
+                }}>
+                  {/* Duration badge for left side - positioned at left end with spacing */}
+                  {isLeft && (
+                    <div className={`mr-4 px-2 py-1 rounded-md text-xs backdrop-blur-sm whitespace-nowrap ${
+                      actualStatus === 'completed' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                      actualStatus === 'in-progress' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                      actualStatus === 'blocked' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                      'bg-gray-600/20 text-gray-400 border border-gray-600/30'
+                    }`}>
+                      {node.duration}
+                    </div>
+                  )}
+                  
+                  <div className={`flex-1 h-0.5 ${
+                    actualStatus === 'completed' ? 'bg-gradient-to-r from-emerald-400/80 to-emerald-400/20' :
+                    actualStatus === 'in-progress' ? 'bg-gradient-to-r from-yellow-400/80 to-yellow-400/20' :
+                    actualStatus === 'blocked' ? 'bg-gradient-to-r from-red-400/80 to-red-400/20' :
+                    'bg-gradient-to-r from-gray-600/60 to-gray-600/20'
+                  } transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-70'} relative`}>
+                    
+                    {/* Connection flow animation */}
+                    {actualStatus !== 'blocked' && (
+                      <div className={`absolute inset-0 ${
+                        isLeft ? 'bg-gradient-to-r from-transparent via-white/20 to-transparent' :
+                        'bg-gradient-to-l from-transparent via-white/20 to-transparent'
+                      } animate-pulse`}></div>
+                    )}
+                  </div>
+                  
+                  {/* Duration badge for right side - positioned at right end with spacing */}
+                  {!isLeft && (
+                    <div className={`ml-4 px-2 py-1 rounded-md text-xs backdrop-blur-sm whitespace-nowrap ${
+                      actualStatus === 'completed' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                      actualStatus === 'in-progress' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                      actualStatus === 'blocked' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                      'bg-gray-600/20 text-gray-400 border border-gray-600/30'
+                    }`}>
+                      {node.duration}
+                    </div>
+                  )}
+                </div>
+
+                {/* Modern glassmorphism card - mobile optimized */}
+                <div className={`w-full sm:w-[28rem] lg:w-[32rem] xl:w-[35rem] max-w-lg sm:max-w-xl lg:max-w-2xl ${isLeft ? 'mr-1 sm:mr-4' : 'ml-1 sm:ml-4'} transition-all duration-500 ${
+                  isSelected ? 'scale-105 z-50' : isHovered ? 'scale-102 z-40' : 'z-30'
+                }`}>
+                  <Card 
+                    className={`cursor-pointer transition-all duration-500 backdrop-blur-xl border-0 ${
+                      actualStatus === 'completed' ? 'bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 shadow-2xl shadow-emerald-500/20' :
+                      actualStatus === 'in-progress' ? 'bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 shadow-2xl shadow-yellow-500/20' :
+                      actualStatus === 'blocked' ? 'bg-gradient-to-br from-red-500/10 to-red-600/5 shadow-2xl shadow-red-500/20' :
+                      'bg-gradient-to-br from-gray-800/40 to-gray-900/30 shadow-xl shadow-gray-500/10'
+                    } ${isSelected ? 'shadow-3xl' : ''} 
+                    hover:shadow-2xl group-hover:shadow-emerald-500/20 rounded-3xl overflow-hidden`}
+                    onClick={() => handleNodeClick(node.id)}
+                  >
+                    {/* Card header with status indicator */}
+                    <div className={`h-1 w-full ${
+                      actualStatus === 'completed' ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' :
+                      actualStatus === 'in-progress' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                      actualStatus === 'blocked' ? 'bg-gradient-to-r from-red-400 to-red-600' :
+                      'bg-gradient-to-r from-gray-400 to-gray-600'
+                    }`}></div>
+
+                    <div className="p-5 sm:p-6">
+                      {/* Icon and status */}
+                      <div className="flex items-start justify-between mb-4 sm:mb-4">
+                        <div className="flex items-center space-x-3 sm:space-x-4">
+                          <div className={`w-14 h-14 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br ${node.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                            <div className="text-white">{node.icon}</div>
+                          </div>
+                          <div>
+                            <h3 className="text-lg sm:text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors leading-tight">
+                              {node.title}
+                            </h3>
+                            <p className="text-gray-300 text-sm sm:text-sm leading-relaxed font-medium">{node.description}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col items-end space-y-1 sm:space-y-2">
+                          {getStatusIcon(actualStatus)}
+                          <Badge className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 ${
+                            actualStatus === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                            actualStatus === 'in-progress' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                            actualStatus === 'blocked' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                            'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                          }`}>
+                            {actualStatus.replace('-', ' ')}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Progress section */}
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex items-center justify-between text-xs sm:text-sm">
+                          <span className="text-gray-400">Progress</span>
+                          <span className="text-white font-medium">{progress}%</span>
+                        </div>
+                        
+                        {/* Modern progress bar */}
+                        <div className="relative h-2 bg-gray-800/50 rounded-full overflow-hidden">
+                          <div 
+                            className={`absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ${
+                              actualStatus === 'completed' ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' :
+                              actualStatus === 'in-progress' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                              actualStatus === 'blocked' ? 'bg-gradient-to-r from-red-400 to-red-600' :
+                              'bg-gradient-to-r from-gray-400 to-gray-600'
+                            }`}
+                            style={{ width: `${progress}%` }}
+                          >
+                            {actualStatus === 'in-progress' && (
+                              <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full"></div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Current task indicator */}
+                        {actualStatus === 'in-progress' && (
+                          <div className="mt-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <Play className="w-3 h-3 text-yellow-400" />
+                              <span className="text-xs font-medium text-yellow-300">Current Task</span>
+                            </div>
+                            <div className="text-xs text-yellow-200">
+                              {node.tasks.find(t => !t.completed)?.title || 'All tasks completed'}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Meta info */}
+                        <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-gray-500 pt-2">
+                          <span className="text-xs">{node.duration}</span>
+                          <span className="capitalize text-xs">{node.category}</span>
+                          <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-700/30 rounded-full capitalize text-xs">{node.priority}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
               </div>
             );
           })}
         </div>
 
-        {/* Selected node details */}
+        {/* Enhanced selected node details */}
         {selectedNode && (
-          <div className="fixed bottom-8 left-8 right-8 z-50">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 lg:p-8">
             {(() => {
               const node = graphNodes.find(n => n.id === selectedNode);
               if (!node) return null;
@@ -499,46 +628,112 @@ export function ProjectRoadmap() {
               const progress = getProgress(node.tasks);
               
               return (
-                <Card className="bg-gray-800/95 backdrop-blur-xl border-gray-600/50 shadow-2xl">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${node.color} flex items-center justify-center shadow-lg`}>
-                          <div className="text-white">{node.icon}</div>
+                <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto bg-gray-900/95 backdrop-blur-2xl border border-gray-700/50 shadow-3xl rounded-2xl sm:rounded-3xl">
+                  {/* Header gradient */}
+                  <div className={`h-2 w-full ${
+                    actualStatus === 'completed' ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600' :
+                    actualStatus === 'in-progress' ? 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600' :
+                    actualStatus === 'blocked' ? 'bg-gradient-to-r from-red-400 via-red-500 to-red-600' :
+                    'bg-gradient-to-r from-gray-400 via-gray-500 to-gray-600'
+                  }`}></div>
+
+                  <div className="p-4 sm:p-6 lg:p-8">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 sm:mb-8 gap-4">
+                      <div className="flex items-center space-x-4 sm:space-x-6">
+                        <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-gradient-to-br ${node.color} flex items-center justify-center shadow-2xl`}>
+                          <div className="text-white text-xl sm:text-2xl">{node.icon}</div>
                         </div>
-                        <div>
-                          <h2 className="text-2xl font-bold text-white">{node.title}</h2>
-                          <p className="text-gray-300">{node.description}</p>
-                          <div className="flex items-center space-x-4 mt-2">
-                            <Badge className={`${
-                              actualStatus === 'completed' ? 'bg-emerald-500/20 text-emerald-400' :
-                              actualStatus === 'in-progress' ? 'bg-yellow-500/20 text-yellow-400' :
-                              actualStatus === 'blocked' ? 'bg-red-500/20 text-red-400' :
-                              'bg-gray-500/20 text-gray-400'
-                            }`}>
+                        <div className="flex-1">
+                          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2">{node.title}</h2>
+                          <p className="text-gray-300 text-sm sm:text-base lg:text-lg mb-4">{node.description}</p>
+                          <div className="flex items-center space-x-4">
+                            <Badge className={`px-4 py-2 text-sm font-medium ${
+                              actualStatus === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                              actualStatus === 'in-progress' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
+                              actualStatus === 'blocked' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                              'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                            } rounded-full`}>
                               {actualStatus.replace('-', ' ').toUpperCase()}
                             </Badge>
-                            <span className="text-sm text-gray-400">{node.duration}</span>
-                            <Badge variant="outline">{node.priority} priority</Badge>
+                            <div className="flex items-center space-x-2 text-gray-400">
+                              <Clock className="w-4 h-4" />
+                              <span>{node.duration}</span>
+                            </div>
+                            <Badge variant="outline" className="px-3 py-1 rounded-full capitalize">
+                              {node.priority} priority
+                            </Badge>
                           </div>
                         </div>
                       </div>
                       <button 
                         onClick={() => setSelectedNode(null)}
-                        className="text-gray-400 hover:text-white transition-colors"
+                        className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-700/50 rounded-full"
                       >
-                        ✕
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                       </button>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white mb-3">Tasks ({progress}% complete)</h3>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {node.tasks.map((task) => (
-                            <div key={task.id} className="flex items-center space-x-3">
-                              <div className={`w-4 h-4 rounded-full ${task.completed ? 'bg-emerald-500' : 'bg-gray-600'}`} />
-                              <span className={`text-sm ${task.completed ? 'text-emerald-300 line-through' : 'text-white'}`}>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                      {/* Progress section */}
+                      <div className="lg:col-span-1">
+                        <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                          <div className="w-2 h-2 bg-emerald-400 rounded-full mr-3"></div>
+                          Progress Overview
+                        </h3>
+                        <div className="space-y-4 p-6 bg-gray-800/30 rounded-2xl">
+                          <div className="text-center">
+                            <div className="text-4xl font-bold text-white mb-2">{progress}%</div>
+                            <div className="text-gray-400">Complete</div>
+                          </div>
+                          <div className="relative h-3 bg-gray-700/50 rounded-full overflow-hidden">
+                            <div 
+                              className={`absolute top-0 left-0 h-full rounded-full ${
+                                actualStatus === 'completed' ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' :
+                                actualStatus === 'in-progress' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                                actualStatus === 'blocked' ? 'bg-gradient-to-r from-red-400 to-red-600' :
+                                'bg-gradient-to-r from-gray-400 to-gray-600'
+                              } transition-all duration-1000`}
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="text-center">
+                              <div className="text-emerald-400 font-semibold">{node.tasks.filter(t => t.completed).length}</div>
+                              <div className="text-gray-500">Completed</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-gray-400 font-semibold">{node.tasks.filter(t => !t.completed).length}</div>
+                              <div className="text-gray-500">Remaining</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tasks section */}
+                      <div className="lg:col-span-1">
+                        <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                          <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3" />
+                          Task List
+                        </h3>
+                        <div className="space-y-3 p-6 bg-gray-800/30 rounded-2xl max-h-80 overflow-y-auto">
+                          {node.tasks.map((task, index) => (
+                            <div key={task.id} className={`flex items-center space-x-3 p-3 rounded-xl transition-all ${
+                              task.completed ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-gray-700/30 hover:bg-gray-700/50'
+                            }`}>
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                task.completed ? 'bg-emerald-500' : 'bg-gray-600'
+                              }`}>
+                                {task.completed ? (
+                                  <CheckCircle className="w-3 h-3 text-white" />
+                                ) : (
+                                  <span className="text-xs text-white">{index + 1}</span>
+                                )}
+                              </div>
+                              <span className={`flex-1 text-sm ${
+                                task.completed ? 'text-emerald-300 line-through' : 'text-white'
+                              }`}>
                                 {task.title}
                               </span>
                             </div>
@@ -546,28 +741,45 @@ export function ProjectRoadmap() {
                         </div>
                       </div>
                       
-                      <div>
-                        <h3 className="text-lg font-semibold text-white mb-3">Dependencies</h3>
-                        {node.dependencies.length > 0 ? (
-                          <div className="space-y-2">
-                            {node.dependencies.map(depId => {
-                              const depNode = graphNodes.find(n => n.id === depId);
-                              return depNode ? (
-                                <div key={depId} className="flex items-center space-x-2">
-                                  <ArrowRight className="w-4 h-4 text-emerald-400" />
-                                  <span className="text-sm text-gray-300">{depNode.title}</span>
-                                  {depNode.status === 'completed' ? (
-                                    <CheckCircle className="w-4 h-4 text-emerald-400" />
-                                  ) : (
-                                    <Clock className="w-4 h-4 text-yellow-400" />
-                                  )}
-                                </div>
-                              ) : null;
-                            })}
-                          </div>
-                        ) : (
-                          <p className="text-gray-400 text-sm">No dependencies</p>
-                        )}
+                      {/* Dependencies section */}
+                      <div className="lg:col-span-1">
+                        <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                          <GitBranch className="w-5 h-5 text-purple-400 mr-3" />
+                          Dependencies
+                        </h3>
+                        <div className="p-6 bg-gray-800/30 rounded-2xl">
+                          {node.dependencies.length > 0 ? (
+                            <div className="space-y-3">
+                              {node.dependencies.map(depId => {
+                                const depNode = graphNodes.find(n => n.id === depId);
+                                return depNode ? (
+                                  <div key={depId} className="flex items-center space-x-3 p-3 bg-gray-700/30 rounded-xl">
+                                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${depNode.color} flex items-center justify-center`}>
+                                      <div className="text-white text-xs">{depNode.icon}</div>
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="text-sm text-gray-300 font-medium">{depNode.title}</div>
+                                      <div className="text-xs text-gray-500">{depNode.status}</div>
+                                    </div>
+                                    {depNode.status === 'completed' ? (
+                                      <CheckCircle className="w-5 h-5 text-emerald-400" />
+                                    ) : (
+                                      <Clock className="w-5 h-5 text-yellow-400" />
+                                    )}
+                                  </div>
+                                ) : null;
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <div className="w-16 h-16 bg-gray-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Sparkles className="w-8 h-8 text-gray-500" />
+                              </div>
+                              <p className="text-gray-400">No dependencies required</p>
+                              <p className="text-gray-500 text-sm">This phase can start independently</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
