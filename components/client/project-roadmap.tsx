@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Graph } from "@/lib/graph";
 import { 
   CheckCircle, 
   Circle, 
@@ -55,6 +56,8 @@ export function ProjectRoadmap() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [animatedConnections, setAnimatedConnections] = useState<Set<string>>(new Set());
+  const [projectGraph, setProjectGraph] = useState<Graph<string> | null>(null);
+  const [graphStats, setGraphStats] = useState<any>(null);
 
   // Graph data structure with proper dependencies
   const graphNodes: GraphNode[] = [
@@ -204,89 +207,113 @@ export function ProjectRoadmap() {
     }
   ];
 
-  // Graph algorithms
-  const topologicalSort = useMemo(() => {
-    const inDegree: { [key: string]: number } = {};
-    const adjList: { [key: string]: string[] } = {};
+  // Initialize and manage the graph data structure
+  useEffect(() => {
+    const graph = new Graph<string>(true, true); // Directed and weighted graph
     
-    // Initialize
+    // Add nodes to the graph with their data
     graphNodes.forEach(node => {
-      inDegree[node.id] = 0;
-      adjList[node.id] = [];
-    });
-    
-    // Build adjacency list and calculate in-degrees
-    graphNodes.forEach(node => {
-      node.dependencies.forEach(dep => {
-        adjList[dep].push(node.id);
-        inDegree[node.id]++;
+      graph.addNode(node.id, {
+        title: node.title,
+        description: node.description,
+        status: node.status,
+        icon: node.icon,
+        duration: node.duration,
+        priority: node.priority,
+        category: node.category,
+        color: node.color,
+        tasks: node.tasks
       });
     });
     
-    // Topological sort using Kahn's algorithm
-    const queue: string[] = [];
-    const result: string[] = [];
-    
-    Object.keys(inDegree).forEach(node => {
-      if (inDegree[node] === 0) queue.push(node);
+    // Add edges (dependencies) to the graph with weights
+    graphNodes.forEach(node => {
+      node.dependencies.forEach(depId => {
+        // Calculate weight based on task complexity and duration
+        const weight = node.tasks.length * (node.priority === 'high' ? 3 : node.priority === 'medium' ? 2 : 1);
+        graph.addEdge(depId, node.id, weight, 'dependency');
+      });
     });
     
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      result.push(current);
-      
-      adjList[current].forEach(neighbor => {
-        inDegree[neighbor]--;
-        if (inDegree[neighbor] === 0) queue.push(neighbor);
-      });
-    }
-    
-    return result;
-  }, [graphNodes]);
+    setProjectGraph(graph);
+    setGraphStats(graph.getStats());
+  }, []);
 
-    // Calculate node positions for better graph layout
+  // Graph algorithms using the graph data structure
+  const topologicalSort = useMemo(() => {
+    if (!projectGraph) return [];
+    
+    const sorted = projectGraph.topologicalSort();
+    return sorted || [];
+  }, [projectGraph]);
+
+  // Calculate node positions using graph algorithms
   const nodePositions = useMemo(() => {
     const positions: { [key: string]: { x: number; y: number } } = {};
     
-    // Define specific positions for a clean connected flow
-    const nodeLayout = {
-      discovery: { x: 200, y: 100 },
-      design: { x: 500, y: 100 },
-      database: { x: 200, y: 300 },
-      frontend: { x: 600, y: 300 },
-      backend: { x: 300, y: 500 },
-      integration: { x: 600, y: 500 },
-      testing: { x: 450, y: 700 },
-      deployment: { x: 450, y: 900 }
-    };
+    if (!projectGraph) return positions;
     
-    // Apply the predefined layout
-    graphNodes.forEach(node => {
-      if (nodeLayout[node.id as keyof typeof nodeLayout]) {
-        positions[node.id] = nodeLayout[node.id as keyof typeof nodeLayout];
+    // Use topological sort to determine optimal layout
+    const sortedNodes = topologicalSort;
+    const levels: { [key: string]: number } = {};
+    
+    // Calculate levels based on dependencies
+    sortedNodes.forEach((nodeId, index) => {
+      const node = projectGraph.getNode(nodeId);
+      if (node) {
+        // Find the maximum level of dependencies + 1
+        const deps = graphNodes.find(n => n.id === nodeId)?.dependencies || [];
+        const maxDepLevel = Math.max(-1, ...deps.map(depId => levels[depId] || 0));
+        levels[nodeId] = maxDepLevel + 1;
       }
     });
     
-    return positions;
-  }, [graphNodes]);
-
-  // Generate connections
-  const connections: Connection[] = useMemo(() => {
-    const conns: Connection[] = [];
-    graphNodes.forEach(node => {
-      node.dependencies.forEach(dep => {
-        conns.push({
-          from: dep,
-          to: node.id,
-          type: "dependency"
-        });
+    // Position nodes based on their levels and dependencies
+    const levelWidth = 400;
+    const levelHeight = 200;
+    const nodesPerLevel: { [level: number]: string[] } = {};
+    
+    // Group nodes by level
+    Object.entries(levels).forEach(([nodeId, level]) => {
+      if (!nodesPerLevel[level]) nodesPerLevel[level] = [];
+      nodesPerLevel[level].push(nodeId);
+    });
+    
+    // Calculate positions
+    Object.entries(nodesPerLevel).forEach(([level, nodeIds]) => {
+      const levelNum = parseInt(level);
+      const y = 100 + levelNum * levelHeight;
+      
+      nodeIds.forEach((nodeId, index) => {
+        const totalNodes = nodeIds.length;
+        const spacing = Math.min(300, 800 / (totalNodes + 1));
+        const startX = 200 + (totalNodes > 1 ? 0 : 200);
+        const x = startX + (index + 1) * spacing;
+        
+        positions[nodeId] = { x, y };
       });
     });
-    return conns;
-  }, [graphNodes]);
+    
+    return positions;
+  }, [projectGraph, topologicalSort]);
 
-  // Status checking
+  // Generate connections using graph data structure
+  const connections: Connection[] = useMemo(() => {
+    if (!projectGraph) return [];
+    
+    return projectGraph.getEdges().map(edge => ({
+      from: edge.from,
+      to: edge.to,
+      type: edge.type as "dependency" | "parallel" | "conditional"
+    }));
+  }, [projectGraph]);
+
+  // Enhanced status checking using graph algorithms
   const getNodeStatus = (node: GraphNode): GraphNode["status"] => {
+    if (!projectGraph) return node.status;
+    
+    // Use graph traversal to check dependency status
+    const dependencies = projectGraph.getNeighbors(node.id);
     const blockedByDeps = node.dependencies.some(depId => {
       const depNode = graphNodes.find(n => n.id === depId);
       return depNode && depNode.status !== "completed";
@@ -295,6 +322,79 @@ export function ProjectRoadmap() {
     if (blockedByDeps && node.status === "upcoming") return "blocked";
     return node.status;
   };
+
+  // Get critical path using graph algorithms
+  const getCriticalPath = useMemo(() => {
+    if (!projectGraph) return [];
+    
+    // Find the longest path (critical path) using DFS
+    const findLongestPath = (startId: string): string[] => {
+      const visited = new Set<string>();
+      const path: string[] = [];
+      const longestPath: string[] = [];
+      
+      const dfs = (nodeId: string, currentPath: string[]) => {
+        visited.add(nodeId);
+        currentPath.push(nodeId);
+        
+        const neighbors = projectGraph.getNeighbors(nodeId);
+        if (neighbors.length === 0) {
+          // Leaf node - check if this path is longer
+          if (currentPath.length > longestPath.length) {
+            longestPath.splice(0, longestPath.length, ...currentPath);
+          }
+        } else {
+          neighbors.forEach(neighbor => {
+            if (!visited.has(neighbor)) {
+              dfs(neighbor, currentPath);
+            }
+          });
+        }
+        
+        currentPath.pop();
+        visited.delete(nodeId);
+      };
+      
+      // Find root nodes (no incoming edges)
+      const rootNodes = topologicalSort.filter(nodeId => 
+        projectGraph.getInDegree(nodeId) === 0
+      );
+      
+      rootNodes.forEach(rootId => {
+        dfs(rootId, []);
+      });
+      
+      return longestPath;
+    };
+    
+    return findLongestPath('discovery');
+  }, [projectGraph, topologicalSort]);
+
+  // Calculate project completion percentage using graph analysis
+  const getProjectProgress = useMemo(() => {
+    if (!projectGraph) return 0;
+    
+    const allNodes = projectGraph.getNodes();
+    let totalWeight = 0;
+    let completedWeight = 0;
+    
+    allNodes.forEach(node => {
+      const nodeData = graphNodes.find(n => n.id === node.id);
+      if (nodeData) {
+        const weight = nodeData.tasks.length * (nodeData.priority === 'high' ? 3 : nodeData.priority === 'medium' ? 2 : 1);
+        totalWeight += weight;
+        
+        if (nodeData.status === 'completed') {
+          completedWeight += weight;
+        } else if (nodeData.status === 'in-progress') {
+          const taskProgress = nodeData.tasks.filter(t => t.completed).length / nodeData.tasks.length;
+          completedWeight += weight * taskProgress;
+        }
+      }
+    });
+    
+    return totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : 0;
+  }, [projectGraph, graphNodes]);
 
   const getProgress = (tasks: GraphNode["tasks"]) => {
     const completed = tasks.filter(t => t.completed).length;
@@ -347,7 +447,7 @@ export function ProjectRoadmap() {
         <div className="absolute bottom-1/4 right-1/3 w-2 h-2 bg-pink-400 rounded-full animate-ping delay-2000"></div>
       </div>
 
-      {/* Modern glass header */}
+      {/* Modern glass header with graph stats */}
       <div className="relative z-10 text-center py-4 sm:py-8">
         <div className="inline-flex items-center justify-center mb-4 sm:mb-6 px-4 sm:px-6 py-2 sm:py-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
           <GitBranch className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400 mr-2 sm:mr-3" />
@@ -356,7 +456,35 @@ export function ProjectRoadmap() {
           </h1>
           <div className="ml-3 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
         </div>
-        <p className="text-gray-400 mb-6">Interactive project timeline with dependency tracking</p>
+        <p className="text-gray-400 mb-6">Interactive project timeline with advanced graph-based dependency tracking</p>
+        
+        {/* Graph Statistics */}
+        {graphStats && (
+          <div className="flex flex-wrap justify-center gap-4 mb-6">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl px-4 py-2">
+              <div className="text-emerald-400 text-lg font-bold">{getProjectProgress}%</div>
+              <div className="text-gray-400 text-xs">Overall Progress</div>
+            </div>
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl px-4 py-2">
+              <div className="text-blue-400 text-lg font-bold">{graphStats.nodeCount}</div>
+              <div className="text-gray-400 text-xs">Phases</div>
+            </div>
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl px-4 py-2">
+              <div className="text-purple-400 text-lg font-bold">{graphStats.edgeCount}</div>
+              <div className="text-gray-400 text-xs">Dependencies</div>
+            </div>
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl px-4 py-2">
+              <div className="text-yellow-400 text-lg font-bold">{getCriticalPath.length}</div>
+              <div className="text-gray-400 text-xs">Critical Path</div>
+            </div>
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl px-4 py-2">
+              <div className={`text-lg font-bold ${graphStats.hasCycles ? 'text-red-400' : 'text-green-400'}`}>
+                {graphStats.hasCycles ? 'HAS' : 'NO'}
+              </div>
+              <div className="text-gray-400 text-xs">Cycles</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modern timeline layout */}
@@ -368,15 +496,7 @@ export function ProjectRoadmap() {
           
           {/* Creative progress-filled spine with animations */}
           <div className="absolute top-0 left-0 w-1 rounded-full overflow-hidden shadow-lg"
-               style={{ height: `${(() => {
-                 let totalTasks = 0;
-                 let completedTasks = 0;
-                 graphNodes.forEach(node => {
-                   totalTasks += node.tasks.length;
-                   completedTasks += node.tasks.filter(t => t.completed).length;
-                 });
-                 return totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-               })()}%` }}>
+               style={{ height: `${getProjectProgress}%` }}>
             {/* Multi-layer gradient background */}
             <div className="w-full h-full bg-gradient-to-b from-emerald-300 via-emerald-400 to-emerald-600 relative">
               {/* Animated flowing overlay */}
@@ -391,15 +511,7 @@ export function ProjectRoadmap() {
           {/* Dynamic progress indicator - stable and consistent */}
           <div className="absolute w-3 h-3 bg-emerald-500 rounded-full shadow-lg border-2 border-white" 
                style={{ 
-                 top: `${(() => {
-                   let totalTasks = 0;
-                   let completedTasks = 0;
-                   graphNodes.forEach(node => {
-                     totalTasks += node.tasks.length;
-                     completedTasks += node.tasks.filter(t => t.completed).length;
-                   });
-                   return totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-                 })()}%`, 
+                 top: `${getProjectProgress}%`, 
                  left: '-4px',
                  transform: 'translateY(-50%)'
                }}>
@@ -741,15 +853,44 @@ export function ProjectRoadmap() {
                         </div>
                       </div>
                       
-                      {/* Dependencies section */}
+                      {/* Dependencies & Graph Info section */}
                       <div className="lg:col-span-1">
                         <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                           <GitBranch className="w-5 h-5 text-purple-400 mr-3" />
-                          Dependencies
+                          Graph Analysis
                         </h3>
-                        <div className="p-6 bg-gray-800/30 rounded-2xl">
+                        <div className="p-6 bg-gray-800/30 rounded-2xl space-y-6">
+                          {/* Graph Statistics for this node */}
+                          {projectGraph && (
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div className="bg-gray-700/30 p-3 rounded-lg text-center">
+                                <div className="text-blue-400 font-bold">{projectGraph.getInDegree(node.id)}</div>
+                                <div className="text-gray-400 text-xs">Dependencies</div>
+                              </div>
+                              <div className="bg-gray-700/30 p-3 rounded-lg text-center">
+                                <div className="text-green-400 font-bold">{projectGraph.getOutDegree(node.id)}</div>
+                                <div className="text-gray-400 text-xs">Dependents</div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Critical Path Indicator */}
+                          {getCriticalPath.includes(node.id) && (
+                            <div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <Target className="w-4 h-4 text-yellow-400" />
+                                <span className="text-yellow-300 font-medium text-sm">Critical Path</span>
+                              </div>
+                              <div className="text-xs text-yellow-200">
+                                This phase is on the critical path - delays will affect project completion
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Dependencies List */}
                           {node.dependencies.length > 0 ? (
                             <div className="space-y-3">
+                              <h4 className="text-sm font-medium text-gray-300">Direct Dependencies:</h4>
                               {node.dependencies.map(depId => {
                                 const depNode = graphNodes.find(n => n.id === depId);
                                 return depNode ? (
@@ -771,12 +912,12 @@ export function ProjectRoadmap() {
                               })}
                             </div>
                           ) : (
-                            <div className="text-center py-8">
-                              <div className="w-16 h-16 bg-gray-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Sparkles className="w-8 h-8 text-gray-500" />
+                            <div className="text-center py-4">
+                              <div className="w-12 h-12 bg-gray-700/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <Sparkles className="w-6 h-6 text-gray-500" />
                               </div>
-                              <p className="text-gray-400">No dependencies required</p>
-                              <p className="text-gray-500 text-sm">This phase can start independently</p>
+                              <p className="text-gray-400 text-sm">No dependencies</p>
+                              <p className="text-gray-500 text-xs">Can start independently</p>
                             </div>
                           )}
                         </div>

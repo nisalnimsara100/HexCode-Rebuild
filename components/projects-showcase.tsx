@@ -25,7 +25,8 @@ import {
   Trophy,
 } from "lucide-react"
 import Image from "next/image"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
+import { PriorityQueue, createPriorityQueueFromArray } from "@/lib/priorityQueue"
 
 export function ProjectsShowcase() {
   const [activeFilter, setActiveFilter] = useState("All")
@@ -33,6 +34,9 @@ export function ProjectsShowcase() {
   const [likedProjects, setLikedProjects] = useState<Set<number>>(new Set())
   const [showStartProjectModal, setShowStartProjectModal] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: number]: number }>({})
+  const [sortedProjects, setSortedProjects] = useState<typeof projects>([])
+  const [popularProjects, setPopularProjects] = useState<typeof projects>([])
+  const [mostLikedProject, setMostLikedProject] = useState<typeof projects[0] | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const projects = [
@@ -130,7 +134,7 @@ export function ProjectsShowcase() {
       stats: { views: "6.8K", stars: 94, forks: 28 },
       complexity: "Business Solution",
       duration: "4 months",
-      likes: 123,
+      likes: 523,
       trending: false,
       mostLiked: false,
     },
@@ -156,19 +160,58 @@ export function ProjectsShowcase() {
 
   const categories = ["All", "E-commerce", "Healthcare", "FinTech", "Education", "IoT", "Analytics"]
 
+  // Initialize priority queues and sorted data
+  useEffect(() => {
+    // Create priority queue for all projects based on likes
+    const projectQueue = createPriorityQueueFromArray(projects, 'likes')
+    const sortedByLikes = projectQueue.toArray()
+    setSortedProjects(sortedByLikes)
+    
+    // Get most liked project (highest priority)
+    const topProject = projectQueue.peek()
+    setMostLikedProject(topProject || null)
+    
+    // Create priority queue for trending projects
+    const trendingProjectsFiltered = projects.filter((p) => p.trending)
+    const trendingQueue = createPriorityQueueFromArray(trendingProjectsFiltered, 'likes')
+    setPopularProjects(trendingQueue.toArray())
+  }, [])
+
   const filteredProjects =
-    activeFilter === "All" ? projects : projects.filter((project) => project.category === activeFilter)
-  const mostLikedProject = projects.reduce((prev, current) => (prev.likes > current.likes ? prev : current))
-  const trendingProjects = projects.filter((p) => p.trending)
+    activeFilter === "All" ? sortedProjects : sortedProjects.filter((project) => project.category === activeFilter)
 
   const handleLike = (projectId: number) => {
     const newLikedProjects = new Set(likedProjects)
     if (newLikedProjects.has(projectId)) {
       newLikedProjects.delete(projectId)
+      // Update project likes count (decrement)
+      const projectIndex = projects.findIndex(p => p.id === projectId)
+      if (projectIndex !== -1) {
+        projects[projectIndex].likes = Math.max(0, projects[projectIndex].likes - 1)
+      }
     } else {
       newLikedProjects.add(projectId)
+      // Update project likes count (increment)
+      const projectIndex = projects.findIndex(p => p.id === projectId)
+      if (projectIndex !== -1) {
+        projects[projectIndex].likes += 1
+      }
     }
     setLikedProjects(newLikedProjects)
+    
+    // Re-sort projects using priority queue
+    const projectQueue = createPriorityQueueFromArray(projects, 'likes')
+    const sortedByLikes = projectQueue.toArray()
+    setSortedProjects(sortedByLikes)
+    
+    // Update most liked project
+    const topProject = projectQueue.peek()
+    setMostLikedProject(topProject || null)
+    
+    // Update popular projects
+    const trendingProjectsFiltered = projects.filter((p) => p.trending)
+    const trendingQueue = createPriorityQueueFromArray(trendingProjectsFiltered, 'likes')
+    setPopularProjects(trendingQueue.toArray())
   }
 
   const scrollLeft = () => {
@@ -284,76 +327,78 @@ export function ProjectsShowcase() {
           </p>
         </div>
 
-        <div className="mb-20">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500 px-4 py-2 rounded-full mb-4">
-              <Trophy className="w-5 h-5 text-emerald-500" />
-              <span className="text-sm font-medium text-emerald-500">Most Popular Project</span>
+        {mostLikedProject && (
+          <div className="mb-20">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500 px-4 py-2 rounded-full mb-4">
+                <Trophy className="w-5 h-5 text-emerald-500" />
+                <span className="text-sm font-medium text-emerald-500">Most Popular Project</span>
+              </div>
+              <h2 className="text-3xl font-bold text-foreground">Client Favorite</h2>
             </div>
-            <h2 className="text-3xl font-bold text-foreground">Client Favorite</h2>
+
+            <Card className="overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-500 max-w-4xl mx-auto p-0">
+              <div className="grid lg:grid-cols-2 gap-0">
+                <div className="relative h-96 lg:h-[600px] m-0">
+                  <div className="absolute inset-0 premium-gradient-1 opacity-20 z-10 mix-blend-multiply"></div>
+                  <div className="absolute top-4 right-4 z-30 space-y-2">
+                    <div className="bg-gradient-to-r from-emerald-500/90 to-emerald-400/90 backdrop-blur-sm border border-white/20 shadow-lg px-3 py-1.5 rounded-full flex items-center gap-2 transform hover:scale-105 transition-all duration-300">
+                      <Award className="w-4 h-4 text-white animate-pulse" />
+                      <span className="text-sm font-bold text-white drop-shadow-sm">{mostLikedProject.likes} likes</span>
+                    </div>
+                  </div>
+                  <Image
+                    src={mostLikedProject.images?.[0] || "/placeholder.svg"}
+                    alt={mostLikedProject.title}
+                    fill
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+
+                <div className="p-8 lg:p-12 flex flex-col justify-center">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/50 text-emerald-500">
+                        {mostLikedProject.category}
+                      </Badge>
+                      <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/50 text-emerald-500">
+                        <Trophy className="w-3 h-3 mr-1" />
+                        Featured
+                      </Badge>
+                    </div>
+
+                    <h3 className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-400 bg-clip-text text-transparent">
+                      {mostLikedProject.title}
+                    </h3>
+                    <p className="text-muted-foreground text-lg leading-relaxed">{mostLikedProject.description}</p>
+
+                    <div className="flex gap-4">
+                      <Button
+                        onClick={() => window.open(mostLikedProject.liveUrl, "_blank")}
+                        className="bg-emerald-500 text-white border-0 hover:bg-emerald-600 px-8 py-4 text-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        View Project
+                      </Button>
+                      <Button
+                        onClick={() => handleLike(mostLikedProject.id)}
+                        variant="outline"
+                        className={`bg-emerald-500/10 border-emerald-500/50 hover:bg-emerald-500/20 ${
+                          likedProjects.has(mostLikedProject.id) ? "text-red-400" : "text-emerald-500"
+                        }`}
+                      >
+                        <Heart
+                          className={`w-4 h-4 mr-2 ${likedProjects.has(mostLikedProject.id) ? "fill-current animate-heart-beat" : ""}`}
+                        />
+                        {likedProjects.has(mostLikedProject.id) ? "Liked" : "Like"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
-
-          <Card className="overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-500 max-w-4xl mx-auto p-0">
-            <div className="grid lg:grid-cols-2 gap-0">
-              <div className="relative h-96 lg:h-[600px] m-0">
-                <div className="absolute inset-0 premium-gradient-1 opacity-20 z-10 mix-blend-multiply"></div>
-                <div className="absolute top-4 right-4 z-30 space-y-2">
-                  <div className="bg-gradient-to-r from-emerald-500/90 to-emerald-400/90 backdrop-blur-sm border border-white/20 shadow-lg px-3 py-1.5 rounded-full flex items-center gap-2 transform hover:scale-105 transition-all duration-300">
-                    <Award className="w-4 h-4 text-white animate-pulse" />
-                    <span className="text-sm font-bold text-white drop-shadow-sm">{mostLikedProject.likes} likes</span>
-                  </div>
-                </div>
-                <Image
-                  src={mostLikedProject.images?.[0] || "/placeholder.svg"}
-                  alt={mostLikedProject.title}
-                  fill
-                  className="object-cover w-full h-full"
-                />
-              </div>
-
-              <div className="p-8 lg:p-12 flex flex-col justify-center">
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/50 text-emerald-500">
-                      {mostLikedProject.category}
-                    </Badge>
-                    <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/50 text-emerald-500">
-                      <Trophy className="w-3 h-3 mr-1" />
-                      Featured
-                    </Badge>
-                  </div>
-
-                  <h3 className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-400 bg-clip-text text-transparent">
-                    {mostLikedProject.title}
-                  </h3>
-                  <p className="text-muted-foreground text-lg leading-relaxed">{mostLikedProject.description}</p>
-
-                  <div className="flex gap-4">
-                    <Button
-                      onClick={() => window.open(mostLikedProject.liveUrl, "_blank")}
-                      className="bg-emerald-500 text-white border-0 hover:bg-emerald-600 px-8 py-4 text-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      View Project
-                    </Button>
-                    <Button
-                      onClick={() => handleLike(mostLikedProject.id)}
-                      variant="outline"
-                      className={`bg-emerald-500/10 border-emerald-500/50 hover:bg-emerald-500/20 ${
-                        likedProjects.has(mostLikedProject.id) ? "text-red-400" : "text-emerald-500"
-                      }`}
-                    >
-                      <Heart
-                        className={`w-4 h-4 mr-2 ${likedProjects.has(mostLikedProject.id) ? "fill-current animate-heart-beat" : ""}`}
-                      />
-                      {likedProjects.has(mostLikedProject.id) ? "Liked" : "Like"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
+        )}
 
         {/* Trending Projects Section */}
         <div className="mb-20">
@@ -387,7 +432,7 @@ export function ProjectsShowcase() {
           </div>
 
           <div ref={scrollContainerRef} className="flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
-            {trendingProjects.map((project) => (
+            {popularProjects.map((project) => (
               <Card
                 key={project.id}
                 className="flex-shrink-0 w-80 overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300 p-0"
