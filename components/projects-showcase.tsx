@@ -279,25 +279,25 @@ export function ProjectsShowcase() {
 
         <div className="space-y-4">
           <Button
-            onClick={() => window.open("mailto:contact@hexcode.com", "_blank")}
+            onClick={() => window.open("mailto:hello@hexcode.com", "_blank")}
             className="w-full bg-emerald-500 text-white border-0 hover:bg-emerald-600"
           >
             <Mail className="w-4 h-4 mr-2" />
             Email Us
           </Button>
           <Button
-            onClick={() => window.open("tel:+1234567890", "_blank")}
+            onClick={() => window.open("tel:+94786734140", "_blank")}
             className="w-full bg-emerald-500 text-white border-0 hover:bg-emerald-600"
           >
             <Phone className="w-4 h-4 mr-2" />
             Schedule Call
           </Button>
           <Button
-            onClick={() => window.open("https://wa.me/1234567890", "_blank")}
+            onClick={() => window.open("https://wa.me/+94786734140", "_blank")}
             className="w-full bg-emerald-500 text-white border-0 hover:bg-emerald-600"
           >
             <MessageSquare className="w-4 h-4 mr-2" />
-            Live Chat
+            WhatsApp
           </Button>
         </div>
       </div>

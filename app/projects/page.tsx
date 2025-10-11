@@ -1,3 +1,5 @@
+"use client"
+
 import { Navigation } from "@/components/navigation"
 import { ProjectsShowcase } from "@/components/projects-showcase"
 import { CTASection } from "@/components/cta-section"

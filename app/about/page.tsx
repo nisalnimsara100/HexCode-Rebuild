@@ -1,3 +1,5 @@
+"use client"
+
 import { Navigation } from "@/components/navigation"
 import { AboutSection } from "@/components/about-section"
 import { StatsSection } from "@/components/stats-section"

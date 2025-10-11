@@ -1,3 +1,5 @@
+"use client"
+
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
@@ -13,19 +15,19 @@ export default function ContactPage() {
     {
       icon: <Mail className="w-6 h-6" />,
       title: "Email Us",
-      details: "hello@hexcode.dev",
+      details: "hello@hexcode.lk",
       description: "Send us an email anytime",
     },
     {
       icon: <Phone className="w-6 h-6" />,
       title: "Call Us",
-      details: "+1 (555) 123-4567",
+      details: "+94 78 673 4140",
       description: "Mon-Fri from 9am to 6pm",
     },
     {
       icon: <MapPin className="w-6 h-6" />,
       title: "Visit Us",
-      details: "San Francisco, CA",
+      details: "Kurunegala, Sri Lanka",
       description: "Come say hello at our office",
     },
     {
