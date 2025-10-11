@@ -339,7 +339,7 @@ export function ProjectsShowcase() {
 
             <Card className="overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-500 max-w-4xl mx-auto p-0">
               <div className="grid lg:grid-cols-2 gap-0">
-                <div className="relative h-96 lg:h-[600px] m-0">
+                <div className="relative aspect-square m-0">
                   <div className="absolute inset-0 premium-gradient-1 opacity-20 z-10 mix-blend-multiply"></div>
                   <div className="absolute top-4 right-4 z-30 space-y-2">
                     <div className="bg-gradient-to-r from-emerald-500/90 to-emerald-400/90 backdrop-blur-sm border border-white/20 shadow-lg px-3 py-1.5 rounded-full flex items-center gap-2 transform hover:scale-105 transition-all duration-300">
@@ -351,7 +351,7 @@ export function ProjectsShowcase() {
                     src={mostLikedProject.images?.[0] || "/placeholder.svg"}
                     alt={mostLikedProject.title}
                     fill
-                    className="object-cover w-full h-full"
+                    className="object-cover w-full h-full m-0 p-0"
                   />
                 </div>
 
@@ -431,60 +431,140 @@ export function ProjectsShowcase() {
             </div>
           </div>
 
-          <div ref={scrollContainerRef} className="flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
-            {popularProjects.map((project) => (
+          <div ref={scrollContainerRef} className="flex gap-5 overflow-x-auto pb-6 custom-scrollbar">
+            {popularProjects.map((project, index) => (
               <Card
                 key={project.id}
-                className="flex-shrink-0 w-80 overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300 p-0"
+                className="flex-shrink-0 w-72 overflow-hidden bg-gradient-to-br from-emerald-500/5 to-background border-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 group relative p-0"
+                style={{
+                  animationDelay: `${index * 0.15}s`
+                }}
               >
-                <div className="relative h-80 overflow-hidden m-0">
-                  <div className="absolute top-3 left-3 z-20 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">
-                    <TrendingUp className="w-3 h-3 text-emerald-500" />
+                {/* Floating trend indicator */}
+                <div className="absolute -top-3 -left-3 w-12 h-12 bg-gradient-to-br from-emerald-400/30 to-emerald-600/30 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-700 animate-pulse"></div>
+                
+                {/* Square image container */}
+                <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 m-0">
+                  {/* Trending badge */}
+                  <div className="absolute top-3 left-3 z-20 bg-emerald-500/90 backdrop-blur-md border border-emerald-400/30 px-2.5 py-1.5 rounded-lg transform -translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                    <TrendingUp className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <div className="absolute top-3 right-3 z-20 bg-gradient-to-r from-emerald-500/90 to-emerald-400/90 backdrop-blur-sm border border-white/20 shadow-lg px-2.5 py-1 rounded-full transform hover:scale-105 transition-all duration-300">
-                    <span className="text-xs font-bold text-white drop-shadow-sm flex items-center gap-1">
-                      <Heart className="w-3 h-3 fill-white animate-pulse" />
+                  
+                  {/* Likes counter */}
+                  <div className="absolute top-3 right-3 z-20 bg-black/70 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-lg transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300 delay-100">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Heart className="w-3 h-3 fill-emerald-400 text-emerald-400 animate-pulse" />
                       {project.likes}
                     </span>
                   </div>
+
+                  {/* Image navigation */}
+                  {project.images && project.images.length > 1 && (
+                    <div className="absolute inset-x-2 top-1/2 -translate-y-1/2 z-20 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <Button
+                        onClick={() => swipeImage(project.id, "left")}
+                        variant="ghost"
+                        size="sm"
+                        className="w-6 h-6 bg-black/50 hover:bg-black/70 text-white border border-white/20 rounded-full backdrop-blur-sm"
+                      >
+                        <ChevronLeft className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        onClick={() => swipeImage(project.id, "right")}
+                        variant="ghost"
+                        size="sm"
+                        className="w-6 h-6 bg-black/50 hover:bg-black/70 text-white border border-white/20 rounded-full backdrop-blur-sm"
+                      >
+                        <ChevronRight className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Main image */}
                   <Image
-                    src={project.images?.[0] || "/placeholder.svg"}
+                    src={project.images?.[currentImageIndex[project.id] || 0] || "/placeholder.svg"}
                     alt={project.title}
                     fill
-                    className="object-cover hover:scale-105 transition-transform duration-300"
+                    className="object-cover w-full h-full m-0 p-0"
                   />
+
+                  {/* Creative Image indicators */}
+                  {project.images && project.images.length > 1 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-2 group-hover:translate-y-0">
+                      {project.images.map((_, imageIndex) => (
+                        <button
+                          key={imageIndex}
+                          onClick={() => setCurrentImageIndex((prev) => ({ ...prev, [project.id]: imageIndex }))}
+                          className={`relative transition-all duration-500 ease-out transform ${
+                            (currentImageIndex[project.id] || 0) === imageIndex
+                              ? "w-6 h-2 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full scale-110 shadow-lg shadow-emerald-400/50"
+                              : "w-2 h-2 bg-white/40 backdrop-blur-sm rounded-full hover:bg-white/70 hover:scale-125 hover:shadow-md hover:shadow-white/30"
+                          }`}
+                          style={{ 
+                            animationDelay: `${imageIndex * 100}ms`,
+                            boxShadow: (currentImageIndex[project.id] || 0) === imageIndex 
+                              ? '0 0 15px rgba(52, 211, 153, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)' 
+                              : undefined
+                          }}
+                        >
+                          {/* Active indicator glow effect */}
+                          {(currentImageIndex[project.id] || 0) === imageIndex && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full animate-pulse opacity-60 blur-sm"></div>
+                          )}
+                          
+                          {/* Progress bar for active indicator */}
+                          {(currentImageIndex[project.id] || 0) === imageIndex && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-white/30 to-transparent rounded-full overflow-hidden">
+                              <div className="w-full h-full bg-gradient-to-r from-white/50 to-transparent animate-shimmer"></div>
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 </div>
 
-                <div className="p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/50 text-emerald-500">
+                {/* Compact content */}
+                <div className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600 text-xs px-2 py-0.5">
                       {project.category}
                     </Badge>
                     <Button
                       onClick={() => handleLike(project.id)}
                       variant="ghost"
                       size="sm"
-                      className={`p-1 ${likedProjects.has(project.id) ? "text-red-400" : "text-muted-foreground"}`}
+                      className={`p-1 hover:bg-emerald-500/10 transition-all duration-200 ${
+                        likedProjects.has(project.id) ? "text-red-500" : "text-muted-foreground hover:text-emerald-500"
+                      }`}
                     >
                       <Heart
-                        className={`w-4 h-4 ${likedProjects.has(project.id) ? "fill-current animate-heart-beat" : ""}`}
+                        className={`w-3.5 h-3.5 transition-all duration-200 ${
+                          likedProjects.has(project.id) ? "fill-current scale-110" : "group-hover:scale-110"
+                        }`}
                       />
                     </Button>
                   </div>
 
-                  <h3 className="text-lg font-bold text-foreground line-clamp-2">{project.title}</h3>
-                  <p className="text-muted-foreground text-sm line-clamp-3">{project.description}</p>
+                  <h3 className="text-lg font-bold text-foreground line-clamp-2 group-hover:text-emerald-500 transition-colors duration-300 leading-tight">
+                    {project.title}
+                  </h3>
+                  
+                  <p className="text-muted-foreground text-sm line-clamp-2 group-hover:text-muted-foreground/80 transition-colors duration-300">
+                    {project.description}
+                  </p>
 
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => window.open(project.liveUrl, "_blank")}
-                      className="flex-1 bg-emerald-500 text-white border-0 hover:bg-emerald-600"
-                    >
-                      <ExternalLink className="w-3 h-3 mr-1" />
-                      View
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => window.open(project.liveUrl, "_blank")}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white border-0 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/25 group/btn"
+                  >
+                    <ExternalLink className="w-3 h-3 mr-2 group-hover/btn:scale-110 transition-transform duration-200" />
+                    <span className="font-medium">Explore</span>
+                  </Button>
                 </div>
               </Card>
             ))}
@@ -526,33 +606,46 @@ export function ProjectsShowcase() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProjects.slice(0, visibleProjects).map((project) => (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+            {filteredProjects.slice(0, visibleProjects).map((project, index) => (
               <Card
                 key={project.id}
-                className="overflow-hidden bg-emerald-500/5 border-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300 group p-0"
+                className="overflow-hidden bg-gradient-to-br from-emerald-500/5 to-background border-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 group relative p-0"
+                style={{
+                  animationDelay: `${index * 0.1}s`
+                }}
               >
-                <div className="relative h-80 overflow-hidden m-0">
-                  <div className="absolute inset-0 premium-gradient-1 opacity-10 z-10 mix-blend-multiply"></div>
-                  <div className="absolute top-3 right-3 z-20 bg-gradient-to-r from-emerald-500/90 to-emerald-400/90 backdrop-blur-sm border border-white/20 shadow-lg px-2.5 py-1 rounded-full transform hover:scale-105 transition-all duration-300">
-                    <span className="text-xs font-bold text-white drop-shadow-sm flex items-center gap-1">
-                      <Heart className="w-3 h-3 fill-white animate-pulse" />
-                      {project.likes}
-                    </span>
-                  </div>
-                  {project.trending && (
-                    <div className="absolute top-3 left-3 z-20 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">
-                      <TrendingUp className="w-3 h-3 text-emerald-500" />
+                {/* Floating gradient orb */}
+                <div className="absolute -top-4 -right-4 w-16 h-16 bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 animate-pulse"></div>
+                
+                {/* Square image container */}
+                <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 m-0">
+                  {/* Subtle animated background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-emerald-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  
+                  {/* Stats overlay */}
+                  <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
+                    <div className="bg-black/70 backdrop-blur-md border border-white/10 px-2 py-1 rounded-lg">
+                      <span className="text-xs font-medium text-white flex items-center gap-1">
+                        <Heart className="w-3 h-3 fill-emerald-400 text-emerald-400" />
+                        {project.likes}
+                      </span>
                     </div>
-                  )}
+                    {project.trending && (
+                      <div className="bg-emerald-500/90 backdrop-blur-md border border-emerald-400/30 px-2 py-1 rounded-lg">
+                        <TrendingUp className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
 
+                  {/* Image navigation */}
                   {project.images && project.images.length > 1 && (
-                    <>
+                    <div className="absolute inset-x-2 top-1/2 -translate-y-1/2 z-20 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <Button
                         onClick={() => swipeImage(project.id, "left")}
                         variant="ghost"
                         size="sm"
-                        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-black/20 text-white hover:bg-black/40"
+                        className="w-8 h-8 bg-black/50 hover:bg-black/70 text-white border border-white/20 rounded-full backdrop-blur-sm"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
@@ -560,86 +653,157 @@ export function ProjectsShowcase() {
                         onClick={() => swipeImage(project.id, "right")}
                         variant="ghost"
                         size="sm"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-black/20 text-white hover:bg-black/40"
+                        className="w-8 h-8 bg-black/50 hover:bg-black/70 text-white border border-white/20 rounded-full backdrop-blur-sm"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Button>
-                    </>
+                    </div>
                   )}
 
+                  {/* Main image */}
                   <Image
                     src={project.images?.[currentImageIndex[project.id] || 0] || "/placeholder.svg"}
                     alt={project.title}
                     fill
-                    className="object-cover group-hover:scale-110 transition-transform duration-500"
+                    className="object-cover w-full h-full m-0 p-0"
                   />
-                </div>
 
-                <div className="p-6 space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/50 text-emerald-500">
-                        {project.category}
-                      </Badge>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={`${getComplexityColor(project.complexity)} border text-xs`}>
-                          {project.complexity}
-                        </Badge>
-                        <Button
-                          onClick={() => handleLike(project.id)}
-                          variant="ghost"
-                          size="sm"
-                          className={`p-1 ${likedProjects.has(project.id) ? "text-red-400" : "text-muted-foreground"}`}
+                  {/* Creative Image indicators */}
+                  {project.images && project.images.length > 1 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-2 group-hover:translate-y-0">
+                      {project.images.map((_, imageIndex) => (
+                        <button
+                          key={imageIndex}
+                          onClick={() => setCurrentImageIndex((prev) => ({ ...prev, [project.id]: imageIndex }))}
+                          className={`relative transition-all duration-500 ease-out transform ${
+                            (currentImageIndex[project.id] || 0) === imageIndex
+                              ? "w-6 h-2 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full scale-110 shadow-lg shadow-emerald-400/50"
+                              : "w-2 h-2 bg-white/40 backdrop-blur-sm rounded-full hover:bg-white/70 hover:scale-125 hover:shadow-md hover:shadow-white/30"
+                          }`}
+                          style={{ 
+                            animationDelay: `${imageIndex * 100}ms`,
+                            boxShadow: (currentImageIndex[project.id] || 0) === imageIndex 
+                              ? '0 0 15px rgba(52, 211, 153, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)' 
+                              : undefined
+                          }}
                         >
-                          <Heart
-                            className={`w-4 h-4 ${likedProjects.has(project.id) ? "fill-current animate-heart-beat" : ""}`}
-                          />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <h3 className="text-xl font-bold group-hover:text-emerald-500 transition-colors">{project.title}</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed line-clamp-3">{project.description}</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {project.technologies.slice(0, 3).map((tech) => (
-                        <Badge key={tech} variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-500">
-                          {tech}
-                        </Badge>
+                          {/* Active indicator glow effect */}
+                          {(currentImageIndex[project.id] || 0) === imageIndex && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full animate-pulse opacity-60 blur-sm"></div>
+                          )}
+                          
+                          {/* Progress bar for active indicator */}
+                          {(currentImageIndex[project.id] || 0) === imageIndex && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-white/30 to-transparent rounded-full overflow-hidden">
+                              <div className="w-full h-full bg-gradient-to-r from-white/50 to-transparent animate-shimmer"></div>
+                            </div>
+                          )}
+                        </button>
                       ))}
-                      {project.technologies.length > 3 && (
-                        <Badge variant="secondary" className="text-xs bg-emerald-500/10">
-                          +{project.technologies.length - 3}
-                        </Badge>
-                      )}
                     </div>
-
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-emerald-500" />
-                          {project.stats.stars}
-                        </span>
-                        <span>{project.duration}</span>
-                      </div>
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-3 h-3 text-emerald-500" />
-                        {project.stats.views}
+                  )}
+                  
+                  {/* badges and likes display */}
+                  <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
+                    <div className="bg-black/70 backdrop-blur-md border border-white/10 px-2 py-1 rounded-lg">
+                      <span className="text-xs font-medium text-white flex items-center gap-1">
+                        <Heart className="w-3 h-3 fill-emerald-400 text-emerald-400" />
+                        {project.likes}
                       </span>
                     </div>
+                    {project.trending && (
+                      <div className="bg-emerald-500/90 backdrop-blur-md border border-emerald-400/30 px-2 py-1 rounded-lg">
+                        <TrendingUp className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
 
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        size="sm"
-                        onClick={() => window.open(project.liveUrl, "_blank")}
-                        className="flex-1 bg-emerald-500 text-white border-0 hover:bg-emerald-600"
-                      >
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        Live Demo
-                      </Button>
+                  {/* Subtle overlay gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                </div>
+
+                {/* Content section with reduced padding */}
+                <div className="p-5 space-y-3">
+                  {/* Header with badges */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600 text-xs px-2 py-0.5">
+                        {project.category}
+                      </Badge>
+                      <Badge variant="outline" className={`${getComplexityColor(project.complexity)} text-xs px-2 py-0.5`}>
+                        {project.complexity.split(' ')[0]}
+                      </Badge>
                     </div>
+                    
+                    <Button
+                      onClick={() => handleLike(project.id)}
+                      variant="ghost"
+                      size="sm"
+                      className={`p-1.5 hover:bg-emerald-500/10 transition-all duration-200 ${
+                        likedProjects.has(project.id) ? "text-red-500" : "text-muted-foreground hover:text-emerald-500"
+                      }`}
+                    >
+                      <Heart
+                        className={`w-4 h-4 transition-all duration-200 ${
+                          likedProjects.has(project.id) ? "fill-current scale-110" : "group-hover:scale-110"
+                        }`}
+                      />
+                    </Button>
+                  </div>
+
+                  {/* Title with hover effect */}
+                  <h3 className="text-lg font-bold text-foreground group-hover:text-emerald-500 transition-colors duration-300 leading-tight">
+                    {project.title}
+                  </h3>
+                  
+                  {/* Description */}
+                  <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2 group-hover:text-muted-foreground/80 transition-colors duration-300">
+                    {project.description}
+                  </p>
+
+                  {/* Technologies */}
+                  <div className="flex flex-wrap gap-1">
+                    {project.technologies.slice(0, 3).map((tech) => (
+                      <Badge 
+                        key={tech} 
+                        variant="secondary" 
+                        className="text-xs bg-muted/50 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors duration-200 px-2 py-0.5"
+                      >
+                        {tech}
+                      </Badge>
+                    ))}
+                    {project.technologies.length > 3 && (
+                      <Badge variant="secondary" className="text-xs bg-muted/50 text-muted-foreground px-2 py-0.5">
+                        +{project.technologies.length - 3}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Stats row */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1 hover:text-emerald-500 transition-colors duration-200">
+                        <Star className="w-3 h-3" />
+                        {project.stats.stars}
+                      </span>
+                      <span className="text-muted-foreground/70">{project.duration}</span>
+                    </div>
+                    <span className="flex items-center gap-1 hover:text-emerald-500 transition-colors duration-200">
+                      <Eye className="w-3 h-3" />
+                      {project.stats.views}
+                    </span>
+                  </div>
+
+                  {/* Action button with improved styling */}
+                  <div className="pt-2">
+                    <Button
+                      size="sm"
+                      onClick={() => window.open(project.liveUrl, "_blank")}
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white border-0 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/25 group/btn"
+                    >
+                      <ExternalLink className="w-3 h-3 mr-2 group-hover/btn:scale-110 transition-transform duration-200" />
+                      <span className="font-medium">View Project</span>
+                    </Button>
                   </div>
                 </div>
               </Card>
