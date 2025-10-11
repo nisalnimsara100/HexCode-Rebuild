@@ -1003,7 +1003,7 @@ function PricingPackageCard({
                 <Input
                   value={newFeature}
                   onChange={(e) => setNewFeature(e.target.value)}
-                  placeholder="Add new feature"
+                  placeholder="Add new features"
                   className="text-sm h-8"
                   onKeyPress={(e) => e.key === 'Enter' && addFeature()}
                 />

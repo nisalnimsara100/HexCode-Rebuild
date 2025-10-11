@@ -252,6 +252,7 @@ export function ServicesManagement() {
     isActive: true
   });
   const [saving, setSaving] = useState(false);
+  const [newFeature, setNewFeature] = useState('');
 
   const iconOptions = [
     { icon: <Globe className="w-5 h-5" />, name: 'Globe' },
@@ -503,16 +504,61 @@ export function ServicesManagement() {
               />
             </div>
             <div>
-              <Label>Features (one per line)</Label>
-              <Textarea
-                value={newService.features.join('\n')}
-                onChange={(e) => setNewService({ 
-                  ...newService, 
-                  features: e.target.value.split('\n').filter(f => f.trim()) 
-                })}
-                placeholder="Enter features, one per line"
-                rows={4}
-              />
+              <Label>Features</Label>
+              <div className="space-y-1">
+                {newService.features.map((feature, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <Input
+                      value={feature}
+                      onChange={(e) => {
+                        const updatedFeatures = [...newService.features];
+                        updatedFeatures[index] = e.target.value;
+                        setNewService({ ...newService, features: updatedFeatures });
+                      }}
+                      placeholder="Enter feature"
+                      className="text-sm h-8"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const updatedFeatures = newService.features.filter((_, i) => i !== index);
+                        setNewService({ ...newService, features: updatedFeatures });
+                      }}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex space-x-1">
+                  <Input
+                    value={newFeature}
+                    onChange={(e) => setNewFeature(e.target.value)}
+                    placeholder="Add new feature"
+                    className="text-sm h-8"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newFeature.trim()) {
+                        setNewService({ ...newService, features: [...newService.features, newFeature.trim()] });
+                        setNewFeature('');
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (newFeature.trim()) {
+                        setNewService({ ...newService, features: [...newService.features, newFeature.trim()] });
+                        setNewFeature('');
+                      }
+                    }}
+                    className="h-8"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
             </div>
             <div className="flex items-center space-x-2">
               <Switch
@@ -570,15 +616,61 @@ export function ServicesManagement() {
                 />
               </div>
               <div>
-                <Label>Features (one per line)</Label>
-                <Textarea
-                  value={selectedService.features.join('\n')}
-                  onChange={(e) => setSelectedService({ 
-                    ...selectedService, 
-                    features: e.target.value.split('\n').filter(f => f.trim()) 
-                  })}
-                  rows={4}
-                />
+                <Label>Features</Label>
+                <div className="space-y-1">
+                  {selectedService.features.map((feature, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <Input
+                        value={feature}
+                        onChange={(e) => {
+                          const updatedFeatures = [...selectedService.features];
+                          updatedFeatures[index] = e.target.value;
+                          setSelectedService({ ...selectedService, features: updatedFeatures });
+                        }}
+                        placeholder="Enter feature"
+                        className="text-sm h-8"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const updatedFeatures = selectedService.features.filter((_, i) => i !== index);
+                          setSelectedService({ ...selectedService, features: updatedFeatures });
+                        }}
+                        className="h-8 w-8 p-0"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="flex space-x-1">
+                    <Input
+                      value={newFeature}
+                      onChange={(e) => setNewFeature(e.target.value)}
+                      placeholder="Add new feature"
+                      className="text-sm h-8"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newFeature.trim()) {
+                          setSelectedService({ ...selectedService, features: [...selectedService.features, newFeature.trim()] });
+                          setNewFeature('');
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (newFeature.trim()) {
+                          setSelectedService({ ...selectedService, features: [...selectedService.features, newFeature.trim()] });
+                          setNewFeature('');
+                        }
+                      }}
+                      className="h-8"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 <Switch
@@ -627,6 +719,7 @@ export function PricePackagesManagement() {
     popular: false,
     isActive: true
   });
+  const [newFeature, setNewFeature] = useState('');
 
   useEffect(() => {
     fetchPackages();
@@ -763,71 +856,112 @@ export function PricePackagesManagement() {
             <DialogTitle>Add New Package</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">Package Name *</Label>
-                <Input
-                  id="name"
-                  value={newPackage.name}
-                  onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
-                  placeholder="e.g., Starter, Professional"
-                />
-              </div>
-              <div>
-                <Label htmlFor="price">Price *</Label>
-                <Input
-                  id="price"
-                  value={newPackage.price}
-                  onChange={(e) => setNewPackage({ ...newPackage, price: e.target.value })}
-                  placeholder="e.g., $99, Custom"
-                />
-              </div>
+            <div>
+              <Label htmlFor="package-name">Package Name</Label>
+              <Input
+                id="package-name"
+                value={newPackage.name}
+                onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
+                placeholder="Enter package name"
+              />
             </div>
             <div>
-              <Label htmlFor="description">Description *</Label>
+              <Label htmlFor="package-price">Price</Label>
+              <Input
+                id="package-price"
+                type="number" // Restrict input to numbers only
+                value={newPackage.price}
+                onChange={(e) => setNewPackage({ ...newPackage, price: e.target.value })}
+                placeholder="Enter package price"
+              />
+            </div>
+            <div>
+              <Label htmlFor="package-description">Description</Label>
               <Textarea
-                id="description"
+                id="package-description"
                 value={newPackage.description}
                 onChange={(e) => setNewPackage({ ...newPackage, description: e.target.value })}
-                placeholder="Package description"
+                placeholder="Enter package description"
                 rows={3}
               />
             </div>
             <div>
-              <Label>Features (one per line)</Label>
-              <Textarea
-                value={newPackage.features.join('\n')}
-                onChange={(e) => setNewPackage({ 
-                  ...newPackage, 
-                  features: e.target.value.split('\n').filter(f => f.trim()) 
-                })}
-                placeholder="Enter features, one per line"
-                rows={4}
-              />
+              <Label>Features</Label>
+              <div className="space-y-1">
+                {newPackage.features.map((feature, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <Input
+                      value={feature}
+                      onChange={(e) => {
+                        const updatedFeatures = [...newPackage.features];
+                        updatedFeatures[index] = e.target.value;
+                        setNewPackage({ ...newPackage, features: updatedFeatures });
+                      }}
+                      placeholder="Enter feature"
+                      className="text-sm h-8"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const updatedFeatures = newPackage.features.filter((_, i) => i !== index);
+                        setNewPackage({ ...newPackage, features: updatedFeatures });
+                      }}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex space-x-1">
+                  <Input
+                    value={newFeature}
+                    onChange={(e) => setNewFeature(e.target.value)}
+                    placeholder="Add new feature"
+                    className="text-sm h-8"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newFeature.trim()) {
+                        setNewPackage({ ...newPackage, features: [...newPackage.features, newFeature.trim()] });
+                        setNewFeature('');
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (newFeature.trim()) {
+                        setNewPackage({ ...newPackage, features: [...newPackage.features, newFeature.trim()] });
+                        setNewFeature('');
+                      }
+                    }}
+                    className="h-8"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={newPackage.popular}
-                  onCheckedChange={(checked) => setNewPackage({ ...newPackage, popular: checked })}
-                />
-                <Label>Popular Package</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={newPackage.isActive !== false}
-                  onCheckedChange={(checked) => setNewPackage({ ...newPackage, isActive: checked })}
-                />
-                <Label>Active Package</Label>
-              </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={newPackage.popular}
+                onCheckedChange={(checked) => setNewPackage({ ...newPackage, popular: checked })}
+              />
+              <Label>Popular</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={newPackage.isActive}
+                onCheckedChange={(checked) => setNewPackage({ ...newPackage, isActive: checked })}
+              />
+              <Label>Active</Label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddModalOpen(false)} disabled={saving}>
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddPackage} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+            <Button onClick={handleAddPackage}>
               Add Package
             </Button>
           </DialogFooter>
@@ -1003,7 +1137,7 @@ function PricingPackageCard({
                 <Input
                   value={newFeature}
                   onChange={(e) => setNewFeature(e.target.value)}
-                  placeholder="Add new feature"
+                  placeholder="Add new features"
                   className="text-sm h-8"
                   onKeyPress={(e) => e.key === 'Enter' && addFeature()}
                 />

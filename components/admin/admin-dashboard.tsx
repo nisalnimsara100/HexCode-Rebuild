@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-context"
 import { AdminSidebar } from "./admin-sidebar"
 import { AdminHeader } from "./admin-header"
-import { ServicesManager } from "./services-manager" 
 import { WebsiteOverview, ServicesManagement, PortfolioManagement, WebsiteStats, ContentManagement, WebsiteSettings, PricePackagesManagement } from "./website-components-fixed"
 import {
   BarChart3,
@@ -40,12 +39,6 @@ import {
   Package,
   DollarSign
 } from "lucide-react" 
-import { OverviewHeader } from "./overview-header"
-import { ProjectsManagerHeader } from "./projects-manager-header"
-import { ContactsManagerHeader } from "./contacts-manager-header"
-import { AnalyticsOverviewHeader } from "./analytics-overview-header"
-import { SettingsPanelHeader } from "./settings-panel-header"
-import { ServicesManagerHeader } from "./services-manager-header"
 
 // Staff Management Components
 function StaffOverviewDashboard() {
