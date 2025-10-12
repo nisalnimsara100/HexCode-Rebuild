@@ -25,8 +25,51 @@ import {
   Target,
   Monitor
 } from "lucide-react"
+import { useEffect, useState } from "react";
+import { database } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
+import { EnhancedJobApplicationForm } from "@/components/careers/enhanced-job-application-form";
+
+type Career = {
+  id: number;
+  title: string;
+  department: string;
+  level: "Intern" | "Associate" | "Senior" | "Lead" | "Manager";
+  location: string;
+  type: string;
+  experience: string;
+  salary: string;
+  technologies: string[];
+  description: string;
+  posted: string;
+  requirements?: string[];
+};
 
 export default function CareersPage() {
+  const [careers, setCareers] = useState<Career[]>([]);
+  const [isApplicationFormOpen, setIsApplicationFormOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<Career | null>(null);
+
+  useEffect(() => {
+    const careersRef = ref(database, "careers");
+    const unsubscribe = onValue(careersRef, (snapshot) => {
+      const data = snapshot.val();
+      setCareers(data ? Object.values(data) : []);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleApplyClick = (job: Career) => {
+    setSelectedJob(job);
+    setIsApplicationFormOpen(true);
+  };
+
+  const handleCloseApplicationForm = () => {
+    setIsApplicationFormOpen(false);
+    setSelectedJob(null);
+  };
+
   const companyValues = [
     {
       icon: <Zap className="w-6 h-6" />,
@@ -83,69 +126,6 @@ export default function CareersPage() {
     },
   ]
 
-  const openPositions = [
-    {
-      id: 1,
-      title: "Senior Full Stack Developer",
-      department: "Engineering",
-      location: "Remote / Kurunegala",
-      type: "Full-time",
-      experience: "3-5 years",
-      salary: "LKR 180,000 - 250,000",
-      technologies: ["React", "Node.js", "TypeScript", "AWS"],
-      description: "Join our engineering team to build scalable web applications using modern technologies. You'll work on challenging projects while mentoring junior developers.",
-      posted: "2 days ago",
-    },
-    {
-      id: 2,
-      title: "UI/UX Designer",
-      department: "Design",
-      location: "Remote / Kurunegala",
-      type: "Full-time", 
-      experience: "2-4 years",
-      salary: "LKR 120,000 - 180,000",
-      technologies: ["Figma", "Adobe Creative Suite", "Prototyping"],
-      description: "Create beautiful and intuitive user experiences for our clients' digital products. Collaborate closely with developers and stakeholders.",
-      posted: "1 week ago",
-    },
-    {
-      id: 3,
-      title: "DevOps Engineer",
-      department: "Infrastructure",
-      location: "Remote / Kurunegala",
-      type: "Full-time",
-      experience: "3-6 years", 
-      salary: "LKR 200,000 - 300,000",
-      technologies: ["Docker", "Kubernetes", "AWS", "CI/CD"],
-      description: "Build and maintain our cloud infrastructure. Implement best practices for deployment, monitoring, and security across all our projects.",
-      posted: "3 days ago",
-    },
-    {
-      id: 4,
-      title: "Mobile App Developer",
-      department: "Engineering",
-      location: "Remote / Kurunegala", 
-      type: "Full-time",
-      experience: "2-4 years",
-      salary: "LKR 150,000 - 220,000",
-      technologies: ["React Native", "Flutter", "iOS", "Android"],
-      description: "Develop cross-platform mobile applications that deliver exceptional user experiences. Work with our design team to bring mockups to life.",
-      posted: "5 days ago",
-    },
-    {
-      id: 5,
-      title: "Junior Frontend Developer",
-      department: "Engineering",
-      location: "Remote / Kurunegala",
-      type: "Full-time",
-      experience: "0-2 years",
-      salary: "LKR 80,000 - 120,000", 
-      technologies: ["React", "JavaScript", "CSS", "Git"],
-      description: "Start your career with us! Work alongside experienced developers while building modern frontend applications using React and other cutting-edge technologies.",
-      posted: "1 day ago",
-    },
-  ]
-
   const getDepartmentIcon = (department: string) => {
     switch (department) {
       case "Engineering":
@@ -154,6 +134,18 @@ export default function CareersPage() {
         return <Palette className="w-4 h-4" />
       case "Infrastructure":
         return <Monitor className="w-4 h-4" />
+      case "Marketing":
+        return <Target className="w-4 h-4" />
+      case "Sales":
+        return <DollarSign className="w-4 h-4" />
+      case "HR":
+        return <Users className="w-4 h-4" />
+      case "IT":
+        return <Zap className="w-4 h-4" />
+      case "Leadership":
+        return <Star className="w-4 h-4" />
+      case "Data":
+        return <TrendingUp className="w-4 h-4" />
       default:
         return <Briefcase className="w-4 h-4" />
     }
@@ -162,13 +154,42 @@ export default function CareersPage() {
   const getDepartmentColor = (department: string) => {
     switch (department) {
       case "Engineering":
-        return "text-blue-500 bg-blue-500/10 border-blue-500/20"
+        return "text-blue-500 bg-blue-500/10 border-blue-500/20";
       case "Design":
-        return "text-purple-500 bg-purple-500/10 border-purple-500/20"
+        return "text-purple-500 bg-purple-500/10 border-purple-500/20";
       case "Infrastructure":
-        return "text-orange-500 bg-orange-500/10 border-orange-500/20"
+        return "text-orange-500 bg-orange-500/10 border-orange-500/20";
+      case "Marketing":
+        return "text-pink-500 bg-pink-500/10 border-pink-500/20";
+      case "Sales":
+        return "text-green-500 bg-green-500/10 border-green-500/20";
+      case "HR":
+        return "text-yellow-500 bg-yellow-500/10 border-yellow-500/20";
+      case "IT":
+        return "text-red-500 bg-red-500/10 border-red-500/20";
+      case "Leadership":
+        return "text-indigo-500 bg-indigo-500/10 border-indigo-500/20";
+      case "Data":
+        return "text-teal-500 bg-teal-500/10 border-teal-500/20";
       default:
-        return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
+        return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20";
+    }
+  }
+
+  const getLevelColor = (level: string) => {
+    switch (level) {
+      case "Intern":
+        return "text-emerald-600 bg-emerald-100 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-700";
+      case "Associate":
+        return "text-blue-600 bg-blue-100 border-blue-200 dark:text-blue-400 dark:bg-blue-900/30 dark:border-blue-700";
+      case "Senior":
+        return "text-purple-600 bg-purple-100 border-purple-200 dark:text-purple-400 dark:bg-purple-900/30 dark:border-purple-700";
+      case "Lead":
+        return "text-orange-600 bg-orange-100 border-orange-200 dark:text-orange-400 dark:bg-orange-900/30 dark:border-orange-700";
+      case "Manager":
+        return "text-red-600 bg-red-100 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-700";
+      default:
+        return "text-gray-600 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-900/30 dark:border-gray-700";
     }
   }
 
@@ -282,7 +303,7 @@ export default function CareersPage() {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-            {openPositions.map((position, index) => (
+            {careers.map((position, index) => (
               <Card 
                 key={position.id} 
                 className="relative overflow-hidden bg-gradient-to-br from-background via-emerald-500/5 to-background border border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-500 group cursor-pointer"
@@ -313,9 +334,14 @@ export default function CareersPage() {
                             <h3 className="text-xl font-bold bg-gradient-to-r from-foreground to-emerald-500 bg-clip-text text-transparent group-hover:from-emerald-500 group-hover:to-emerald-400 transition-all duration-300">
                               {position.title}
                             </h3>
-                            <Badge className={`${getDepartmentColor(position.department)} text-xs font-medium shadow-sm`}>
-                              <span>{position.department}</span>
-                            </Badge>
+                            <div className="flex gap-2 mt-2">
+                              <Badge className={`${getDepartmentColor(position.department)} text-xs font-medium shadow-sm`}>
+                                <span>{position.department}</span>
+                              </Badge>
+                              <Badge className={`${getLevelColor(position.level)} text-xs font-medium shadow-sm border`}>
+                                <span>{position.level}</span>
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                         
@@ -408,7 +434,7 @@ export default function CareersPage() {
                     
                     <Button 
                       className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300 group/btn hover:scale-105"
-                      onClick={() => window.open(`mailto:careers@hexcode.lk?subject=Application for ${position.title}`, "_blank")}
+                      onClick={() => handleApplyClick(position)}
                     >
                       Apply Now
                       <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform duration-200" />
@@ -532,6 +558,13 @@ export default function CareersPage() {
       </section>
 
       <Footer />
+
+      {/* Job Application Form Modal */}
+      <EnhancedJobApplicationForm
+        isOpen={isApplicationFormOpen}
+        onClose={handleCloseApplicationForm}
+        selectedJob={selectedJob}
+      />
     </div>
   )
 }

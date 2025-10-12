@@ -1,0 +1,142 @@
+[
+  {
+    "id": 1,
+    "title": "Full Stack Developer",
+    "department": "Engineering",
+    "level": "Senior",
+    "location": "Remote / Kurunegala",
+    "type": "Full-time",
+    "experience": "3-5 years",
+    "salary": "LKR 180,000 - 250,000",
+    "technologies": ["React", "Node.js", "TypeScript", "AWS"],
+    "description": "Join our engineering team to build scalable web applications using modern technologies. You'll work on challenging projects while mentoring junior developers.",
+    "posted": "2 days ago",
+    "requirements": [
+      "Bachelor's degree in Computer Science or related field",
+      "3+ years of full-stack development experience",
+      "Proficiency in React, Node.js, and TypeScript",
+      "Experience with cloud platforms (AWS preferred)",
+      "Strong problem-solving and communication skills"
+    ]
+  },
+  {
+    "id": 2,
+    "title": "UI/UX Designer",
+    "department": "Design",
+    "level": "Associate",
+    "location": "Remote / Kurunegala",
+    "type": "Full-time",
+    "experience": "2-4 years",
+    "salary": "LKR 120,000 - 180,000",
+    "technologies": ["Figma", "Adobe Creative Suite", "Prototyping"],
+    "description": "Create beautiful and intuitive user experiences for our clients' digital products. Collaborate closely with developers and stakeholders.",
+    "posted": "1 week ago",
+    "requirements": [
+      "Degree in Design, HCI, or related field",
+      "2+ years of UX/UI design experience",
+      "Proficiency in Figma and Adobe Creative Suite",
+      "Strong portfolio showcasing design process",
+      "Understanding of user-centered design principles"
+    ]
+  },
+  {
+    "id": 3,
+    "title": "DevOps Engineer",
+    "department": "Infrastructure",
+    "level": "Senior",
+    "location": "Remote / Kurunegala",
+    "type": "Full-time",
+    "experience": "3-6 years",
+    "salary": "LKR 200,000 - 300,000",
+    "technologies": ["Docker", "Kubernetes", "AWS", "CI/CD"],
+    "description": "Build and maintain our cloud infrastructure. Implement best practices for deployment, monitoring, and security across all our projects.",
+    "posted": "3 days ago",
+    "requirements": [
+      "Bachelor's degree in Computer Science or Engineering",
+      "3+ years of DevOps/Infrastructure experience",
+      "Expertise in containerization and orchestration",
+      "Experience with CI/CD pipelines",
+      "Strong knowledge of cloud security best practices"
+    ]
+  },
+  {
+    "id": 4,
+    "title": "Mobile App Developer",
+    "department": "Engineering",
+    "level": "Associate",
+    "location": "Remote / Kurunegala",
+    "type": "Full-time",
+    "experience": "2-4 years",
+    "salary": "LKR 150,000 - 220,000",
+    "technologies": ["React Native", "Flutter", "iOS", "Android"],
+    "description": "Develop cross-platform mobile applications that deliver exceptional user experiences. Work with our design team to bring mockups to life.",
+    "posted": "5 days ago",
+    "requirements": [
+      "Degree in Computer Science or related field",
+      "2+ years of mobile development experience",
+      "Proficiency in React Native or Flutter",
+      "Experience with mobile app deployment",
+      "Understanding of mobile UI/UX principles"
+    ]
+  },
+  {
+    "id": 5,
+    "title": "Frontend Developer",
+    "department": "Engineering",
+    "level": "Intern",
+    "location": "Remote / Kurunegala",
+    "type": "Internship",
+    "experience": "0-1 years",
+    "salary": "LKR 30,000 - 50,000",
+    "technologies": ["React", "JavaScript", "CSS", "Git"],
+    "description": "Start your career with us! Learn alongside experienced developers while building modern frontend applications using React and other cutting-edge technologies.",
+    "posted": "1 day ago",
+    "requirements": [
+      "Currently pursuing or completed degree in Computer Science",
+      "Basic understanding of HTML, CSS, JavaScript",
+      "Familiarity with React framework",
+      "Eager to learn and grow",
+      "Good communication skills"
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Marketing Specialist",
+    "department": "Marketing",
+    "level": "Associate",
+    "location": "Remote / Kurunegala",
+    "type": "Full-time",
+    "experience": "2-3 years",
+    "salary": "LKR 100,000 - 150,000",
+    "technologies": ["Google Analytics", "SEO", "Social Media", "Content Marketing"],
+    "description": "Drive our marketing initiatives and help grow our brand presence. Create compelling campaigns that resonate with our target audience.",
+    "posted": "4 days ago",
+    "requirements": [
+      "Degree in Marketing, Communications, or related field",
+      "2+ years of digital marketing experience",
+      "Proficiency in marketing tools and analytics",
+      "Strong writing and communication skills",
+      "Creative thinking and analytical mindset"
+    ]
+  },
+  {
+    "id": 7,
+    "title": "Data Analyst",
+    "department": "Data",
+    "level": "Intern",
+    "location": "Remote / Kurunegala",
+    "type": "Internship",
+    "experience": "0-1 years",
+    "salary": "LKR 25,000 - 40,000",
+    "technologies": ["Python", "SQL", "Excel", "Tableau"],
+    "description": "Learn data analysis and visualization techniques while working on real projects. Gain hands-on experience with modern data tools and methodologies.",
+    "posted": "2 days ago",
+    "requirements": [
+      "Currently pursuing degree in Statistics, Mathematics, or related field",
+      "Basic knowledge of Python and SQL",
+      "Understanding of statistical concepts",
+      "Attention to detail and analytical thinking",
+      "Willingness to learn new technologies"
+    ]
+  }
+]
