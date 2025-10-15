@@ -1183,26 +1183,799 @@ export function WebsiteStats() {
   );
 }
 
-// Placeholder components for other sections
+// Portfolio Management with Full CRUD for allProjects Collection
 export function PortfolioManagement() {
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [newProject, setNewProject] = useState({
+    title: '',
+    description: '',
+    category: '',
+    likes: 0,
+    images: [''],
+    trending: false,
+    technologies: [''],
+    stats: {
+      stars: 0,
+      views: 0
+    },
+    duration: '',
+    complexity: 'Custom Solution',
+    liveUrl: ''
+  });
+
+  const categories = ["E-commerce", "Healthcare", "FinTech", "Education", "IoT", "Analytics"];
+  const complexityOptions = ["Custom Solution", "Business Solution", "Premium Solution", "Enterprise Solution"];
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = () => {
+    setLoading(true);
+    const projectsRef = ref(database, "allProjects");
+    const unsubscribe = onValue(projectsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const projectsArray = Object.keys(data).map((key) => ({ 
+          id: key, 
+          ...data[key],
+          technologies: Array.isArray(data[key].technologies) ? data[key].technologies : [],
+          images: Array.isArray(data[key].images) ? data[key].images : ['']
+        }));
+        setProjects(projectsArray.sort((a, b) => b.likes - a.likes));
+      } else {
+        setProjects([]);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  };
+
+  const saveProjectToFirebase = async (projectData: any, projectId?: string) => {
+    setSaving(true);
+    try {
+      const sanitizedProject = {
+        ...projectData,
+        technologies: projectData.technologies.filter((tech: string) => tech.trim() !== ''),
+        images: projectData.images.filter((img: string) => img.trim() !== ''),
+        stats: {
+          stars: parseInt(projectData.stats?.stars || '0'),
+          views: parseInt(projectData.stats?.views || '0')
+        },
+        likes: parseInt(projectData.likes || '0')
+      };
+
+      const finalProjectId = projectId || Date.now().toString();
+      const projectRef = ref(database, `allProjects/${finalProjectId}`);
+      await set(projectRef, sanitizedProject);
+      
+      return true;
+    } catch (error) {
+      console.error("Error saving project:", error);
+      alert("Failed to save project. Please try again.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddProject = async () => {
+    if (!newProject.title.trim() || !newProject.description.trim()) {
+      alert("Please fill in required fields");
+      return;
+    }
+
+    const success = await saveProjectToFirebase(newProject);
+    
+    if (success) {
+      setIsAddModalOpen(false);
+      setNewProject({
+        title: '',
+        description: '',
+        category: '',
+        likes: 0,
+        images: [''],
+        trending: false,
+        technologies: [''],
+        stats: { stars: 0, views: 0 },
+        duration: '',
+        complexity: 'Custom Solution',
+        liveUrl: ''
+      });
+    }
+  };
+
+  const handleEditProject = async () => {
+    if (!selectedProject) return;
+
+    const success = await saveProjectToFirebase(selectedProject, selectedProject.id);
+    
+    if (success) {
+      setIsEditModalOpen(false);
+      setSelectedProject(null);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm("Are you sure you want to delete this project?")) return;
+
+    setSaving(true);
+    try {
+      const projectRef = ref(database, `allProjects/${projectId}`);
+      await set(projectRef, null);
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      alert("Failed to delete project. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleProjectStatus = async (project: any) => {
+    const updatedProject = { ...project, trending: !project.trending };
+    await saveProjectToFirebase(updatedProject, project.id);
+  };
+
+  const addArrayItem = (setter: any, currentArray: string[]) => {
+    setter((prev: any) => ({
+      ...prev,
+      [currentArray === prev.technologies ? 'technologies' : 'images']: [...currentArray, '']
+    }));
+  };
+
+  const updateArrayItem = (setter: any, arrayName: string, index: number, value: string) => {
+    setter((prev: any) => ({
+      ...prev,
+      [arrayName]: prev[arrayName].map((item: string, i: number) => i === index ? value : item)
+    }));
+  };
+
+  const removeArrayItem = (setter: any, arrayName: string, index: number) => {
+    setter((prev: any) => ({
+      ...prev,
+      [arrayName]: prev[arrayName].filter((_: any, i: number) => i !== index)
+    }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-500" />
+          <p className="text-muted-foreground">Loading portfolio projects...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">Portfolio Management</h2>
-          <p className="text-muted-foreground">Manage your portfolio projects and showcases</p>
+          <p className="text-muted-foreground">Manage your portfolio projects from allProjects collection</p>
         </div>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Project
-        </Button>
+        <div className="flex items-center space-x-3">
+          <Badge variant="outline" className="text-sm">
+            {projects.length} Total Projects
+          </Badge>
+          <Button onClick={() => setIsAddModalOpen(true)} disabled={saving}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Project
+          </Button>
+        </div>
       </div>
-      
-      <div className="text-center py-20">
-        <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-xl font-semibold mb-2">Portfolio Management</h3>
-        <p className="text-muted-foreground">Portfolio management features coming soon...</p>
+
+      {/* Projects Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {projects.map((project) => (
+          <Card key={project.id} className="overflow-hidden">
+            <div className="relative aspect-video bg-muted">
+              {project.images?.[0] ? (
+                <img 
+                  src={project.images[0]} 
+                  alt={project.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <FileText className="w-12 h-12 text-muted-foreground" />
+                </div>
+              )}
+              
+              {/* Status Badges */}
+              <div className="absolute top-3 right-3 flex flex-col gap-2">
+                {project.trending && (
+                  <Badge className="bg-orange-500">
+                    <TrendingUp className="w-3 h-3 mr-1" />
+                    Trending
+                  </Badge>
+                )}
+                <Badge variant="secondary" className="bg-black/70 text-white">
+                  {project.likes} ❤️
+                </Badge>
+              </div>
+            </div>
+
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-lg truncate">{project.title}</CardTitle>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <Badge variant="outline" className="text-xs">
+                      {project.category || 'Uncategorized'}
+                    </Badge>
+                    <Badge variant={project.complexity === 'Enterprise Solution' ? 'default' : 'secondary'} className="text-xs">
+                      {project.complexity?.split(' ')[0] || 'Custom'}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex space-x-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleProjectStatus(project)}
+                    disabled={saving}
+                    title={project.trending ? "Remove from trending" : "Mark as trending"}
+                  >
+                    {project.trending ? <TrendingUp className="w-4 h-4 text-orange-500" /> : <TrendingUp className="w-4 h-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedProject(project);
+                      setIsEditModalOpen(true);
+                    }}
+                    disabled={saving}
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteProject(project.id)}
+                    disabled={saving}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-0">
+              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                {project.description}
+              </p>
+
+              {/* Technologies */}
+              {project.technologies?.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {project.technologies.slice(0, 3).map((tech: string, idx: number) => (
+                    <Badge key={idx} variant="secondary" className="text-xs">
+                      {tech}
+                    </Badge>
+                  ))}
+                  {project.technologies.length > 3 && (
+                    <Badge variant="secondary" className="text-xs">
+                      +{project.technologies.length - 3}
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {/* Stats */}
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center space-x-3">
+                  <span className="flex items-center gap-1">
+                    <Star className="w-3 h-3" />
+                    {project.stats?.stars || 0}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Eye className="w-3 h-3" />
+                    {project.stats?.views || 0}
+                  </span>
+                </div>
+                <span>{project.duration || 'N/A'}</span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-2 mt-4">
+                {project.liveUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(project.liveUrl, '_blank')}
+                    className="flex-1"
+                  >
+                    <ExternalLink className="w-3 h-3 mr-1" />
+                    Live
+                  </Button>
+                )}
+                {project.githubUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(project.githubUrl, '_blank')}
+                    className="flex-1"
+                  >
+                    <Github className="w-3 h-3 mr-1" />
+                    Code
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      {projects.length === 0 && (
+        <div className="text-center py-20">
+          <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No Projects Found</h3>
+          <p className="text-muted-foreground mb-4">Start by adding your first project to the portfolio</p>
+          <Button onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Your First Project
+          </Button>
+        </div>
+      )}
+
+      {/* Add Project Modal */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Project</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+            {/* Left Column */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="title">Project Title *</Label>
+                <Input
+                  id="title"
+                  value={newProject.title}
+                  onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
+                  placeholder="Enter project title"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="description">Description *</Label>
+                <Textarea
+                  id="description"
+                  value={newProject.description}
+                  onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                  placeholder="Enter project description"
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={newProject.category}
+                    onChange={(e) => setNewProject({ ...newProject, category: e.target.value })}
+                  >
+                    <option value="">Select category</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="complexity">Complexity</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={newProject.complexity}
+                    onChange={(e) => setNewProject({ ...newProject, complexity: e.target.value })}
+                  >
+                    {complexityOptions.map(comp => (
+                      <option key={comp} value={comp}>{comp}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="duration">Duration</Label>
+                  <Input
+                    id="duration"
+                    value={newProject.duration}
+                    onChange={(e) => setNewProject({ ...newProject, duration: e.target.value })}
+                    placeholder="e.g., 3 months"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="likes">Initial Likes</Label>
+                  <Input
+                    id="likes"
+                    type="number"
+                    value={newProject.likes}
+                    onChange={(e) => setNewProject({ ...newProject, likes: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="stars">Stars</Label>
+                  <Input
+                    id="stars"
+                    type="number"
+                    value={newProject.stats.stars}
+                    onChange={(e) => setNewProject({ 
+                      ...newProject, 
+                      stats: { ...newProject.stats, stars: parseInt(e.target.value) || 0 }
+                    })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="views">Views</Label>
+                  <Input
+                    id="views"
+                    type="number"
+                    value={newProject.stats.views}
+                    onChange={(e) => setNewProject({ 
+                      ...newProject, 
+                      stats: { ...newProject.stats, views: parseInt(e.target.value) || 0 }
+                    })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-4">
+              <div>
+                <Label>Project Images URLs</Label>
+                <div className="space-y-2">
+                  {newProject.images.map((image, index) => (
+                    <div key={index} className="flex space-x-2">
+                      <Input
+                        value={image}
+                        onChange={(e) => updateArrayItem(setNewProject, 'images', index, e.target.value)}
+                        placeholder="Enter image URL"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeArrayItem(setNewProject, 'images', index)}
+                        disabled={newProject.images.length === 1}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addArrayItem(setNewProject, newProject.images)}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Image
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label>Technologies</Label>
+                <div className="space-y-2">
+                  {newProject.technologies.map((tech, index) => (
+                    <div key={index} className="flex space-x-2">
+                      <Input
+                        value={tech}
+                        onChange={(e) => updateArrayItem(setNewProject, 'technologies', index, e.target.value)}
+                        placeholder="Enter technology"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeArrayItem(setNewProject, 'technologies', index)}
+                        disabled={newProject.technologies.length === 1}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addArrayItem(setNewProject, newProject.technologies)}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Technology
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="liveUrl">Live URL</Label>
+                <Input
+                  id="liveUrl"
+                  value={newProject.liveUrl}
+                  onChange={(e) => setNewProject({ ...newProject, liveUrl: e.target.value })}
+                  placeholder="https://project-live-url.com"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={newProject.trending}
+                  onCheckedChange={(checked) => setNewProject({ ...newProject, trending: checked })}
+                />
+                <Label>Mark as Trending</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddProject} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Add Project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Project Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+          </DialogHeader>
+          {selectedProject && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+              {/* Left Column */}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-title">Project Title *</Label>
+                  <Input
+                    id="edit-title"
+                    value={selectedProject.title}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, title: e.target.value })}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="edit-description">Description *</Label>
+                  <Textarea
+                    id="edit-description"
+                    value={selectedProject.description}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, description: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-category">Category</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={selectedProject.category || ''}
+                      onChange={(e) => setSelectedProject({ ...selectedProject, category: e.target.value })}
+                    >
+                      <option value="">Select category</option>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-complexity">Complexity</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={selectedProject.complexity || 'Custom Solution'}
+                      onChange={(e) => setSelectedProject({ ...selectedProject, complexity: e.target.value })}
+                    >
+                      {complexityOptions.map(comp => (
+                        <option key={comp} value={comp}>{comp}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-duration">Duration</Label>
+                    <Input
+                      id="edit-duration"
+                      value={selectedProject.duration || ''}
+                      onChange={(e) => setSelectedProject({ ...selectedProject, duration: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-likes">Likes</Label>
+                    <Input
+                      id="edit-likes"
+                      type="number"
+                      value={selectedProject.likes || 0}
+                      onChange={(e) => setSelectedProject({ ...selectedProject, likes: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-stars">Stars</Label>
+                    <Input
+                      id="edit-stars"
+                      type="number"
+                      value={selectedProject.stats?.stars || 0}
+                      onChange={(e) => setSelectedProject({ 
+                        ...selectedProject, 
+                        stats: { ...selectedProject.stats, stars: parseInt(e.target.value) || 0 }
+                      })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-views">Views</Label>
+                    <Input
+                      id="edit-views"
+                      type="number"
+                      value={selectedProject.stats?.views || 0}
+                      onChange={(e) => setSelectedProject({ 
+                        ...selectedProject, 
+                        stats: { ...selectedProject.stats, views: parseInt(e.target.value) || 0 }
+                      })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column */}
+              <div className="space-y-4">
+                <div>
+                  <Label>Project Images URLs</Label>
+                  <div className="space-y-2">
+                    {(selectedProject.images || ['']).map((image: string, index: number) => (
+                      <div key={index} className="flex space-x-2">
+                        <Input
+                          value={image}
+                          onChange={(e) => {
+                            const updatedImages = [...(selectedProject.images || [''])];
+                            updatedImages[index] = e.target.value;
+                            setSelectedProject({ ...selectedProject, images: updatedImages });
+                          }}
+                          placeholder="Enter image URL"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const updatedImages = (selectedProject.images || ['']).filter((_: any, i: number) => i !== index);
+                            setSelectedProject({ ...selectedProject, images: updatedImages.length ? updatedImages : [''] });
+                          }}
+                          disabled={(selectedProject.images || ['']).length === 1}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const updatedImages = [...(selectedProject.images || ['']), ''];
+                        setSelectedProject({ ...selectedProject, images: updatedImages });
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Image
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Technologies</Label>
+                  <div className="space-y-2">
+                    {(selectedProject.technologies || ['']).map((tech: string, index: number) => (
+                      <div key={index} className="flex space-x-2">
+                        <Input
+                          value={tech}
+                          onChange={(e) => {
+                            const updatedTechs = [...(selectedProject.technologies || [''])];
+                            updatedTechs[index] = e.target.value;
+                            setSelectedProject({ ...selectedProject, technologies: updatedTechs });
+                          }}
+                          placeholder="Enter technology"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const updatedTechs = (selectedProject.technologies || ['']).filter((_: any, i: number) => i !== index);
+                            setSelectedProject({ ...selectedProject, technologies: updatedTechs.length ? updatedTechs : [''] });
+                          }}
+                          disabled={(selectedProject.technologies || ['']).length === 1}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const updatedTechs = [...(selectedProject.technologies || ['']), ''];
+                        setSelectedProject({ ...selectedProject, technologies: updatedTechs });
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Technology
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-liveUrl">Live URL</Label>
+                  <Input
+                    id="edit-liveUrl"
+                    value={selectedProject.liveUrl || ''}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, liveUrl: e.target.value })}
+                    placeholder="https://project-live-url.com"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={selectedProject.trending || false}
+                    onCheckedChange={(checked) => setSelectedProject({ ...selectedProject, trending: checked })}
+                  />
+                  <Label>Mark as Trending</Label>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditProject} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {saving && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg flex items-center space-x-3">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>Saving changes...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

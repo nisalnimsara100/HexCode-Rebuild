@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { database } from '@/lib/firebase';
 import { ref, onValue, set } from 'firebase/database';
+import { uploadProfileImage, createImagePreview, validateImageFile } from '@/lib/imageUpload';
 import { 
   Globe, 
   Smartphone, 
@@ -38,6 +39,7 @@ import {
   FileText,
   ExternalLink,
   Github,
+  Calendar,
   Loader2
 } from 'lucide-react';
 
@@ -73,7 +75,8 @@ interface PortfolioProject {
   id: string;
   title: string;
   description: string;
-  image: string;
+  image?: string;
+  images?: string[]; // Support both formats
   technologies: string[];
   category: string;
   url?: string;
@@ -1317,26 +1320,1016 @@ export function WebsiteStats() {
   );
 }
 
-// Placeholder components for other sections
+// Utility function to normalize image paths
+const normalizeImagePath = (imagePath: string): string => {
+  if (!imagePath) return '';
+  
+  // If it's already a full URL, return as is
+  if (imagePath.startsWith('http')) {
+    return imagePath;
+  }
+  
+  // If it starts with /projects/, it means the database path, return as is (Next.js serves from public)
+  if (imagePath.startsWith('/projects/')) {
+    return imagePath;
+  }
+  
+  // If it starts with /images/projects/, convert to /projects/
+  if (imagePath.startsWith('/images/projects/')) {
+    return imagePath.replace('/images/projects/', '/projects/');
+  }
+  
+  // Handle paths that start with just /
+  if (imagePath.startsWith('/') && !imagePath.startsWith('/projects/')) {
+    return `/projects${imagePath}`;
+  }
+  
+  // If it's just a filename, add the /projects/ prefix
+  if (!imagePath.startsWith('/')) {
+    return `/projects/${imagePath}`;
+  }
+  
+  return imagePath;
+};
+
+// Portfolio Management with Full CRUD Operations
 export function PortfolioManagement() {
+  const [projects, setProjects] = useState<PortfolioProject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<PortfolioProject | null>(null);
+  const [newProject, setNewProject] = useState<Partial<PortfolioProject>>({
+    title: '',
+    description: '',
+    image: '',
+    technologies: [],
+    category: '',
+    url: '',
+    githubUrl: '',
+    isActive: true,
+    order: 0,
+    client: '',
+    completedDate: new Date().toISOString().split('T')[0]
+  });
+  const [newTechnology, setNewTechnology] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    const projectsRef = ref(database, 'allProjects');
+    const unsubscribe = onValue(projectsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const projectsArray = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key],
+          // Ensure isActive has a default value
+          isActive: data[key].isActive !== undefined ? data[key].isActive : true
+        }));
+        // Sort by order or creation date
+        projectsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
+        console.log('Portfolio projects loaded:', projectsArray.length);
+        setProjects(projectsArray);
+      } else {
+        console.log('No projects found in allProjects collection');
+        setProjects([]);
+      }
+      
+      // Log the raw Firebase data for debugging
+      console.log('Raw Firebase data:', data);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const saveProjectToFirebase = async (projectData: Partial<PortfolioProject>, projectId?: string) => {
+    setSaving(true);
+    try {
+      const projectRef = projectId 
+        ? ref(database, `allProjects/${projectId}`)
+        : ref(database, `allProjects/${Date.now()}`);
+      
+      await set(projectRef, projectData);
+      return true;
+    } catch (error) {
+      console.error("Error saving project:", error);
+      alert("Failed to save project. Please try again.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddProject = async () => {
+    if (!newProject.title?.trim() || !newProject.description?.trim()) {
+      alert("Please fill in required fields (title and description)");
+      return;
+    }
+
+    let imageUrl = newProject.image || '';
+    
+    // Upload image if file is selected
+    if (imageFile) {
+      const uploadedImageUrl = await uploadProjectImage();
+      if (uploadedImageUrl) {
+        imageUrl = uploadedImageUrl;
+      } else {
+        alert("Failed to upload image. Please try again.");
+        return;
+      }
+    }
+
+    const projectToAdd = {
+      ...newProject,
+      image: imageUrl,
+      technologies: newProject.technologies?.filter(tech => tech.trim() !== '') || [],
+      order: projects.length,
+      createdAt: new Date().toISOString()
+    };
+
+    const success = await saveProjectToFirebase(projectToAdd);
+    
+    if (success) {
+      setIsAddModalOpen(false);
+      setNewProject({
+        title: '',
+        description: '',
+        image: '',
+        technologies: [],
+        category: '',
+        url: '',
+        githubUrl: '',
+        isActive: true,
+        order: 0,
+        client: '',
+        completedDate: new Date().toISOString().split('T')[0]
+      });
+      resetImageUpload();
+    }
+  };
+
+  const handleEditProject = async () => {
+    if (!selectedProject) return;
+
+    let imageUrl = selectedProject.image || '';
+    
+    // Upload new image if file is selected
+    if (editImageFile) {
+      setUploading(true);
+      try {
+        const timestamp = Date.now();
+        const fileExtension = editImageFile.name.split('.').pop();
+        const fileName = `project_${timestamp}.${fileExtension}`;
+        
+        const formData = new FormData();
+        formData.append('file', editImageFile);
+        formData.append('fileName', fileName);
+        formData.append('folder', 'projects');
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Upload failed');
+        }
+
+        const result = await response.json();
+        // The API returns /images/projects/filename.jpg, but we want to store /projects/filename.jpg
+        imageUrl = result.path.replace('/images/projects/', '/projects/');
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Failed to upload image');
+        setUploading(false);
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    const updatedProject = {
+      ...selectedProject,
+      image: imageUrl,
+      technologies: selectedProject.technologies.filter(tech => tech.trim() !== ''),
+      updatedAt: new Date().toISOString()
+    };
+
+    const success = await saveProjectToFirebase(updatedProject, selectedProject.id);
+    
+    if (success) {
+      setIsEditModalOpen(false);
+      setSelectedProject(null);
+      resetEditImageUpload();
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm("Are you sure you want to delete this project?")) return;
+
+    setSaving(true);
+    try {
+      const projectRef = ref(database, `allProjects/${projectId}`);
+      await set(projectRef, null);
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      alert("Failed to delete project. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleProjectStatus = async (projectId: string, currentStatus: boolean) => {
+    setSaving(true);
+    try {
+      const projectRef = ref(database, `allProjects/${projectId}/isActive`);
+      await set(projectRef, !currentStatus);
+    } catch (error) {
+      console.error("Error updating project status:", error);
+      alert("Failed to update project status.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addTechnology = (technologies: string[], setTechnologies: (techs: string[]) => void) => {
+    if (newTechnology.trim() && !technologies.includes(newTechnology.trim())) {
+      setTechnologies([...technologies, newTechnology.trim()]);
+      setNewTechnology('');
+    }
+  };
+
+  const removeTechnology = (technologies: string[], setTechnologies: (techs: string[]) => void, index: number) => {
+    setTechnologies(technologies.filter((_, i) => i !== index));
+  };
+
+  const handleImageSelect = async (file: File) => {
+    const validation = validateImageFile(file);
+    if (!validation.isValid) {
+      alert(validation.error);
+      return;
+    }
+
+    setImageFile(file);
+    try {
+      const preview = await createImagePreview(file);
+      setImagePreview(preview);
+    } catch (error) {
+      console.error('Error creating image preview:', error);
+      alert('Failed to create image preview');
+    }
+  };
+
+  const uploadProjectImage = async (): Promise<string | null> => {
+    if (!imageFile) return null;
+
+    setUploading(true);
+    try {
+      // Create a unique filename for the project
+      const timestamp = Date.now();
+      const fileExtension = imageFile.name.split('.').pop();
+      const fileName = `project_${timestamp}.${fileExtension}`;
+      
+      // Use the existing upload API but modify for projects
+      const formData = new FormData();
+      formData.append('file', imageFile);
+      formData.append('fileName', fileName);
+      formData.append('folder', 'projects');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const result = await response.json();
+      // The API returns /images/projects/filename.jpg, but we want to store /projects/filename.jpg
+      return result.path.replace('/images/projects/', '/projects/');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image');
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resetImageUpload = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
+  const handleEditImageSelect = async (file: File) => {
+    const validation = validateImageFile(file);
+    if (!validation.isValid) {
+      alert(validation.error);
+      return;
+    }
+
+    setEditImageFile(file);
+    try {
+      const preview = await createImagePreview(file);
+      setEditImagePreview(preview);
+    } catch (error) {
+      console.error('Error creating image preview:', error);
+      alert('Failed to create image preview');
+    }
+  };
+
+  const resetEditImageUpload = () => {
+    setEditImageFile(null);
+    setEditImagePreview(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-500" />
+          <p className="text-muted-foreground">Loading portfolio projects...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">Portfolio Management</h2>
           <p className="text-muted-foreground">Manage your portfolio projects and showcases</p>
         </div>
-        <Button>
+        <Button onClick={() => setIsAddModalOpen(true)} disabled={saving}>
           <Plus className="w-4 h-4 mr-2" />
           Add Project
         </Button>
       </div>
-      
-      <div className="text-center py-20">
-        <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-xl font-semibold mb-2">Portfolio Management</h3>
-        <p className="text-muted-foreground">Portfolio management features coming soon...</p>
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <FileText className="w-5 h-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{projects.length}</p>
+              <p className="text-sm text-muted-foreground">Total Projects</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-emerald-500/10 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{projects.filter(p => p.isActive).length}</p>
+              <p className="text-sm text-muted-foreground">Active Projects</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-purple-500/10 rounded-lg">
+              <Code className="w-5 h-5 text-purple-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {[...new Set(projects.flatMap(p => p.technologies))].length}
+              </p>
+              <p className="text-sm text-muted-foreground">Technologies</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-orange-500/10 rounded-lg">
+              <Users className="w-5 h-5 text-orange-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {projects.filter(p => p.client).length}
+              </p>
+              <p className="text-sm text-muted-foreground">Client Projects</p>
+            </div>
+          </div>
+        </Card>
       </div>
+
+      {/* Projects Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {projects.map((project) => (
+          <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-all duration-200 group">
+            {/* Project Image with Overlays */}
+            <div className="aspect-video bg-muted relative">
+              {(() => {
+                // Handle both image formats: single image string or images array
+                const imageUrl = project.image || (project.images && project.images[0]);
+                
+                if (imageUrl) {
+                  return (
+                    <img 
+                      src={normalizeImagePath(imageUrl)} 
+                      alt={project.title}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        target.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
+                      }}
+                    />
+                  );
+                } else {
+                  return null;
+                }
+              })()}
+              <div className={`flex items-center justify-center h-full ${project.image || (project.images && project.images[0]) ? 'hidden fallback-icon' : ''}`}>
+                <FileText className="w-12 h-12 text-muted-foreground" />
+              </div>
+              
+              {/* Status Badge */}
+              <div className="absolute top-3 left-3">
+                <Badge 
+                  variant={project.isActive ? "default" : "secondary"} 
+                  className="shadow-sm backdrop-blur-sm bg-opacity-90"
+                >
+                  {project.isActive ? "Active" : "Inactive"}
+                </Badge>
+              </div>
+
+              {/* Quick Actions - Always Visible */}
+              <div className="absolute top-3 right-3 flex space-x-1">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => toggleProjectStatus(project.id, project.isActive)}
+                  disabled={saving}
+                  className="h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm backdrop-blur-sm"
+                  title={project.isActive ? "Deactivate" : "Activate"}
+                >
+                  {project.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedProject(project);
+                    setIsEditModalOpen(true);
+                  }}
+                  disabled={saving}
+                  className="h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm backdrop-blur-sm"
+                  title="Edit Project"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteProject(project.id)}
+                  disabled={saving}
+                  className="h-8 w-8 p-0 shadow-sm backdrop-blur-sm"
+                  title="Delete Project"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            
+            {/* Project Content */}
+            <div className="p-4 space-y-3">
+              {/* Title and Category */}
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold leading-tight line-clamp-2">{project.title}</h3>
+                {project.category && (
+                  <Badge variant="outline" className="text-xs w-fit">
+                    {project.category}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Description */}
+              <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                {project.description}
+              </p>
+              
+              {/* Technologies */}
+              {project.technologies && project.technologies.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Technologies
+                  </h4>
+                  <div className="flex flex-wrap gap-1">
+                    {project.technologies.slice(0, 4).map((tech, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs px-2 py-1">
+                        {tech}
+                      </Badge>
+                    ))}
+                    {project.technologies.length > 4 && (
+                      <Badge variant="secondary" className="text-xs px-2 py-1">
+                        +{project.technologies.length - 4} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Project Details */}
+              <div className="space-y-2 pt-2 border-t border-border/50">
+                {project.client && (
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Users className="w-3 h-3 mr-2 flex-shrink-0" />
+                    <span className="truncate">{project.client}</span>
+                  </div>
+                )}
+                <div className="flex items-center text-xs text-muted-foreground">
+                  <Calendar className="w-3 h-3 mr-2 flex-shrink-0" />
+                  <span>{new Date(project.completedDate).toLocaleDateString()}</span>
+                </div>
+              </div>
+              
+              {/* Action Links */}
+              {(project.url || project.githubUrl) && (
+                <div className="flex space-x-2 pt-2">
+                  {project.url && (
+                    <Button variant="outline" size="sm" asChild className="flex-1 h-8">
+                      <a href={project.url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Demo
+                      </a>
+                    </Button>
+                  )}
+                  {project.githubUrl && (
+                    <Button variant="outline" size="sm" asChild className="flex-1 h-8">
+                      <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
+                        <Github className="w-3 h-3 mr-1" />
+                        Code
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Add Project Modal */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Project</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="project-title">Project Title *</Label>
+                <Input
+                  id="project-title"
+                  value={newProject.title || ''}
+                  onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
+                  placeholder="Enter project title"
+                />
+              </div>
+              <div>
+                <Label htmlFor="project-category">Category</Label>
+                <Input
+                  id="project-category"
+                  value={newProject.category || ''}
+                  onChange={(e) => setNewProject({ ...newProject, category: e.target.value })}
+                  placeholder="e.g., Web App, Mobile App, etc."
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="project-description">Description *</Label>
+              <Textarea
+                id="project-description"
+                value={newProject.description || ''}
+                onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                placeholder="Enter project description"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label>Project Image</Label>
+              <div className="space-y-4">
+                {/* Image Preview */}
+                {imagePreview && (
+                  <div className="relative w-full max-w-md">
+                    <img 
+                      src={imagePreview} 
+                      alt="Project preview" 
+                      className="w-full h-48 object-cover rounded-lg border"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={resetImageUpload}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+                
+                {/* File Upload */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="project-image-file">Upload Image</Label>
+                    <Input
+                      id="project-image-file"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleImageSelect(file);
+                        }
+                      }}
+                      disabled={uploading}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Supports JPEG, PNG, GIF, WebP (max 5MB)
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="project-image-url">Or Image URL</Label>
+                    <Input
+                      id="project-image-url"
+                      value={newProject.image || ''}
+                      onChange={(e) => setNewProject({ ...newProject, image: e.target.value })}
+                      placeholder="https://example.com/image.jpg"
+                      disabled={!!imageFile}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Direct link to an image online
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="project-client">Client</Label>
+              <Input
+                id="project-client"
+                value={newProject.client || ''}
+                onChange={(e) => setNewProject({ ...newProject, client: e.target.value })}
+                placeholder="Client name"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="project-url">Demo URL</Label>
+                <Input
+                  id="project-url"
+                  value={newProject.url || ''}
+                  onChange={(e) => setNewProject({ ...newProject, url: e.target.value })}
+                  placeholder="https://demo-url.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="project-github">GitHub URL</Label>
+                <Input
+                  id="project-github"
+                  value={newProject.githubUrl || ''}
+                  onChange={(e) => setNewProject({ ...newProject, githubUrl: e.target.value })}
+                  placeholder="https://github.com/user/repo"
+                />
+              </div>
+              <div>
+                <Label htmlFor="project-date">Completed Date</Label>
+                <Input
+                  id="project-date"
+                  type="date"
+                  value={newProject.completedDate || ''}
+                  onChange={(e) => setNewProject({ ...newProject, completedDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Technologies</Label>
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {newProject.technologies?.map((tech, index) => (
+                    <Badge key={index} variant="secondary" className="text-sm">
+                      {tech}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 ml-1"
+                        onClick={() => removeTechnology(
+                          newProject.technologies || [],
+                          (techs) => setNewProject({ ...newProject, technologies: techs }),
+                          index
+                        )}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex space-x-2">
+                  <Input
+                    value={newTechnology}
+                    onChange={(e) => setNewTechnology(e.target.value)}
+                    placeholder="Add technology (e.g., React, Node.js)"
+                    className="flex-1"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        addTechnology(
+                          newProject.technologies || [],
+                          (techs) => setNewProject({ ...newProject, technologies: techs })
+                        );
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => addTechnology(
+                      newProject.technologies || [],
+                      (techs) => setNewProject({ ...newProject, technologies: techs })
+                    )}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={newProject.isActive !== false}
+                onCheckedChange={(checked) => setNewProject({ ...newProject, isActive: checked })}
+              />
+              <Label>Active Project</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsAddModalOpen(false);
+              resetImageUpload();
+            }} disabled={saving || uploading}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddProject} disabled={saving || uploading}>
+              {(saving || uploading) ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {uploading ? 'Uploading...' : saving ? 'Saving...' : 'Add Project'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Project Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+          </DialogHeader>
+          {selectedProject && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-title">Project Title *</Label>
+                  <Input
+                    id="edit-title"
+                    value={selectedProject.title}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, title: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-category">Category</Label>
+                  <Input
+                    id="edit-category"
+                    value={selectedProject.category || ''}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, category: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-description">Description *</Label>
+                <Textarea
+                  id="edit-description"
+                  value={selectedProject.description}
+                  onChange={(e) => setSelectedProject({ ...selectedProject, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label>Project Image</Label>
+                <div className="space-y-4">
+                  {/* Current Image */}
+                  {selectedProject.image && !editImagePreview && (
+                    <div className="relative w-full max-w-md">
+                      <img 
+                        src={normalizeImagePath(selectedProject.image)} 
+                        alt="Current project image" 
+                        className="w-full h-48 object-cover rounded-lg border"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">Current image</p>
+                    </div>
+                  )}
+                  
+                  {/* New Image Preview */}
+                  {editImagePreview && (
+                    <div className="relative w-full max-w-md">
+                      <img 
+                        src={editImagePreview} 
+                        alt="New project preview" 
+                        className="w-full h-48 object-cover rounded-lg border"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={resetEditImageUpload}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                      <p className="text-sm text-emerald-600 mt-1">New image (will replace current)</p>
+                    </div>
+                  )}
+                  
+                  {/* File Upload and URL */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-image-file">Upload New Image</Label>
+                      <Input
+                        id="edit-image-file"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleEditImageSelect(file);
+                          }
+                        }}
+                        disabled={uploading}
+                        className="cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-image-url">Or Update URL</Label>
+                      <Input
+                        id="edit-image-url"
+                        value={selectedProject.image || ''}
+                        onChange={(e) => setSelectedProject({ ...selectedProject, image: e.target.value })}
+                        placeholder="https://example.com/image.jpg"
+                        disabled={!!editImageFile}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-client">Client</Label>
+                <Input
+                  id="edit-client"
+                  value={selectedProject.client || ''}
+                  onChange={(e) => setSelectedProject({ ...selectedProject, client: e.target.value })}
+                  placeholder="Client name"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="edit-url">Demo URL</Label>
+                  <Input
+                    id="edit-url"
+                    value={selectedProject.url || ''}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, url: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-github">GitHub URL</Label>
+                  <Input
+                    id="edit-github"
+                    value={selectedProject.githubUrl || ''}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, githubUrl: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-date">Completed Date</Label>
+                  <Input
+                    id="edit-date"
+                    type="date"
+                    value={selectedProject.completedDate}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, completedDate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Technologies</Label>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProject.technologies.map((tech, index) => (
+                      <Badge key={index} variant="secondary" className="text-sm">
+                        {tech}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 ml-1"
+                          onClick={() => removeTechnology(
+                            selectedProject.technologies,
+                            (techs) => setSelectedProject({ ...selectedProject, technologies: techs }),
+                            index
+                          )}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex space-x-2">
+                    <Input
+                      value={newTechnology}
+                      onChange={(e) => setNewTechnology(e.target.value)}
+                      placeholder="Add technology"
+                      className="flex-1"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          addTechnology(
+                            selectedProject.technologies,
+                            (techs) => setSelectedProject({ ...selectedProject, technologies: techs })
+                          );
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => addTechnology(
+                        selectedProject.technologies,
+                        (techs) => setSelectedProject({ ...selectedProject, technologies: techs })
+                      )}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={selectedProject.isActive}
+                  onCheckedChange={(checked) => setSelectedProject({ ...selectedProject, isActive: checked })}
+                />
+                <Label>Active Project</Label>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsEditModalOpen(false);
+              resetEditImageUpload();
+            }} disabled={saving || uploading}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditProject} disabled={saving || uploading}>
+              {(saving || uploading) ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {uploading ? 'Uploading...' : saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Loading Overlay */}
+      {saving && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg flex items-center space-x-3">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>Saving changes...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

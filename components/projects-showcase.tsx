@@ -724,12 +724,8 @@ export function ProjectsShowcase() {
                         <Star className="w-3 h-3" />
                         {project.stats.stars}
                       </span>
-                      <span className="text-muted-foreground/70">{project.duration}</span>
                     </div>
-                    <span className="flex items-center gap-1 hover:text-emerald-500 transition-colors duration-200">
-                      <Eye className="w-3 h-3" />
-                      {project.stats.views}
-                    </span>
+                    <span className="text-muted-foreground/70 text-right">{project.duration}</span>
                   </div>
 
                   {/* Action button with improved styling */}
