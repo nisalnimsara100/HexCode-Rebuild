@@ -1352,6 +1352,27 @@ const normalizeImagePath = (imagePath: string): string => {
   return imagePath;
 };
 
+// Utility function for safe date formatting
+const formatProjectDate = (dateString: string): string => {
+  if (!dateString) return 'No date';
+  
+  try {
+    const date = new Date(dateString);
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (error) {
+    return 'Invalid date';
+  }
+};
+
 // Portfolio Management with Full CRUD Operations
 export function PortfolioManagement() {
   const [projects, setProjects] = useState<PortfolioProject[]>([]);
@@ -1374,11 +1395,11 @@ export function PortfolioManagement() {
     completedDate: new Date().toISOString().split('T')[0]
   });
   const [newTechnology, setNewTechnology] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [editImageFile, setEditImageFile] = useState<File | null>(null);
-  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+  const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
 
   useEffect(() => {
     const projectsRef = ref(database, 'allProjects');
@@ -1432,22 +1453,30 @@ export function PortfolioManagement() {
       return;
     }
 
-    let imageUrl = newProject.image || '';
+    let projectImages: string[] = [];
     
-    // Upload image if file is selected
-    if (imageFile) {
-      const uploadedImageUrl = await uploadProjectImage();
-      if (uploadedImageUrl) {
-        imageUrl = uploadedImageUrl;
+    // Upload images if files are selected
+    if (imageFiles.length > 0) {
+      const uploadedImageUrls = await uploadProjectImages();
+      if (uploadedImageUrls.length > 0) {
+        projectImages = uploadedImageUrls;
       } else {
-        alert("Failed to upload image. Please try again.");
+        alert("Failed to upload images. Please try again.");
         return;
       }
     }
+    
+    // Combine uploaded images with existing images
+    const existingImages = newProject.images || [];
+    if (newProject.image && !existingImages.length) {
+      existingImages.push(newProject.image);
+    }
+    const allImages = [...existingImages, ...projectImages];
 
     const projectToAdd = {
       ...newProject,
-      image: imageUrl,
+      images: allImages,
+      image: allImages.length > 0 ? allImages[0] : undefined, // Keep backward compatibility
       technologies: newProject.technologies?.filter(tech => tech.trim() !== '') || [],
       order: projects.length,
       createdAt: new Date().toISOString()
@@ -1477,47 +1506,30 @@ export function PortfolioManagement() {
   const handleEditProject = async () => {
     if (!selectedProject) return;
 
-    let imageUrl = selectedProject.image || '';
+    let newImages: string[] = [];
     
-    // Upload new image if file is selected
-    if (editImageFile) {
-      setUploading(true);
-      try {
-        const timestamp = Date.now();
-        const fileExtension = editImageFile.name.split('.').pop();
-        const fileName = `project_${timestamp}.${fileExtension}`;
-        
-        const formData = new FormData();
-        formData.append('file', editImageFile);
-        formData.append('fileName', fileName);
-        formData.append('folder', 'projects');
-
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Upload failed');
-        }
-
-        const result = await response.json();
-        // The API returns /images/projects/filename.jpg, but we want to store /projects/filename.jpg
-        imageUrl = result.path.replace('/images/projects/', '/projects/');
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        alert('Failed to upload image');
-        setUploading(false);
+    // Upload new images if files are selected
+    if (editImageFiles.length > 0) {
+      const uploadedImageUrls = await uploadProjectImages();
+      if (uploadedImageUrls.length > 0) {
+        newImages = uploadedImageUrls;
+      } else {
+        alert("Failed to upload new images. Please try again.");
         return;
-      } finally {
-        setUploading(false);
       }
     }
+    
+    // Combine existing images with new images
+    const existingImages = selectedProject.images || [];
+    if (selectedProject.image && !existingImages.length) {
+      existingImages.push(selectedProject.image);
+    }
+    const allImages = [...existingImages, ...newImages];
 
     const updatedProject = {
       ...selectedProject,
-      image: imageUrl,
+      images: allImages,
+      image: allImages.length > 0 ? allImages[0] : undefined, // Keep backward compatibility
       technologies: selectedProject.technologies.filter(tech => tech.trim() !== ''),
       updatedAt: new Date().toISOString()
     };
@@ -1570,86 +1582,114 @@ export function PortfolioManagement() {
     setTechnologies(technologies.filter((_, i) => i !== index));
   };
 
-  const handleImageSelect = async (file: File) => {
-    const validation = validateImageFile(file);
-    if (!validation.isValid) {
-      alert(validation.error);
-      return;
-    }
+  const handleImageSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
 
-    setImageFile(file);
-    try {
-      const preview = await createImagePreview(file);
-      setImagePreview(preview);
-    } catch (error) {
-      console.error('Error creating image preview:', error);
-      alert('Failed to create image preview');
+    const newFiles: File[] = [];
+    const newPreviews: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        alert(`File ${file.name}: ${validation.error}`);
+        continue;
+      }
+      
+      newFiles.push(file);
+      try {
+        const preview = await createImagePreview(file);
+        newPreviews.push(preview);
+      } catch (error) {
+        console.error('Error creating image preview:', error);
+        newPreviews.push('');
+      }
     }
+    
+    setImageFiles([...imageFiles, ...newFiles]);
+    setImagePreviews([...imagePreviews, ...newPreviews]);
   };
 
-  const uploadProjectImage = async (): Promise<string | null> => {
-    if (!imageFile) return null;
+  const uploadProjectImages = async (): Promise<string[]> => {
+    if (imageFiles.length === 0) return [];
 
     setUploading(true);
+    const uploadedUrls: string[] = [];
+    
     try {
-      // Create a unique filename for the project
-      const timestamp = Date.now();
-      const fileExtension = imageFile.name.split('.').pop();
-      const fileName = `project_${timestamp}.${fileExtension}`;
-      
-      // Use the existing upload API but modify for projects
-      const formData = new FormData();
-      formData.append('file', imageFile);
-      formData.append('fileName', fileName);
-      formData.append('folder', 'projects');
+      for (const file of imageFiles) {
+        // Create a unique filename for each image
+        const timestamp = Date.now() + Math.random();
+        const fileExtension = file.name.split('.').pop();
+        const fileName = `project_${timestamp}.${fileExtension}`;
+        
+        // Create form data for this file
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('fileName', fileName);
+        formData.append('folder', 'projects');
+        
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Upload failed');
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+        const result = await response.json();
+        // The API returns /images/projects/filename.jpg, but we want to store /projects/filename.jpg
+        uploadedUrls.push(result.path.replace('/images/projects/', '/projects/'));
       }
 
-      const result = await response.json();
-      // The API returns /images/projects/filename.jpg, but we want to store /projects/filename.jpg
-      return result.path.replace('/images/projects/', '/projects/');
+      return uploadedUrls;
     } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('Failed to upload image');
-      return null;
+      console.error('Error uploading images:', error);
+      alert('Failed to upload images');
+      return [];
     } finally {
       setUploading(false);
     }
   };
 
   const resetImageUpload = () => {
-    setImageFile(null);
-    setImagePreview(null);
+    setImageFiles([]);
+    setImagePreviews([]);
   };
 
-  const handleEditImageSelect = async (file: File) => {
-    const validation = validateImageFile(file);
-    if (!validation.isValid) {
-      alert(validation.error);
-      return;
-    }
+  const handleEditImageSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
 
-    setEditImageFile(file);
-    try {
-      const preview = await createImagePreview(file);
-      setEditImagePreview(preview);
-    } catch (error) {
-      console.error('Error creating image preview:', error);
-      alert('Failed to create image preview');
+    const newFiles: File[] = [];
+    const newPreviews: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        alert(`File ${file.name}: ${validation.error}`);
+        continue;
+      }
+      
+      newFiles.push(file);
+      try {
+        const preview = await createImagePreview(file);
+        newPreviews.push(preview);
+      } catch (error) {
+        console.error('Error creating image preview:', error);
+        newPreviews.push('');
+      }
     }
+    
+    setEditImageFiles([...editImageFiles, ...newFiles]);
+    setEditImagePreviews([...editImagePreviews, ...newPreviews]);
   };
 
   const resetEditImageUpload = () => {
-    setEditImageFile(null);
-    setEditImagePreview(null);
+    setEditImageFiles([]);
+    setEditImagePreviews([]);
   };
 
   if (loading) {
@@ -1773,15 +1813,15 @@ export function PortfolioManagement() {
                 </Badge>
               </div>
 
-              {/* Quick Actions - Always Visible */}
-              <div className="absolute top-3 right-3 flex space-x-1">
+              {/* Quick Actions - Always Visible with Better Contrast */}
+              <div className="absolute top-3 right-3 flex space-x-1 opacity-90 group-hover:opacity-100 transition-opacity">
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={() => toggleProjectStatus(project.id, project.isActive)}
                   disabled={saving}
-                  className="h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm backdrop-blur-sm"
-                  title={project.isActive ? "Deactivate" : "Activate"}
+                  className="h-9 w-9 p-0 bg-white/95 hover:bg-white shadow-md backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900"
+                  title={project.isActive ? "Deactivate Project" : "Activate Project"}
                 >
                   {project.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
@@ -1793,7 +1833,7 @@ export function PortfolioManagement() {
                     setIsEditModalOpen(true);
                   }}
                   disabled={saving}
-                  className="h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm backdrop-blur-sm"
+                  className="h-9 w-9 p-0 bg-white/95 hover:bg-white shadow-md backdrop-blur-sm border border-gray-200/50 text-blue-600 hover:text-blue-700"
                   title="Edit Project"
                 >
                   <Edit3 className="w-4 h-4" />
@@ -1803,7 +1843,7 @@ export function PortfolioManagement() {
                   size="sm"
                   onClick={() => handleDeleteProject(project.id)}
                   disabled={saving}
-                  className="h-8 w-8 p-0 shadow-sm backdrop-blur-sm"
+                  className="h-9 w-9 p-0 shadow-md backdrop-blur-sm bg-red-500/90 hover:bg-red-500 text-white border border-red-400/50"
                   title="Delete Project"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -1859,7 +1899,7 @@ export function PortfolioManagement() {
                 )}
                 <div className="flex items-center text-xs text-muted-foreground">
                   <Calendar className="w-3 h-3 mr-2 flex-shrink-0" />
-                  <span>{new Date(project.completedDate).toLocaleDateString()}</span>
+                  <span>{formatProjectDate(project.completedDate)}</span>
                 </div>
               </div>
               
@@ -1931,25 +1971,98 @@ export function PortfolioManagement() {
             <div>
               <Label>Project Image</Label>
               <div className="space-y-4">
-                {/* Image Preview */}
-                {imagePreview && (
-                  <div className="relative w-full max-w-md">
-                    <img 
-                      src={imagePreview} 
-                      alt="Project preview" 
-                      className="w-full h-48 object-cover rounded-lg border"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-2 right-2"
-                      onClick={resetImageUpload}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+
+                
+                {/* Image Previews Section */}
+                {(imagePreviews.length > 0 || newProject.image || (newProject.images && newProject.images.length > 0)) && (
+                  <div className="mb-4">
+                    <Label className="text-sm font-medium">Image Preview{imagePreviews.length > 1 || (newProject.images && newProject.images.length > 1) ? 's' : ''}</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
+                      {/* Show uploaded file previews */}
+                      {imagePreviews.map((preview, index) => (
+                        <div key={index} className="relative">
+                          <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
+                            <img 
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                            onClick={() => {
+                              const newFiles = imageFiles.filter((_, i) => i !== index);
+                              const newPreviews = imagePreviews.filter((_, i) => i !== index);
+                              setImageFiles(newFiles);
+                              setImagePreviews(newPreviews);
+                            }}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                      {/* Show existing project images if any */}
+                      {newProject.images && newProject.images.map((image, index) => (
+                        <div key={`existing-${index}`} className="relative">
+                          <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
+                            <img 
+                              src={normalizeImagePath(image)}
+                              alt={`Existing ${index + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/placeholder.svg';
+                              }}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                            onClick={() => {
+                              const newImages = newProject.images?.filter((_, i) => i !== index) || [];
+                              setNewProject({ ...newProject, images: newImages });
+                            }}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                      {/* Show single image if using old format */}
+                      {newProject.image && !newProject.images && (
+                        <div className="relative">
+                          <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
+                            <img 
+                              src={normalizeImagePath(newProject.image)}
+                              alt="Project image"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/placeholder.svg';
+                              }}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                            onClick={() => {
+                              setNewProject({ ...newProject, image: '' });
+                            }}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-                
+
                 {/* File Upload */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -1959,11 +2072,9 @@ export function PortfolioManagement() {
                       type="file"
                       accept="image/*"
                       onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleImageSelect(file);
-                        }
+                        handleImageSelect(e.target.files);
                       }}
+                      multiple
                       disabled={uploading}
                       className="cursor-pointer"
                     />
@@ -1978,7 +2089,7 @@ export function PortfolioManagement() {
                       value={newProject.image || ''}
                       onChange={(e) => setNewProject({ ...newProject, image: e.target.value })}
                       placeholder="https://example.com/image.jpg"
-                      disabled={!!imageFile}
+                      disabled={imageFiles.length > 0}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                       Direct link to an image online
@@ -2141,39 +2252,99 @@ export function PortfolioManagement() {
               <div>
                 <Label>Project Image</Label>
                 <div className="space-y-4">
-                  {/* Current Image */}
-                  {selectedProject.image && !editImagePreview && (
-                    <div className="relative w-full max-w-md">
-                      <img 
-                        src={normalizeImagePath(selectedProject.image)} 
-                        alt="Current project image" 
-                        className="w-full h-48 object-cover rounded-lg border"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                      <p className="text-sm text-muted-foreground mt-1">Current image</p>
+                  {/* Current Images */}
+                  {((selectedProject.images && selectedProject.images.length > 0) || selectedProject.image) && editImagePreviews.length === 0 && (
+                    <div className="mb-4">
+                      <Label className="text-sm font-medium">Current Images</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
+                        {selectedProject.images ? selectedProject.images.map((image, index) => (
+                          <div key={index} className="relative">
+                            <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
+                              <img 
+                                src={normalizeImagePath(image)}
+                                alt={`Current image ${index + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = '/placeholder.svg';
+                                }}
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                              onClick={() => {
+                                const newImages = selectedProject.images?.filter((_, i) => i !== index) || [];
+                                setSelectedProject({ ...selectedProject, images: newImages });
+                              }}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )) : selectedProject.image && (
+                          <div className="relative">
+                            <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
+                              <img 
+                                src={normalizeImagePath(selectedProject.image)}
+                                alt="Current project image"
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = '/placeholder.svg';
+                                }}
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                              onClick={() => {
+                                setSelectedProject({ ...selectedProject, image: '' });
+                              }}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
-                  
-                  {/* New Image Preview */}
-                  {editImagePreview && (
-                    <div className="relative w-full max-w-md">
-                      <img 
-                        src={editImagePreview} 
-                        alt="New project preview" 
-                        className="w-full h-48 object-cover rounded-lg border"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-2 right-2"
-                        onClick={resetEditImageUpload}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                      <p className="text-sm text-emerald-600 mt-1">New image (will replace current)</p>
+
+                  {/* New Images Preview */}
+                  {editImagePreviews.length > 0 && (
+                    <div className="mb-4">
+                      <Label className="text-sm font-medium">New Images to Add</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
+                        {editImagePreviews.map((preview, index) => (
+                          <div key={index} className="relative">
+                            <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
+                              <img 
+                                src={preview}
+                                alt={`New image ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                              onClick={() => {
+                                const newFiles = editImageFiles.filter((_, i) => i !== index);
+                                const newPreviews = editImagePreviews.filter((_, i) => i !== index);
+                                setEditImageFiles(newFiles);
+                                setEditImagePreviews(newPreviews);
+                              }}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-sm text-emerald-600 mt-2">These images will be added to the project</p>
                     </div>
                   )}
                   
@@ -2186,11 +2357,9 @@ export function PortfolioManagement() {
                         type="file"
                         accept="image/*"
                         onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handleEditImageSelect(file);
-                          }
+                          handleEditImageSelect(e.target.files);
                         }}
+                        multiple
                         disabled={uploading}
                         className="cursor-pointer"
                       />
@@ -2202,7 +2371,7 @@ export function PortfolioManagement() {
                         value={selectedProject.image || ''}
                         onChange={(e) => setSelectedProject({ ...selectedProject, image: e.target.value })}
                         placeholder="https://example.com/image.jpg"
-                        disabled={!!editImageFile}
+                        disabled={editImageFiles.length > 0}
                       />
                     </div>
                   </div>
@@ -2241,7 +2410,7 @@ export function PortfolioManagement() {
                   <Input
                     id="edit-date"
                     type="date"
-                    value={selectedProject.completedDate}
+                    value={selectedProject.completedDate ? selectedProject.completedDate.split('T')[0] : ''}
                     onChange={(e) => setSelectedProject({ ...selectedProject, completedDate: e.target.value })}
                   />
                 </div>
