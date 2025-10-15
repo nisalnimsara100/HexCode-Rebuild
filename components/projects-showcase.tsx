@@ -27,6 +27,28 @@ import {
 import Image from "next/image"
 import { useState, useRef, useEffect } from "react"
 import { PriorityQueue, createPriorityQueueFromArray } from "@/lib/priorityQueue"
+import { database } from "../lib/firebase";
+import { ref, onValue } from "firebase/database";
+import { LoadingSpinner } from "@/components/loading-spinner"; // Import the loading spinner component
+
+// Define a TypeScript interface for project data
+interface Project {
+  id: number; // Changed from `string` to `number`
+  title: string;
+  description: string;
+  category: string;
+  likes: number;
+  images: string[];
+  trending: boolean;
+  technologies: string[];
+  stats: {
+    stars: number;
+    views: number;
+  };
+  duration: string;
+  complexity: string;
+  liveUrl: string;
+}
 
 export function ProjectsShowcase() {
   const [activeFilter, setActiveFilter] = useState("All")
@@ -34,131 +56,15 @@ export function ProjectsShowcase() {
   const [likedProjects, setLikedProjects] = useState<Set<number>>(new Set())
   const [showStartProjectModal, setShowStartProjectModal] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: number]: number }>({})
-  const [sortedProjects, setSortedProjects] = useState<typeof projects>([])
-  const [popularProjects, setPopularProjects] = useState<typeof projects>([])
-  const [mostLikedProject, setMostLikedProject] = useState<typeof projects[0] | null>(null)
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [sortedProjects, setSortedProjects] = useState<Project[]>([]);
+  const [popularProjects, setPopularProjects] = useState<Project[]>([]);
+  const [mostLikedProject, setMostLikedProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true); // Add a loading state
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  const projects = [
-    {
-      id: 1,
-      title: "EcoCommerce Platform",
-      description:
-        "A sustainable e-commerce platform built with Next.js and Stripe integration. Features include inventory management, order tracking, and eco-friendly shipping options.",
-      images: [
-        "/projects/ecommerce-platform.jpg",
-        "/projects/ecommerce-platform.jpg",
-        "/projects/ecommerce-platform.jpg",
-      ],
-      category: "E-commerce",
-      technologies: ["Next.js", "TypeScript", "Stripe", "PostgreSQL", "Tailwind CSS"],
-      features: ["Payment Processing", "Inventory Management", "Admin Dashboard", "Mobile Responsive"],
-      liveUrl: "https://ecocommerce-demo.com",
-      featured: true,
-      stats: { views: "12.5K", stars: 89, forks: 23 },
-      complexity: "Business Solution",
-      duration: "3 months",
-      likes: 234,
-      trending: true,
-      mostLiked: false,
-    },
-    {
-      id: 2,
-      title: "HealthTech Dashboard",
-      description:
-        "A comprehensive healthcare management system for clinics and hospitals. Includes patient records, appointment scheduling, and real-time analytics.",
-      images: [
-        "/projects/healthtech-dashboard.jpg",
-        "/projects/healthtech-dashboard.jpg",
-        "/projects/healthtech-dashboard.jpg",
-      ],
-      category: "Healthcare",
-      technologies: ["React", "Node.js", "MongoDB", "Socket.io", "Chart.js"],
-      features: ["Patient Management", "Real-time Updates", "Analytics", "HIPAA Compliant"],
-      liveUrl: "https://healthtech-demo.com",
-      featured: true,
-      stats: { views: "8.7K", stars: 156, forks: 34 },
-      complexity: "Enterprise Solution",
-      duration: "4 months",
-      likes: 456,
-      trending: false,
-      mostLiked: true,
-    },
-    {
-      id: 3,
-      title: "FinTech Mobile App",
-      description:
-        "A secure mobile banking application with biometric authentication, transaction history, and budget tracking features.",
-      images: ["/projects/fintech-mobile.jpg", "/projects/fintech-mobile.jpg", "/projects/fintech-mobile.jpg"],
-      category: "FinTech",
-      technologies: ["React Native", "Firebase", "Plaid API", "Redux", "TypeScript"],
-      features: ["Biometric Auth", "Transaction Tracking", "Budget Planning", "Push Notifications"],
-      liveUrl: "https://fintech-demo.com",
-      featured: false,
-      stats: { views: "15.2K", stars: 203, forks: 67 },
-      complexity: "Premium Solution",
-      duration: "5 months",
-      likes: 189,
-      trending: true,
-      mostLiked: false,
-    },
-    {
-      id: 4,
-      title: "EdTech Learning Platform",
-      description:
-        "An interactive online learning platform with video streaming, progress tracking, and collaborative features for students and educators.",
-      images: ["/projects/edtech-platform.jpg", "/projects/edtech-platform.jpg", "/projects/edtech-platform.jpg"],
-      category: "Education",
-      technologies: ["Vue.js", "Laravel", "MySQL", "WebRTC", "AWS S3"],
-      features: ["Video Streaming", "Progress Tracking", "Interactive Quizzes", "Collaboration Tools"],
-      liveUrl: "https://edtech-demo.com",
-      featured: false,
-      stats: { views: "9.3K", stars: 127, forks: 45 },
-      complexity: "Custom Solution",
-      duration: "3 months",
-      likes: 167,
-      trending: false,
-      mostLiked: false,
-    },
-    {
-      id: 5,
-      title: "Smart IoT Dashboard",
-      description:
-        "A real-time IoT monitoring dashboard for smart buildings, featuring sensor data visualization and automated control systems.",
-      images: ["/projects/iot-dashboard.jpg", "/projects/iot-dashboard.jpg", "/projects/iot-dashboard.jpg"],
-      category: "IoT",
-      technologies: ["Angular", "Python", "InfluxDB", "MQTT", "Docker"],
-      features: ["Real-time Monitoring", "Data Visualization", "Automated Controls", "Alert System"],
-      liveUrl: "https://iot-demo.com",
-      featured: false,
-      stats: { views: "6.8K", stars: 94, forks: 28 },
-      complexity: "Business Solution",
-      duration: "4 months",
-      likes: 523,
-      trending: false,
-      mostLiked: false,
-    },
-    {
-      id: 6,
-      title: "Social Media Analytics",
-      description:
-        "A comprehensive social media analytics tool that tracks engagement, sentiment analysis, and provides actionable insights for brands.",
-      images: ["/projects/social-analytics.jpg", "/projects/social-analytics.jpg", "/projects/social-analytics.jpg"],
-      category: "Analytics",
-      technologies: ["Python", "Django", "PostgreSQL", "Celery", "D3.js"],
-      features: ["Sentiment Analysis", "Engagement Tracking", "Custom Reports", "API Integration"],
-      liveUrl: "https://social-analytics-demo.com",
-      featured: false,
-      stats: { views: "11.1K", stars: 178, forks: 52 },
-      complexity: "Enterprise Solution",
-      duration: "6 months",
-      likes: 298,
-      trending: true,
-      mostLiked: false,
-    },
-  ]
-
-  const categories = ["All", "E-commerce", "Healthcare", "FinTech", "Education", "IoT", "Analytics"]
+  // Ensure the categories array is defined
+  const categories = ["All", "E-commerce", "Healthcare", "FinTech", "Education", "IoT", "Analytics"];
 
   // Initialize priority queues and sorted data
   useEffect(() => {
@@ -171,36 +77,59 @@ export function ProjectsShowcase() {
     const topProject = projectQueue.peek()
     setMostLikedProject(topProject || null)
     
-    // Create priority queue for trending projects
-    const trendingProjectsFiltered = projects.filter((p) => p.trending)
-    const trendingQueue = createPriorityQueueFromArray(trendingProjectsFiltered, 'likes')
-    setPopularProjects(trendingQueue.toArray())
-  }, [])
+    // Get the 2nd, 3rd, and 4th most liked projects for the "Popular Projects" section
+    const popularProjectsSubset = sortedByLikes.slice(1, 4); // Skip the first project (most liked)
+    setPopularProjects(popularProjectsSubset);
+  }, [projects])
+
+  useEffect(() => {
+    const projectsRef = ref(database, "allProjects");
+    const unsubscribe = onValue(projectsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const projectsArray = Object.keys(data).map((key) => ({ id: key, ...data[key] }));
+        setProjects(projectsArray);
+      }
+      setLoading(false); // Set loading to false once data is fetched
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const filteredProjects =
     activeFilter === "All" ? sortedProjects : sortedProjects.filter((project) => project.category === activeFilter)
 
   const handleLike = (projectId: number) => {
     const newLikedProjects = new Set(likedProjects)
+    let updatedProjects = [...projects]
+    
     if (newLikedProjects.has(projectId)) {
       newLikedProjects.delete(projectId)
       // Update project likes count (decrement)
-      const projectIndex = projects.findIndex(p => p.id === projectId)
+      const projectIndex = updatedProjects.findIndex(p => p.id === projectId)
       if (projectIndex !== -1) {
-        projects[projectIndex].likes = Math.max(0, projects[projectIndex].likes - 1)
+        updatedProjects[projectIndex] = {
+          ...updatedProjects[projectIndex],
+          likes: Math.max(0, updatedProjects[projectIndex].likes - 1)
+        }
       }
     } else {
       newLikedProjects.add(projectId)
       // Update project likes count (increment)
-      const projectIndex = projects.findIndex(p => p.id === projectId)
+      const projectIndex = updatedProjects.findIndex(p => p.id === projectId)
       if (projectIndex !== -1) {
-        projects[projectIndex].likes += 1
+        updatedProjects[projectIndex] = {
+          ...updatedProjects[projectIndex],
+          likes: updatedProjects[projectIndex].likes + 1
+        }
       }
     }
+    
     setLikedProjects(newLikedProjects)
+    setProjects(updatedProjects)
     
     // Re-sort projects using priority queue
-    const projectQueue = createPriorityQueueFromArray(projects, 'likes')
+    const projectQueue = createPriorityQueueFromArray(updatedProjects, 'likes')
     const sortedByLikes = projectQueue.toArray()
     setSortedProjects(sortedByLikes)
     
@@ -209,7 +138,7 @@ export function ProjectsShowcase() {
     setMostLikedProject(topProject || null)
     
     // Update popular projects
-    const trendingProjectsFiltered = projects.filter((p) => p.trending)
+    const trendingProjectsFiltered = updatedProjects.filter((p) => p.trending)
     const trendingQueue = createPriorityQueueFromArray(trendingProjectsFiltered, 'likes')
     setPopularProjects(trendingQueue.toArray())
   }
@@ -243,7 +172,7 @@ export function ProjectsShowcase() {
 
   const swipeImage = (projectId: number, direction: "left" | "right") => {
     const project = projects.find((p) => p.id === projectId)
-    if (!project) return
+    if (!project || !project.images) return
 
     const currentIndex = currentImageIndex[projectId] || 0
     let newIndex
@@ -303,6 +232,15 @@ export function ProjectsShowcase() {
       </div>
     </div>
   )
+
+  // Ensure the loading spinner is centered and visible during loading
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-background">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <section className="py-20 bg-background relative overflow-hidden">
