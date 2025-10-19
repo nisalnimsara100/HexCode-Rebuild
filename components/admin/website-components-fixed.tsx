@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { database } from '@/lib/firebase';
-import { ref, onValue, set } from 'firebase/database';
+import { ref, onValue, set, get } from 'firebase/database';
 import { uploadProfileImage, createImagePreview, validateImageFile } from '@/lib/imageUpload';
 import { 
   Globe, 
@@ -40,7 +41,9 @@ import {
   ExternalLink,
   Github,
   Calendar,
-  Loader2
+  Loader2,
+  Tag,
+  Image as ImageIcon
 } from 'lucide-react';
 
 // Types
@@ -85,6 +88,15 @@ interface PortfolioProject {
   order: number;
   client?: string;
   completedDate: string;
+}
+
+// Define the type for items
+interface Item {
+  id: number;
+  title: string;
+  description: string;
+  image: string;
+  previews: string[];
 }
 
 // Website Overview Component
@@ -256,6 +268,7 @@ export function ServicesManagement() {
   });
   const [saving, setSaving] = useState(false);
   const [newFeature, setNewFeature] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const iconOptions = [
     { icon: <Globe className="w-5 h-5" />, name: 'Globe' },
@@ -572,130 +585,27 @@ export function ServicesManagement() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddModalOpen(false)} disabled={saving}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddModalOpen(false);
+                // Note: resetImageUpload not available in this component scope
+              }}
+              disabled={saving || uploading}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAddService} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Add Service
+            <Button onClick={handleAddService} disabled={saving || uploading}>
+              {(saving || uploading) ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {uploading ? 'Uploading...' : saving ? 'Saving...' : 'Add Service'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Service Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Service</DialogTitle>
-          </DialogHeader>
-          {selectedService && (
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-title">Service Title *</Label>
-                  <Input
-                    id="edit-title"
-                    value={selectedService.title}
-                    onChange={(e) => setSelectedService({ ...selectedService, title: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-category">Category</Label>
-                  <Input
-                    id="edit-category"
-                    value={selectedService.category || ''}
-                    onChange={(e) => setSelectedService({ ...selectedService, category: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="edit-description">Description *</Label>
-                <Textarea
-                  id="edit-description"
-                  value={selectedService.description}
-                  onChange={(e) => setSelectedService({ ...selectedService, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              <div>
-                <Label>Features</Label>
-                <div className="space-y-1">
-                  {selectedService.features.map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <Input
-                        value={feature}
-                        onChange={(e) => {
-                          const updatedFeatures = [...selectedService.features];
-                          updatedFeatures[index] = e.target.value;
-                          setSelectedService({ ...selectedService, features: updatedFeatures });
-                        }}
-                        placeholder="Enter feature"
-                        className="text-sm h-8"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const updatedFeatures = selectedService.features.filter((_, i) => i !== index);
-                          setSelectedService({ ...selectedService, features: updatedFeatures });
-                        }}
-                        className="h-8 w-8 p-0"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ))}
-                  <div className="flex space-x-1">
-                    <Input
-                      value={newFeature}
-                      onChange={(e) => setNewFeature(e.target.value)}
-                      placeholder="Add new feature"
-                      className="text-sm h-8"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && newFeature.trim()) {
-                          setSelectedService({ ...selectedService, features: [...selectedService.features, newFeature.trim()] });
-                          setNewFeature('');
-                        }
-                      }}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (newFeature.trim()) {
-                          setSelectedService({ ...selectedService, features: [...selectedService.features, newFeature.trim()] });
-                          setNewFeature('');
-                        }
-                      }}
-                      className="h-8"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={selectedService.isActive !== false}
-                  onCheckedChange={(checked) => setSelectedService({ ...selectedService, isActive: checked })}
-                />
-                <Label>Active Service</Label>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={saving}>
-              Cancel
-            </Button>
-            <Button onClick={handleEditService} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+      {/* Loading Overlay */}
       {saving && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded-lg flex items-center space-x-3">
@@ -723,6 +633,7 @@ export function PricePackagesManagement() {
     isActive: true
   });
   const [newFeature, setNewFeature] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchPackages();
@@ -773,7 +684,16 @@ export function PricePackagesManagement() {
   };
 
   const handleAddPackage = async () => {
-    if (!newPackage.name.trim() || !newPackage.price.trim() || !newPackage.description.trim()) {
+    // Validate required fields
+    const requiredFields = [
+      { value: newPackage.name.trim(), name: 'name' },
+      { value: newPackage.price.trim(), name: 'price' },
+      { value: newPackage.description.trim(), name: 'description' }
+    ];
+    
+    const missingFields = requiredFields.filter(field => !field.value);
+    
+    if (missingFields.length > 0) {
       alert("Please fill in required fields");
       return;
     }
@@ -996,7 +916,7 @@ function PricingPackageCard({
   onUpdate: (index: number, pkg: PricingPackage) => void;
   onDelete: (index: number) => void;
   saving: boolean;
-}) {
+}): JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
   const [editedPackage, setEditedPackage] = useState<PricingPackage>(pkg);
   const [newFeature, setNewFeature] = useState('');
@@ -1027,17 +947,8 @@ function PricingPackageCard({
     });
   };
 
-  return (
-    <Card className={`relative ${pkg.popular ? 'ring-2 ring-blue-500' : ''}`}>
-      {pkg.popular && (
-        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-          <Badge className="bg-blue-500 text-white px-3 py-1">
-            <Star className="w-3 h-3 mr-1" />
-            Popular
-          </Badge>
-        </div>
-      )}
-      
+  const renderHeader = () => {
+    return (
       <CardHeader className="text-center pb-4">
         <div className="flex justify-between items-start">
           <div className="flex-1">
@@ -1090,7 +1001,11 @@ function PricingPackageCard({
           </div>
         </div>
       </CardHeader>
+    );
+  };
 
+  const renderContent = () => {
+    return (
       <CardContent className="space-y-4">
         {isEditing ? (
           <Textarea
@@ -1106,71 +1021,140 @@ function PricingPackageCard({
         <div className="space-y-2">
           <h4 className="font-medium text-sm">Features:</h4>
           <div className="space-y-1">
-            {(isEditing ? editedPackage.features : pkg.features).map((feature, featureIndex) => (
-              <div key={featureIndex} className="flex items-center space-x-2 text-sm">
-                <CheckCircle className="w-3 h-3 text-emerald-500 flex-shrink-0" />
-                {isEditing ? (
-                  <div className="flex items-center space-x-1 flex-1">
-                    <Input
-                      value={feature}
-                      onChange={(e) => {
-                        const updatedFeatures = [...editedPackage.features];
-                        updatedFeatures[featureIndex] = e.target.value;
-                        setEditedPackage({ ...editedPackage, features: updatedFeatures });
-                      }}
-                      className="text-sm h-8"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFeature(featureIndex)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">{feature}</span>
-                )}
-              </div>
-            ))}
-            
-            {isEditing && (
-              <div className="flex space-x-1">
-                <Input
-                  value={newFeature}
-                  onChange={(e) => setNewFeature(e.target.value)}
-                  placeholder="Add new features"
-                  className="text-sm h-8"
-                  onKeyPress={(e) => e.key === 'Enter' && addFeature()}
-                />
-                <Button variant="outline" size="sm" onClick={addFeature} className="h-8">
-                  <Plus className="w-3 h-3" />
-                </Button>
-              </div>
-            )}
+              {(isEditing ? editedPackage.features : pkg.features).map((feature, featureIndex) => (
+                <div key={featureIndex} className="flex items-center space-x-2 text-sm">
+                  <CheckCircle className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                  {isEditing ? (
+                    <div className="flex items-center space-x-1 flex-1">
+                      <Input
+                        value={feature}
+                        onChange={(e) => {
+                          const updatedFeatures = [...editedPackage.features];
+                          updatedFeatures[featureIndex] = e.target.value;
+                          setEditedPackage({ ...editedPackage, features: updatedFeatures });
+                        }}
+                        className="text-sm h-8"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFeature(featureIndex)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">{feature}</span>
+                  )}
+                </div>
+              ))}
+              
+              {isEditing && (
+                <div className="flex space-x-1">
+                  <Input
+                    value={newFeature}
+                    onChange={(e) => setNewFeature(e.target.value)}
+                    placeholder="Add new features"
+                    className="text-sm h-8"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newFeature.trim()) {
+                        addFeature();
+                      }
+                    }}
+                  />
+                  <Button variant="outline" size="sm" onClick={addFeature} className="h-8">
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {isEditing && (
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={editedPackage.popular}
-                onCheckedChange={(checked) => setEditedPackage({ ...editedPackage, popular: checked })}
-              />
-              <Label className="text-sm">Popular</Label>
+          {isEditing && (
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={editedPackage.popular}
+                  onCheckedChange={(checked) => setEditedPackage({ ...editedPackage, popular: checked })}
+                />
+                <Label className="text-sm">Popular</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={editedPackage.isActive !== false}
+                  onCheckedChange={(checked) => setEditedPackage({ ...editedPackage, isActive: checked })}
+                />
+                <Label className="text-sm">Active</Label>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={editedPackage.isActive !== false}
-                onCheckedChange={(checked) => setEditedPackage({ ...editedPackage, isActive: checked })}
-              />
-              <Label className="text-sm">Active</Label>
-            </div>
+          )}
+        </CardContent>
+      );
+    };
+
+    return (
+      <Card className={`relative ${pkg.popular ? 'ring-2 ring-blue-500' : ''}`}>
+        {pkg.popular && (
+          <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+            <Badge className="bg-blue-500 text-white px-3 py-1">
+              <Star className="w-3 h-3 mr-1" />
+              Popular
+            </Badge>
           </div>
         )}
-      </CardContent>
+        
+        {renderHeader()}
+
+        {renderContent()}
+      </Card>
+    );
+  }
+
+// Stats Edit Card Component
+function StatEditCard({ stat, index, onUpdate, onDelete }: {
+  stat: Stat;
+  index: number;
+  onUpdate: (index: number, field: keyof Stat, value: string) => void;
+  onDelete: (index: number) => void;
+}) {
+  return (
+    <Card key={index} className="p-6">
+      <div className="flex justify-between items-start mb-4">
+        <div className="text-sm text-muted-foreground">Stat #{index + 1}</div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onDelete(index)}
+          className="text-red-500 hover:text-red-700"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+      
+      <div className="space-y-3">
+        <Input
+          value={stat.value}
+          onChange={(e) => onUpdate(index, 'value', e.target.value)}
+          className="text-2xl font-bold text-center"
+          placeholder="Value"
+        />
+        
+        <Input
+          value={stat.title}
+          onChange={(e) => onUpdate(index, 'title', e.target.value)}
+          className="font-medium text-center"
+          placeholder="Title"
+        />
+        
+        <Textarea
+          value={stat.description}
+          onChange={(e) => onUpdate(index, 'description', e.target.value)}
+          className="text-sm text-muted-foreground text-center resize-none"
+          rows={2}
+          placeholder="Description"
+        />
+      </div>
     </Card>
   );
 }
@@ -1275,45 +1259,13 @@ export function WebsiteStats() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {stats.map((stat, index) => (
-          <Card key={index} className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-2 bg-emerald-500/10 rounded-lg">
-                <BarChart3 className="w-5 h-5 text-emerald-500" />
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => deleteStat(index)}
-                disabled={saving}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-            
-            <div className="space-y-3">
-              <Input
-                value={stat.value}
-                onChange={(e) => updateStat(index, 'value', e.target.value)}
-                className="text-2xl font-bold text-center"
-                placeholder="Value"
-              />
-              
-              <Input
-                value={stat.title}
-                onChange={(e) => updateStat(index, 'title', e.target.value)}
-                className="font-medium text-center"
-                placeholder="Title"
-              />
-              
-              <Textarea
-                value={stat.description}
-                onChange={(e) => updateStat(index, 'description', e.target.value)}
-                className="text-sm text-muted-foreground text-center resize-none"
-                rows={2}
-                placeholder="Description"
-              />
-            </div>
-          </Card>
+          <StatEditCard
+            key={index}
+            stat={stat}
+            index={index}
+            onUpdate={updateStat}
+            onDelete={deleteStat}
+          />
         ))}
       </div>
     </div>
@@ -1381,6 +1333,10 @@ export function PortfolioManagement() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<PortfolioProject | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+
   const [newProject, setNewProject] = useState<Partial<PortfolioProject>>({
     title: '',
     description: '',
@@ -1395,11 +1351,39 @@ export function PortfolioManagement() {
     completedDate: new Date().toISOString().split('T')[0]
   });
   const [newTechnology, setNewTechnology] = useState('');
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
   const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
+  
+  // Category management state
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
+
+  // Enhanced modal state - similar to project management
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [newItem, setNewItem] = useState<Item>({
+    id: 0,
+    title: '',
+    description: '',
+    image: '',
+    previews: [],
+  });
+  const [items, setItems] = useState<Item[]>([]);
+  const [newItemImageFiles, setNewItemImageFiles] = useState<File[]>([]);
+  const [newItemImagePreviews, setNewItemImagePreviews] = useState<string[]>([]);
+  const [editItemImageFiles, setEditItemImageFiles] = useState<File[]>([]);
+  const [editItemImagePreviews, setEditItemImagePreviews] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+
+  // Utility function to reset image uploads
+  const resetImageUpload = () => {
+    setImageFiles([]);
+    setImagePreviews([]);
+  };
 
   useEffect(() => {
     const projectsRef = ref(database, 'allProjects');
@@ -1429,14 +1413,60 @@ export function PortfolioManagement() {
     return () => unsubscribe();
   }, []);
 
+  // Extract categories from both projects and Firebase categories collection
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        // Fetch categories from Firebase categories collection
+        const categoriesRef = ref(database, 'projectCategories');
+        const firebaseCategories: string[] = [];
+        
+        const snapshot = await get(categoriesRef);
+        if (snapshot.exists()) {
+          Object.values(snapshot.val()).forEach((cat: any) => {
+            if (cat.name && cat.isActive !== false) {
+              firebaseCategories.push(cat.name);
+            }
+          });
+        }
+
+        // Extract categories from existing projects
+        const projectCategories = projects
+          .map(project => project.category)
+          .filter((category): category is string => Boolean(category && category.trim()))
+          .filter((category, index, array) => array.indexOf(category) === index) // Remove duplicates
+          .sort(); // Sort alphabetically
+
+        // Always include default categories
+        const defaultCategories = ['Web App', 'Mobile App', 'Desktop App', 'API', 'Other'];
+        
+        // Combine all categories and remove duplicates
+        const allCategories = [...new Set([...defaultCategories, ...projectCategories, ...firebaseCategories])].sort();
+        
+        setCategories(allCategories);
+        console.log('Categories loaded from all sources:', allCategories);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        // Fallback to default categories if fetch fails
+        const defaultCategories = ['Web App', 'Mobile App', 'Desktop App', 'API', 'Other'];
+        setCategories(defaultCategories);
+      }
+    };
+
+    fetchCategories();
+  }, [projects]); // Re-run when projects change to pick up new categories
+
   const saveProjectToFirebase = async (projectData: Partial<PortfolioProject>, projectId?: string) => {
     setSaving(true);
     try {
-      const projectRef = projectId 
-        ? ref(database, `allProjects/${projectId}`)
-        : ref(database, `allProjects/${Date.now()}`);
+      // Generate a more unique ID to prevent duplicates
+      const uniqueId = projectId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const projectRef = ref(database, `allProjects/${uniqueId}`);
       
-      await set(projectRef, projectData);
+      // Ensure the project has the correct ID
+      const projectWithId = { ...projectData, id: uniqueId };
+      
+      await set(projectRef, projectWithId);
       return true;
     } catch (error) {
       console.error("Error saving project:", error);
@@ -1447,59 +1477,39 @@ export function PortfolioManagement() {
     }
   };
 
+  // Refactor the handleAddProject method
   const handleAddProject = async () => {
-    if (!newProject.title?.trim() || !newProject.description?.trim()) {
-      alert("Please fill in required fields (title and description)");
-      return;
-    }
-
-    let projectImages: string[] = [];
-    
-    // Upload images if files are selected
-    if (imageFiles.length > 0) {
-      const uploadedImageUrls = await uploadProjectImages();
-      if (uploadedImageUrls.length > 0) {
-        projectImages = uploadedImageUrls;
-      } else {
-        alert("Failed to upload images. Please try again.");
-        return;
+    const validateInputs = () => {
+      if (!newProject.title?.trim() || !newProject.description?.trim()) {
+        alert("Please fill in required fields (title and description)");
+        return false;
       }
-    }
-    
-    // Combine uploaded images with existing images
-    const existingImages = newProject.images || [];
-    if (newProject.image && !existingImages.length) {
-      existingImages.push(newProject.image);
-    }
-    const allImages = [...existingImages, ...projectImages];
-
-    const projectToAdd = {
-      ...newProject,
-      images: allImages,
-      image: allImages.length > 0 ? allImages[0] : undefined, // Keep backward compatibility
-      technologies: newProject.technologies?.filter(tech => tech.trim() !== '') || [],
-      order: projects.length,
-      createdAt: new Date().toISOString()
+      return true;
     };
 
-    const success = await saveProjectToFirebase(projectToAdd);
-    
-    if (success) {
-      setIsAddModalOpen(false);
-      setNewProject({
-        title: '',
-        description: '',
-        image: '',
-        technologies: [],
-        category: '',
-        url: '',
-        githubUrl: '',
-        isActive: true,
-        order: 0,
-        client: '',
-        completedDate: new Date().toISOString().split('T')[0]
-      });
-      resetImageUpload();
+    const saveProject = async () => {
+      const projectImages = await uploadImagesIfNeeded(imageFiles);
+      if (!projectImages) return;
+
+      const allImages = combineImages(newProject, projectImages);
+
+      const projectToAdd = {
+        ...newProject,
+        images: allImages,
+        image: allImages.length > 0 ? allImages[0] : undefined,
+        technologies: newProject.technologies?.filter(tech => tech.trim() !== '') || [],
+        order: projects.length,
+        createdAt: new Date().toISOString()
+      };
+
+      const success = await saveProjectToFirebase(projectToAdd);
+      if (success) {
+        resetAddProjectState();
+      }
+    };
+
+    if (validateInputs()) {
+      await saveProject();
     }
   };
 
@@ -1539,7 +1549,6 @@ export function PortfolioManagement() {
     if (success) {
       setIsEditModalOpen(false);
       setSelectedProject(null);
-      resetEditImageUpload();
     }
   };
 
@@ -1582,7 +1591,19 @@ export function PortfolioManagement() {
     setTechnologies(technologies.filter((_, i) => i !== index));
   };
 
-  const handleImageSelect = async (files: FileList | null) => {
+  const handleImageSelection = async (files: FileList | null, setImageFiles: Function, setImagePreviews: Function) => {
+    if (!files) return;
+    const fileArray = Array.from(files);
+    setImageFiles(fileArray);
+    const previewArray = fileArray.map((file) => URL.createObjectURL(file));
+    setImagePreviews(previewArray);
+  };
+
+  const handleImageSelect = (files: FileList | null) => {
+    handleImageSelection(files, setImageFiles, setImagePreviews);
+  };
+
+  const handleEditImageSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     const newFiles: File[] = [];
@@ -1595,7 +1616,7 @@ export function PortfolioManagement() {
         alert(`File ${file.name}: ${validation.error}`);
         continue;
       }
-      
+
       newFiles.push(file);
       try {
         const preview = await createImagePreview(file);
@@ -1605,9 +1626,9 @@ export function PortfolioManagement() {
         newPreviews.push('');
       }
     }
-    
-    setImageFiles([...imageFiles, ...newFiles]);
-    setImagePreviews([...imagePreviews, ...newPreviews]);
+
+    setEditImageFiles([...editImageFiles, ...newFiles]);
+    setEditImagePreviews([...editImagePreviews, ...newPreviews]);
   };
 
   const uploadProjectImages = async (): Promise<string[]> => {
@@ -1654,12 +1675,943 @@ export function PortfolioManagement() {
     }
   };
 
-  const resetImageUpload = () => {
-    setImageFiles([]);
-    setImagePreviews([]);
+  // Function to upload images if needed
+  const uploadImagesIfNeeded = async (files: File[]): Promise<string[]> => {
+    if (!files.length) return [];
+
+    try {
+      setUploading(true);
+      const uploadedUrls = await Promise.all(
+        files.map(async (file) => {
+          // Simulate image upload logic
+          const uploadUrl = `/projects/${file.name}`; // Replace with actual upload logic
+          return uploadUrl;
+        })
+      );
+      return uploadedUrls;
+    } catch (error) {
+      console.error("Error uploading images:", error);
+      alert("Failed to upload images. Please try again.");
+      return [];
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleEditImageSelect = async (files: FileList | null) => {
+  // Function to combine new and existing images
+  const combineImages = (project: Partial<PortfolioProject>, newImages: string[]): string[] => {
+    const existingImages = project.images || [];
+    return [...existingImages, ...newImages];
+  };
+
+  // Function to reset the add project state
+  const resetAddProjectState = () => {
+    setNewProject({
+      title: '',
+      description: '',
+      image: '',
+      technologies: [],
+      category: '',
+      url: '',
+      githubUrl: '',
+      isActive: true,
+      order: 0,
+      client: '',
+      completedDate: new Date().toISOString().split('T')[0]
+    });
+    resetImageUpload();
+    setIsAddModalOpen(false);
+  };
+
+  // Category management functions
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) {
+      alert('Please enter a category name');
+      return;
+    }
+
+    if (categories.includes(newCategoryName.trim())) {
+      alert('Category already exists');
+      return;
+    }
+
+    const categoryToAdd = newCategoryName.trim();
+    
+    try {
+      // Save category to Firebase categories collection to persist it
+      const categoryRef = ref(database, `projectCategories/${categoryToAdd.replace(/[.#$[\]]/g, '_')}`);
+      await set(categoryRef, {
+        name: categoryToAdd,
+        createdAt: new Date().toISOString(),
+        isActive: true
+      });
+
+      // Update local categories immediately
+      const updatedCategories = [...categories, categoryToAdd].sort();
+      setCategories(updatedCategories);
+      setNewCategoryName('');
+      setShowAddCategory(false);
+      
+      // Set the new category as selected in the appropriate project
+      if (isEditModalOpen && selectedProject) {
+        setSelectedProject(prev => prev ? { ...prev, category: categoryToAdd } : null);
+      } else {
+        setNewProject(prev => ({ ...prev, category: categoryToAdd }));
+      }
+      
+      console.log('New category added and saved to Firebase:', categoryToAdd);
+    } catch (error) {
+      console.error('Error adding category:', error);
+      alert('Failed to add category');
+    }
+  };
+
+  const handleEditCategory = async (oldCategory: string, newCategory: string) => {
+    if (!newCategory.trim()) {
+      alert('Please enter a category name');
+      return;
+    }
+
+    if (oldCategory === newCategory.trim()) {
+      return; // No change needed
+    }
+
+    if (categories.includes(newCategory.trim())) {
+      alert('Category already exists');
+      return;
+    }
+
+    try {
+      // Update all projects that use this category directly in Firebase
+      const projectsToUpdate = projects.filter(project => project.category === oldCategory);
+      
+      if (projectsToUpdate.length > 0) {
+        for (const project of projectsToUpdate) {
+          // Update project directly in Firebase using existing ID
+          const projectRef = ref(database, `allProjects/${project.id}`);
+          await set(projectRef, { ...project, category: newCategory.trim() });
+        }
+      }
+
+      // Update local categories immediately
+      const updatedCategories = categories
+        .map(cat => cat === oldCategory ? newCategory.trim() : cat)
+        .sort();
+      setCategories(updatedCategories);
+
+      console.log('Category updated:', oldCategory, 'to', newCategory.trim());
+    } catch (error) {
+      console.error('Error updating category:', error);
+      alert('Failed to update category');
+    }
+  };
+
+  const handleDeleteCategory = async (categoryToDelete: string) => {
+    if (!confirm(`Are you sure you want to delete the category "${categoryToDelete}"? This will remove the category from all projects using it.`)) {
+      return;
+    }
+
+    try {
+      // Update all projects that use this category directly in Firebase
+      const projectsToUpdate = projects.filter(project => project.category === categoryToDelete);
+      
+      if (projectsToUpdate.length > 0) {
+        for (const project of projectsToUpdate) {
+          // Update project directly in Firebase using existing ID
+          const projectRef = ref(database, `allProjects/${project.id}`);
+          await set(projectRef, { ...project, category: '' });
+        }
+      }
+
+      // Update local categories immediately
+      const updatedCategories = categories.filter(cat => cat !== categoryToDelete);
+      setCategories(updatedCategories);
+
+      console.log('Category deleted:', categoryToDelete);
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      alert('Failed to delete category');
+    }
+  };
+
+  const handleEditModalOpen = (project: PortfolioProject) => {
+    setSelectedProject(project);
+    setIsEditModalOpen(true);
+  };
+
+  useEffect(() => {
+    if (
+      isEditModalOpen &&
+      selectedProject &&
+      !categories.includes(selectedProject.category || '')
+    ) {
+      setSelectedProject((prev) => {
+        if (prev && prev.category !== '') {
+          return { ...prev, category: '' };
+        }
+        return prev; // Avoid unnecessary updates
+      });
+    }
+  }, [isEditModalOpen, selectedProject, categories]);
+
+  // Migration function to fix duplicate project IDs in database
+  const fixDuplicateProjectIds = async () => {
+    if (!confirm('This will fix duplicate project IDs in the database. This action cannot be undone. Continue?')) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const projectsRef = ref(database, 'allProjects');
+      const snapshot = await get(projectsRef);
+      
+      if (!snapshot.exists()) {
+        alert('No projects found in database');
+        return;
+      }
+
+      const projectsData = snapshot.val();
+      const projectEntries = Object.entries(projectsData);
+      const seenIds = new Set<string>();
+      const duplicates: Array<{key: string, project: any}> = [];
+
+      // Find duplicates
+      projectEntries.forEach(([key, project]: [string, any]) => {
+        if (project.id && seenIds.has(project.id)) {
+          duplicates.push({key, project});
+        } else if (project.id) {
+          seenIds.add(project.id);
+        }
+      });
+
+      console.log('Found duplicate projects:', duplicates);
+
+      if (duplicates.length === 0) {
+        alert('No duplicate project IDs found');
+        return;
+      }
+
+      // Fix duplicates by assigning new unique IDs
+      for (const {key, project} of duplicates) {
+        const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newProjectRef = ref(database, `allProjects/${newId}`);
+        
+        // Create new project with unique ID
+        await set(newProjectRef, { ...project, id: newId });
+        
+        // Delete old duplicate
+        const oldProjectRef = ref(database, `allProjects/${key}`);
+        await set(oldProjectRef, null);
+        
+        console.log(`Fixed duplicate: ${project.id} -> ${newId}`);
+      }
+
+      alert(`Fixed ${duplicates.length} duplicate project IDs`);
+    } catch (error) {
+      console.error('Error fixing duplicate IDs:', error);
+      alert('Failed to fix duplicate IDs');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderEditModal = () => {
+    if (!selectedProject) return null;
+
+    const addTechnologyToEdit = () => {
+      if (newTechnology.trim() && !selectedProject.technologies.includes(newTechnology.trim())) {
+        setSelectedProject({
+          ...selectedProject,
+          technologies: [...selectedProject.technologies, newTechnology.trim()]
+        });
+        setNewTechnology('');
+      }
+    };
+
+    const removeTechnologyFromEdit = (index: number) => {
+      setSelectedProject({
+        ...selectedProject,
+        technologies: selectedProject.technologies.filter((_, i) => i !== index)
+      });
+    };
+
+    return (
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+          </DialogHeader>
+          {selectedProject && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-title">Project Title *</Label>
+                  <Input
+                    id="edit-title"
+                    value={selectedProject.title}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, title: e.target.value })}
+                    placeholder="Enter project title"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-category">Category</Label>
+                  <div className="flex gap-2">
+                    <Select 
+                      value={selectedProject.category || ''} 
+                      onValueChange={(value) => setSelectedProject({ ...selectedProject, category: value })}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddCategory(true)}
+                      disabled={saving}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {/* Add New Category */}
+                  {showAddCategory && (
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        placeholder="Enter new category name"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddCategory}
+                        disabled={!newCategoryName.trim()}
+                      >
+                        Add
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddCategory(false);
+                          setNewCategoryName('');
+                        }}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-description">Description *</Label>
+                <Textarea
+                  id="edit-description"
+                  value={selectedProject.description}
+                  onChange={(e) => setSelectedProject({ ...selectedProject, description: e.target.value })}
+                  placeholder="Enter project description"
+                  rows={3}
+                />
+              </div>
+
+              {/* Current Project Images */}
+              <div>
+                <Label>Project Images</Label>
+                <div className="space-y-4">
+                  {/* Current Images Display */}
+                  {(selectedProject.images && selectedProject.images.length > 0) || selectedProject.image ? (
+                    <div className="mb-4">
+                      <Label className="text-sm font-medium">Current Images</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
+                        {/* Show existing images */}
+                        {selectedProject.images && selectedProject.images.length > 0 ? (
+                          selectedProject.images.map((image, index) => (
+                            <div key={index} className="relative">
+                              <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
+                                <img
+                                  src={normalizeImagePath(image)}
+                                  alt={`Project ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    console.error('Image load error:', image);
+                                    (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                  }}
+                                />
+                              </div>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="absolute top-1 right-1 h-6 w-6 p-0"
+                                onClick={() => {
+                                  const updatedImages = selectedProject.images?.filter((_, i) => i !== index) || [];
+                                  setSelectedProject({
+                                    ...selectedProject,
+                                    images: updatedImages,
+                                    image: updatedImages.length > 0 ? updatedImages[0] : ''
+                                  });
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))
+                        ) : selectedProject.image ? (
+                          <div className="relative">
+                            <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
+                              <img
+                                src={normalizeImagePath(selectedProject.image)}
+                                alt="Project"
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  console.error('Image load error:', selectedProject.image);
+                                  (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                }}
+                              />
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-1 right-1 h-6 w-6 p-0"
+                              onClick={() => {
+                                setSelectedProject({
+                                  ...selectedProject,
+                                  image: '',
+                                  images: []
+                                });
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Add New Images */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleEditImageSelect(e.target.files)}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditImageFiles([]);
+                          setEditImagePreviews([]);
+                        }}
+                        disabled={editImageFiles.length === 0}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                    
+                    {/* New Images Preview */}
+                    {editImagePreviews.length > 0 && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {editImagePreviews.map((preview, index) => (
+                          <div key={index} className="relative">
+                            <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border border-green-200">
+                              <img
+                                src={preview}
+                                alt={`New ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-1 right-1 h-6 w-6 p-0"
+                              onClick={() => {
+                                const newFiles = editImageFiles.filter((_, i) => i !== index);
+                                const newPreviews = editImagePreviews.filter((_, i) => i !== index);
+                                setEditImageFiles(newFiles);
+                                setEditImagePreviews(newPreviews);
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                            <Badge className="absolute bottom-1 left-1 text-xs bg-green-500">
+                              New
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Technologies */}
+              <div>
+                <Label>Technologies</Label>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add technology (e.g. React, Node.js)"
+                      value={newTechnology}
+                      onChange={(e) => setNewTechnology(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && addTechnologyToEdit()}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addTechnologyToEdit}
+                      disabled={!newTechnology.trim()}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {selectedProject.technologies && selectedProject.technologies.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProject.technologies.map((tech, index) => (
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          {tech}
+                          <button
+                            type="button"
+                            onClick={() => removeTechnologyFromEdit(index)}
+                            className="ml-1 hover:bg-red-100 rounded-full p-0.5"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-client">Client</Label>
+                <Input
+                  id="edit-client"
+                  value={selectedProject.client || ''}
+                  onChange={(e) => setSelectedProject({ ...selectedProject, client: e.target.value })}
+                  placeholder="Client name"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="edit-url">Project URL</Label>
+                  <Input
+                    id="edit-url"
+                    type="url"
+                    value={selectedProject.url || ''}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, url: e.target.value })}
+                    placeholder="https://example.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-github">GitHub URL</Label>
+                  <Input
+                    id="edit-github"
+                    type="url"
+                    value={selectedProject.githubUrl || ''}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, githubUrl: e.target.value })}
+                    placeholder="https://github.com/username/repo"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-date">Completion Date</Label>
+                  <Input
+                    id="edit-date"
+                    type="date"
+                    value={selectedProject.completedDate || ''}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, completedDate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-order">Display Order</Label>
+                  <Input
+                    id="edit-order"
+                    type="number"
+                    value={selectedProject.order || 0}
+                    onChange={(e) => setSelectedProject({ ...selectedProject, order: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 pt-6">
+                  <Switch
+                    checked={selectedProject.isActive !== false}
+                    onCheckedChange={(checked) => setSelectedProject({ ...selectedProject, isActive: checked })}
+                  />
+                  <Label>Active Project</Label>
+                </div>
+              </div>
+
+              {/* Upload Progress */}
+              {uploading && (
+                <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                  <span className="text-sm text-blue-700">Uploading images...</span>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditImageFiles([]);
+                setEditImagePreviews([]);
+              }}
+              disabled={saving || uploading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleEditProject} disabled={saving || uploading}>
+              {uploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const renderNewModal = () => (
+    <Dialog open={isNewModalOpen} onOpenChange={setIsNewModalOpen}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add New Item</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          {/* Title and Category Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="new-title">Title *</Label>
+              <Input
+                id="new-title"
+                value={newItem.title}
+                onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
+                placeholder="Enter item title"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-category">Category</Label>
+              <div className="flex space-x-2">
+                <Select
+                  value={selectedCategory}
+                  onValueChange={(value) => setSelectedCategory(value)}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category: string, index: number) => (
+                      <SelectItem key={index} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddCategory(!showAddCategory)}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {showAddCategory && (
+                <div className="mt-2 p-3 border rounded-lg space-y-2">
+                  <Input
+                    placeholder="New category name"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                  />
+                  <div className="flex space-x-2">
+                    <Button size="sm" onClick={handleAddCategory}>
+                      Add Category
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowAddCategory(false);
+                        setNewCategoryName('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <Label htmlFor="new-description">Description *</Label>
+            <Textarea
+              id="new-description"
+              value={newItem.description}
+              onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+              placeholder="Enter item description"
+              rows={3}
+            />
+          </div>
+
+          {/* Image Upload */}
+          <div>
+            <Label htmlFor="new-image">Upload Images</Label>
+            <Input
+              id="new-image"
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={(e) => handleNewItemImageSelect(e.target.files)}
+            />
+            {newItemImagePreviews.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                {newItemImagePreviews.map((preview, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={preview}
+                      alt={`Preview ${index + 1}`}
+                      className="w-full h-24 object-cover rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImagePreview(index, false)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground mt-2">
+              Upload multiple images (Max 10MB each, JPEG, PNG, GIF, WebP supported)
+            </p>
+          </div>
+
+          {/* Upload Progress */}
+          {uploading && (
+            <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+              <span className="text-sm text-blue-700">Uploading images...</span>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setIsNewModalOpen(false);
+              resetNewItemForm();
+            }}
+            disabled={uploading}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleAddItem} disabled={uploading}>
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Item
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  // Reset form helper function
+  const resetNewItemForm = () => {
+    setNewItem({ id: 0, title: '', description: '', image: '', previews: [] });
+    setSelectedCategory('');
+    setNewItemImageFiles([]);
+    setNewItemImagePreviews([]);
+    setShowAddCategory(false);
+    setNewCategoryName('');
+  };
+
+  // Reset edit form helper function
+  const resetEditItemForm = () => {
+    setSelectedItem(null);
+    setEditItemImageFiles([]);
+    setEditItemImagePreviews([]);
+  };
+
+  // Enhanced add item with validation and image upload
+  const handleAddItem = async () => {
+    if (!newItem.title.trim() || !newItem.description.trim()) {
+      alert('Please fill in all required fields (title and description).');
+      return;
+    }
+
+    try {
+      // Simulate image upload (in real app, you'd upload to server)
+      const imageUrls = newItemImageFiles.map((file, index) => 
+        `/uploads/items/${Date.now()}_${index}_${file.name}`
+      );
+
+      const newItemToAdd: Item = {
+        ...newItem,
+        id: Date.now(),
+        previews: imageUrls,
+        image: imageUrls.length > 0 ? imageUrls[0] : '',
+      };
+
+      // Add category if selected
+      if (selectedCategory) {
+        (newItemToAdd as any).category = selectedCategory;
+      }
+
+      const updatedItems = [...items, newItemToAdd];
+      setItems(updatedItems);
+      
+      // Reset form and close modal
+      resetNewItemForm();
+      setIsNewModalOpen(false);
+      
+      alert('Item added successfully!');
+    } catch (error) {
+      console.error('Error adding item:', error);
+      alert('Failed to add item. Please try again.');
+    }
+  };
+
+  // Enhanced edit item
+  const handleEditItem = async () => {
+    if (!selectedItem) return;
+
+    if (!selectedItem.title.trim() || !selectedItem.description.trim()) {
+      alert('Please fill in all required fields (title and description).');
+      return;
+    }
+
+    try {
+      // Simulate new image upload if any
+      let newImageUrls: string[] = [];
+      if (editItemImageFiles.length > 0) {
+        newImageUrls = editItemImageFiles.map((file, index) => 
+          `/uploads/items/${Date.now()}_${index}_${file.name}`
+        );
+      }
+
+      // Combine existing and new images
+      const allImages = [...(selectedItem.previews || []), ...newImageUrls];
+
+      const updatedItem: Item = {
+        ...selectedItem,
+        previews: allImages,
+        image: allImages.length > 0 ? allImages[0] : selectedItem.image,
+      };
+
+      const updatedItems = items.map(item => 
+        item.id === selectedItem.id ? updatedItem : item
+      );
+      setItems(updatedItems);
+      
+      // Reset form and close modal
+      resetEditItemForm();
+      setIsEditItemModalOpen(false);
+      
+      alert('Item updated successfully!');
+    } catch (error) {
+      console.error('Error updating item:', error);
+      alert('Failed to update item. Please try again.');
+    }
+  };
+
+  // Enhanced delete item with confirmation
+  const handleDeleteItem = (id: number) => {
+    const itemToDelete = items.find(item => item.id === id);
+    if (!itemToDelete) return;
+
+    if (confirm(`Are you sure you want to delete "${itemToDelete.title}"?`)) {
+      const updatedItems = items.filter((item) => item.id !== id);
+      setItems(updatedItems);
+      alert('Item deleted successfully!');
+    }
+  };
+
+  // Open edit modal
+  const handleEditItemModalOpen = (item: Item) => {
+    setSelectedItem(item);
+    setSelectedCategory((item as any).category || '');
+    setIsEditItemModalOpen(true);
+  };
+
+  // Image validation helper function
+  const validateImageFile = (file: File) => {
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    
+    if (!allowedTypes.includes(file.type)) {
+      return { isValid: false, error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.' };
+    }
+    
+    if (file.size > maxSize) {
+      return { isValid: false, error: 'File size too large. Maximum size is 10MB.' };
+    }
+    
+    return { isValid: true, error: null };
+  };
+
+  // Image preview helper function
+  const createImagePreview = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle new item image selection
+  const handleNewItemImageSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     const newFiles: File[] = [];
@@ -1672,7 +2624,7 @@ export function PortfolioManagement() {
         alert(`File ${file.name}: ${validation.error}`);
         continue;
       }
-      
+
       newFiles.push(file);
       try {
         const preview = await createImagePreview(file);
@@ -1682,14 +2634,53 @@ export function PortfolioManagement() {
         newPreviews.push('');
       }
     }
-    
-    setEditImageFiles([...editImageFiles, ...newFiles]);
-    setEditImagePreviews([...editImagePreviews, ...newPreviews]);
+
+    setNewItemImageFiles([...newItemImageFiles, ...newFiles]);
+    setNewItemImagePreviews([...newItemImagePreviews, ...newPreviews]);
   };
 
-  const resetEditImageUpload = () => {
-    setEditImageFiles([]);
-    setEditImagePreviews([]);
+  // Handle edit item image selection
+  const handleEditItemImageSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const newFiles: File[] = [];
+    const newPreviews: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        alert(`File ${file.name}: ${validation.error}`);
+        continue;
+      }
+
+      newFiles.push(file);
+      try {
+        const preview = await createImagePreview(file);
+        newPreviews.push(preview);
+      } catch (error) {
+        console.error('Error creating image preview:', error);
+        newPreviews.push('');
+      }
+    }
+
+    setEditItemImageFiles([...editItemImageFiles, ...newFiles]);
+    setEditItemImagePreviews([...editItemImagePreviews, ...newPreviews]);
+  };
+
+  // Remove image preview
+  const removeImagePreview = (index: number, isEdit: boolean = false) => {
+    if (isEdit) {
+      const newFiles = editItemImageFiles.filter((_, i) => i !== index);
+      const newPreviews = editItemImagePreviews.filter((_, i) => i !== index);
+      setEditItemImageFiles(newFiles);
+      setEditItemImagePreviews(newPreviews);
+    } else {
+      const newFiles = newItemImageFiles.filter((_, i) => i !== index);
+      const newPreviews = newItemImagePreviews.filter((_, i) => i !== index);
+      setNewItemImageFiles(newFiles);
+      setNewItemImagePreviews(newPreviews);
+    }
   };
 
   if (loading) {
@@ -1711,10 +2702,19 @@ export function PortfolioManagement() {
           <h2 className="text-2xl font-bold">Portfolio Management</h2>
           <p className="text-muted-foreground">Manage your portfolio projects and showcases</p>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)} disabled={saving}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Project
-        </Button>
+        <div className="flex space-x-2">
+          <Button onClick={() => setIsAddModalOpen(true)} disabled={saving}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Project
+          </Button>
+          <Button onClick={() => setIsNewModalOpen(true)} disabled={saving} variant="outline">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Item
+          </Button>
+          <Button onClick={fixDuplicateProjectIds} disabled={saving} variant="destructive" size="sm">
+            Fix Duplicate IDs
+          </Button>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -1772,10 +2772,142 @@ export function PortfolioManagement() {
         </Card>
       </div>
 
+      {/* Category Management Section */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold">Category Management</h3>
+            <p className="text-sm text-muted-foreground">Manage your project categories</p>
+          </div>
+          <Button
+            onClick={() => setShowAddCategory(true)}
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Category
+          </Button>
+        </div>
+
+        {/* Add Category Modal */}
+        {showAddCategory && (
+          <div className="mb-4 p-4 border rounded-lg bg-muted/5">
+            <div className="space-y-3">
+              <Input
+                placeholder="Enter category name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+              />
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleAddCategory} 
+                  disabled={!newCategoryName.trim()}
+                  size="sm"
+                >
+                  Add Category
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowAddCategory(false);
+                    setNewCategoryName('');
+                  }} 
+                  variant="outline" 
+                  size="sm"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Categories Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {categories.map((category, index) => (
+            <div key={index} className="group">
+              {editingCategory === category ? (
+                <div className="flex gap-1 p-2 border rounded-lg">
+                  <Input
+                    value={editCategoryName}
+                    onChange={(e) => setEditCategoryName(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleEditCategory(category, editCategoryName);
+                        setEditingCategory(null);
+                        setEditCategoryName('');
+                      } else if (e.key === 'Escape') {
+                        setEditingCategory(null);
+                        setEditCategoryName('');
+                      }
+                    }}
+                    className="h-8 text-sm"
+                    autoFocus
+                  />
+                  <Button
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => {
+                      handleEditCategory(category, editCategoryName);
+                      setEditingCategory(null);
+                      setEditCategoryName('');
+                    }}
+                  >
+                    ✓
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-2"
+                    onClick={() => {
+                      setEditingCategory(null);
+                      setEditCategoryName('');
+                    }}
+                  >
+                    ✕
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg hover:bg-muted/30 transition-colors">
+                  <span className="text-sm font-medium">{category}</span>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0"
+                      onClick={() => {
+                        setEditingCategory(category);
+                        setEditCategoryName(category);
+                      }}
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-destructive"
+                      onClick={() => handleDeleteCategory(category)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {categories.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>No categories available. Add your first category to get started.</p>
+          </div>
+        )}
+      </Card>
+
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.map((project) => (
-          <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-all duration-200 group">
+        {projects.map((project, index) => (
+          <Card key={project.id ? `${project.id}-${index}` : `project-${index}-${Date.now()}`} className="overflow-hidden hover:shadow-lg transition-all duration-200 group">
             {/* Project Image with Overlays */}
             <div className="aspect-video bg-muted relative">
               {(() => {
@@ -1948,12 +3080,60 @@ export function PortfolioManagement() {
               </div>
               <div>
                 <Label htmlFor="project-category">Category</Label>
-                <Input
-                  id="project-category"
-                  value={newProject.category || ''}
-                  onChange={(e) => setNewProject({ ...newProject, category: e.target.value })}
-                  placeholder="e.g., Web App, Mobile App, etc."
-                />
+                <div className="flex gap-2">
+                  <Select value={newProject.category || ''} onValueChange={(value) => setNewProject({ ...newProject, category: value })}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddCategory(true)}
+                    disabled={saving}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                {/* Add New Category */}
+                {showAddCategory && (
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      placeholder="Enter new category name"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddCategory}
+                      disabled={!newCategoryName.trim()}
+                    >
+                      Add
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddCategory(false);
+                        setNewCategoryName('');
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2178,10 +3358,13 @@ export function PortfolioManagement() {
                   />
                   <Button
                     variant="outline"
-                    onClick={() => addTechnology(
-                      newProject.technologies || [],
-                      (techs) => setNewProject({ ...newProject, technologies: techs })
-                    )}
+                    size="sm"
+                    onClick={() => {
+                      addTechnology(
+                        newProject.technologies || [],
+                        (techs) => setNewProject({ ...newProject, technologies: techs })
+                      );
+                    }}
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -2198,14 +3381,20 @@ export function PortfolioManagement() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setIsAddModalOpen(false);
-              resetImageUpload();
-            }} disabled={saving || uploading}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddModalOpen(false);
+                resetImageUpload();
+              }}
+              disabled={saving || uploading}
+            >
               Cancel
             </Button>
             <Button onClick={handleAddProject} disabled={saving || uploading}>
-              {(saving || uploading) ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {(saving || uploading) ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
               {uploading ? 'Uploading...' : saving ? 'Saving...' : 'Add Project'}
             </Button>
           </DialogFooter>
@@ -2213,278 +3402,364 @@ export function PortfolioManagement() {
       </Dialog>
 
       {/* Edit Project Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+      {renderEditModal()}
+
+      {/* Items Management Section */}
+      <div className="space-y-4">
+        <div className="border-t pt-6">
+          <h3 className="text-xl font-semibold mb-4">Items Collection</h3>
+          
+          {/* Items Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg">
+                  <FileText className="w-5 h-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{items.length}</p>
+                  <p className="text-sm text-muted-foreground">Total Items</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-emerald-500/10 rounded-lg">
+                  <Tag className="w-5 h-5 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{categories.length}</p>
+                  <p className="text-sm text-muted-foreground">Categories</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-500/10 rounded-lg">
+                  <ImageIcon className="w-5 h-5 text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">
+                    {items.reduce((total, item) => total + (item.previews?.length || 0), 0)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Total Images</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Items Grid */}
+          {items.length === 0 ? (
+            <Card className="p-12">
+              <div className="text-center">
+                <ImageIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Items Yet</h3>
+                <p className="text-muted-foreground mb-4">Start by adding your first item with images and categories</p>
+                <Button onClick={() => setIsNewModalOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add First Item
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {items.map((item) => (
+                <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-all duration-200 group">
+                  {/* Item Images */}
+                  <div className="aspect-video bg-muted relative">
+                    {item.previews && item.previews.length > 0 ? (
+                      <div className="relative w-full h-full">
+                        <img
+                          src={item.previews[0]}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                        />
+                        {item.previews.length > 1 && (
+                          <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                            +{item.previews.length - 1} more
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <ImageIcon className="w-12 h-12 text-muted-foreground" />
+                      </div>
+                    )}
+
+                    {/* Hover Overlay with Actions */}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleEditItemModalOpen(item)}
+                      >
+                        <Edit3 className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteItem(item.id)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Item Content */}
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-lg truncate">{item.title}</h3>
+                        {(item as any).category && (
+                          <Badge variant="outline" className="mt-1 text-xs">
+                            {(item as any).category}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {item.description}
+                    </p>
+
+                    {/* Image Gallery Preview */}
+                    {item.previews && item.previews.length > 1 && (
+                      <div className="flex space-x-1 overflow-x-auto pb-2">
+                        {item.previews.slice(1, 4).map((preview, index) => (
+                          <img
+                            key={index}
+                            src={preview}
+                            alt={`${item.title} ${index + 2}`}
+                            className="w-12 h-12 object-cover rounded border flex-shrink-0"
+                          />
+                        ))}
+                        {item.previews.length > 4 && (
+                          <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground flex-shrink-0">
+                            +{item.previews.length - 4}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex space-x-2 pt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => handleEditItemModalOpen(item)}
+                      >
+                        <Edit3 className="w-3 h-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-600 hover:text-red-700 hover:border-red-200"
+                        onClick={() => handleDeleteItem(item.id)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* New Item Modal */}
+      {renderNewModal()}
+
+      {/* Edit Item Modal */}
+      <Dialog open={isEditItemModalOpen} onOpenChange={setIsEditItemModalOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Project</DialogTitle>
+            <DialogTitle>Edit Item</DialogTitle>
           </DialogHeader>
-          {selectedProject && (
+          {selectedItem && (
             <div className="space-y-4 py-4">
+              {/* Title and Category Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="edit-title">Project Title *</Label>
+                  <Label htmlFor="edit-title">Title *</Label>
                   <Input
                     id="edit-title"
-                    value={selectedProject.title}
-                    onChange={(e) => setSelectedProject({ ...selectedProject, title: e.target.value })}
+                    value={selectedItem.title}
+                    onChange={(e) => setSelectedItem({ ...selectedItem, title: e.target.value })}
+                    placeholder="Enter item title"
                   />
                 </div>
                 <div>
                   <Label htmlFor="edit-category">Category</Label>
-                  <Input
-                    id="edit-category"
-                    value={selectedProject.category || ''}
-                    onChange={(e) => setSelectedProject({ ...selectedProject, category: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="edit-description">Description *</Label>
-                <Textarea
-                  id="edit-description"
-                  value={selectedProject.description}
-                  onChange={(e) => setSelectedProject({ ...selectedProject, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <Label>Project Image</Label>
-                <div className="space-y-4">
-                  {/* Current Images */}
-                  {((selectedProject.images && selectedProject.images.length > 0) || selectedProject.image) && editImagePreviews.length === 0 && (
-                    <div className="mb-4">
-                      <Label className="text-sm font-medium">Current Images</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
-                        {selectedProject.images ? selectedProject.images.map((image, index) => (
-                          <div key={index} className="relative">
-                            <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
-                              <img 
-                                src={normalizeImagePath(image)}
-                                alt={`Current image ${index + 1}`}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = '/placeholder.svg';
-                                }}
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
-                              onClick={() => {
-                                const newImages = selectedProject.images?.filter((_, i) => i !== index) || [];
-                                setSelectedProject({ ...selectedProject, images: newImages });
-                              }}
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        )) : selectedProject.image && (
-                          <div className="relative">
-                            <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
-                              <img 
-                                src={normalizeImagePath(selectedProject.image)}
-                                alt="Current project image"
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = '/placeholder.svg';
-                                }}
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
-                              onClick={() => {
-                                setSelectedProject({ ...selectedProject, image: '' });
-                              }}
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* New Images Preview */}
-                  {editImagePreviews.length > 0 && (
-                    <div className="mb-4">
-                      <Label className="text-sm font-medium">New Images to Add</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
-                        {editImagePreviews.map((preview, index) => (
-                          <div key={index} className="relative">
-                            <div className="w-full h-32 bg-muted rounded-lg overflow-hidden border">
-                              <img 
-                                src={preview}
-                                alt={`New image ${index + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
-                              onClick={() => {
-                                const newFiles = editImageFiles.filter((_, i) => i !== index);
-                                const newPreviews = editImagePreviews.filter((_, i) => i !== index);
-                                setEditImageFiles(newFiles);
-                                setEditImagePreviews(newPreviews);
-                              }}
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-sm text-emerald-600 mt-2">These images will be added to the project</p>
-                    </div>
-                  )}
-                  
-                  {/* File Upload and URL */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="edit-image-file">Upload New Image</Label>
-                      <Input
-                        id="edit-image-file"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          handleEditImageSelect(e.target.files);
-                        }}
-                        multiple
-                        disabled={uploading}
-                        className="cursor-pointer"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-image-url">Or Update URL</Label>
-                      <Input
-                        id="edit-image-url"
-                        value={selectedProject.image || ''}
-                        onChange={(e) => setSelectedProject({ ...selectedProject, image: e.target.value })}
-                        placeholder="https://example.com/image.jpg"
-                        disabled={editImageFiles.length > 0}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="edit-client">Client</Label>
-                <Input
-                  id="edit-client"
-                  value={selectedProject.client || ''}
-                  onChange={(e) => setSelectedProject({ ...selectedProject, client: e.target.value })}
-                  placeholder="Client name"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="edit-url">Demo URL</Label>
-                  <Input
-                    id="edit-url"
-                    value={selectedProject.url || ''}
-                    onChange={(e) => setSelectedProject({ ...selectedProject, url: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-github">GitHub URL</Label>
-                  <Input
-                    id="edit-github"
-                    value={selectedProject.githubUrl || ''}
-                    onChange={(e) => setSelectedProject({ ...selectedProject, githubUrl: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-date">Completed Date</Label>
-                  <Input
-                    id="edit-date"
-                    type="date"
-                    value={selectedProject.completedDate ? selectedProject.completedDate.split('T')[0] : ''}
-                    onChange={(e) => setSelectedProject({ ...selectedProject, completedDate: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label>Technologies</Label>
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProject.technologies.map((tech, index) => (
-                      <Badge key={index} variant="secondary" className="text-sm">
-                        {tech}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto p-0 ml-1"
-                          onClick={() => removeTechnology(
-                            selectedProject.technologies,
-                            (techs) => setSelectedProject({ ...selectedProject, technologies: techs }),
-                            index
-                          )}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                  </div>
                   <div className="flex space-x-2">
-                    <Input
-                      value={newTechnology}
-                      onChange={(e) => setNewTechnology(e.target.value)}
-                      placeholder="Add technology"
-                      className="flex-1"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          addTechnology(
-                            selectedProject.technologies,
-                            (techs) => setSelectedProject({ ...selectedProject, technologies: techs })
-                          );
-                        }
-                      }}
-                    />
+                    <Select
+                      value={selectedCategory}
+                      onValueChange={(value) => setSelectedCategory(value)}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category: string, index: number) => (
+                          <SelectItem key={index} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
+                      type="button"
                       variant="outline"
-                      onClick={() => addTechnology(
-                        selectedProject.technologies,
-                        (techs) => setSelectedProject({ ...selectedProject, technologies: techs })
-                      )}
+                      size="sm"
+                      onClick={() => setShowAddCategory(!showAddCategory)}
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
+                  
+                  {showAddCategory && (
+                    <div className="mt-2 p-3 border rounded-lg space-y-2">
+                      <Input
+                        placeholder="New category name"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                      />
+                      <div className="flex space-x-2">
+                        <Button size="sm" onClick={handleAddCategory}>
+                          Add Category
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => {
+                            setShowAddCategory(false);
+                            setNewCategoryName('');
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={selectedProject.isActive}
-                  onCheckedChange={(checked) => setSelectedProject({ ...selectedProject, isActive: checked })}
+              {/* Description */}
+              <div>
+                <Label htmlFor="edit-description">Description *</Label>
+                <Textarea
+                  id="edit-description"
+                  value={selectedItem.description}
+                  onChange={(e) => setSelectedItem({ ...selectedItem, description: e.target.value })}
+                  placeholder="Enter item description"
+                  rows={3}
                 />
-                <Label>Active Project</Label>
               </div>
+
+              {/* Existing Images */}
+              {selectedItem.previews && selectedItem.previews.length > 0 && (
+                <div>
+                  <Label>Current Images</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                    {selectedItem.previews.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={image}
+                          alt={`Current ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg border"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedPreviews = selectedItem.previews.filter((_, i) => i !== index);
+                            setSelectedItem({ ...selectedItem, previews: updatedPreviews });
+                          }}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add New Images */}
+              <div>
+                <Label htmlFor="edit-new-images">Add New Images</Label>
+                <Input
+                  id="edit-new-images"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => handleEditItemImageSelect(e.target.files)}
+                />
+                {editItemImagePreviews.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    {editItemImagePreviews.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={preview}
+                          alt={`New Preview ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg border border-green-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImagePreview(index, true)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-1 rounded">
+                          New
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground mt-2">
+                  Add new images (Max 10MB each, JPEG, PNG, GIF, WebP supported)
+                </p>
+              </div>
+
+              {/* Upload Progress */}
+              {uploading && (
+                <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                  <span className="text-sm text-blue-700">Updating images...</span>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setIsEditModalOpen(false);
-              resetEditImageUpload();
-            }} disabled={saving || uploading}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsEditItemModalOpen(false);
+                resetEditItemForm();
+              }}
+              disabled={uploading}
+            >
               Cancel
             </Button>
-            <Button onClick={handleEditProject} disabled={saving || uploading}>
-              {(saving || uploading) ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              {uploading ? 'Uploading...' : saving ? 'Saving...' : 'Save Changes'}
+            <Button onClick={handleEditItem} disabled={uploading}>
+              {uploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

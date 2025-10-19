@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-context"
 import { StaffManagement, TicketSystem, TaskAssignments, ProjectManagement, StaffReports, StaffSettings } from "./staff-components"
-import { WebsiteOverview, ServicesManagement, PortfolioManagement, WebsiteStats, ContentManagement, WebsiteSettings, PricePackagesManagement } from "./website-components"
+import { WebsiteOverview, ServicesManagement, PortfolioManagement, WebsiteStats, ContentManagement, WebsiteSettings, PricePackagesManagement } from "./website-components-fixed"
 import { Modal } from "./modal"
 import {
   BarChart3,
