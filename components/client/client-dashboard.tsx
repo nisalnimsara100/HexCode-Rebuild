@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ProjectRoadmap } from "./project-roadmap";
+import { ClientAuth, ClientProfile } from "@/lib/client-auth";
 import { 
   User, 
   Bell, 
@@ -35,7 +36,9 @@ import {
   Globe,
   Smartphone,
   Phone,
-  Video
+  Video,
+  Home,
+  GitBranch
 } from "lucide-react";
 
 // Sample data
@@ -103,8 +106,35 @@ const notifications = [
 ];
 
 export function ClientDashboard() {
+  const router = useRouter();
+  const [clientProfile, setClientProfile] = useState<ClientProfile | null>(null);
+  const [userName, setUserName] = useState('User'); // State to track user name
+  
+  // Helper function to get user name from localStorage
+  const getUserName = () => {
+    try {
+      const storedProfile = localStorage.getItem('clientProfile');
+      if (storedProfile) {
+        const parsed = JSON.parse(storedProfile);
+        console.log('📋 getUserName - Parsed profile:', parsed);
+        const name = parsed?.name || 'User';
+        setUserName(name); // Update state
+        return name;
+      }
+    } catch (e) {
+      console.error('Error parsing stored profile:', e);
+    }
+    setUserName('User');
+    return 'User';
+  };
+  
+  // All state declarations must come first, before any conditional logic
+  const [projects, setProjects] = useState(projectsData);
+  const [activities, setActivities] = useState(recentActivities);
+  const [notificationsList, setNotificationsList] = useState(notifications);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
-  const [selectedProject, setSelectedProject] = useState(projectsData[0]);
+  const [selectedProject, setSelectedProject] = useState<typeof projectsData[0] | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showNotifications, setShowNotifications] = useState(false);
@@ -118,6 +148,128 @@ export function ClientDashboard() {
   });
   const notificationsRef = useRef<HTMLDivElement>(null);
   const newProjectModalRef = useRef<HTMLDivElement>(null);
+  
+  // Check authentication and get client profile
+  useEffect(() => {
+    const checkAuth = () => {
+      console.log('🔍 Dashboard Debug - Starting auth check...');
+      console.log('🔍 Dashboard Debug - LocalStorage content:', localStorage.getItem('clientProfile'));
+      
+      const profile = ClientAuth.getCurrentUser();
+      console.log('🔍 Dashboard Debug - Retrieved profile:', profile);
+      console.log('🔍 Dashboard Debug - Profile name specifically:', profile?.name);
+      
+      if (!profile) {
+        console.log('❌ No profile found, redirecting to home');
+        router.push('/');
+        return;
+      }
+      console.log('✅ Setting profile:', profile);
+      console.log('✅ Profile name being set:', profile.name);
+      setClientProfile(profile);
+      setLoading(false);
+    };
+
+    // Add a small delay to ensure localStorage is ready
+    const timeoutId = setTimeout(() => {
+      checkAuth();
+    }, 50);
+
+    // Listen for auth state changes
+    const handleAuthChange = () => {
+      console.log('🔄 Auth state changed, rechecking...');
+      checkAuth();
+    };
+
+    window.addEventListener('authStateChanged', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('authStateChanged', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
+  }, [router]);
+
+  // Initialize userName on component mount
+  useEffect(() => {
+    // Immediately check localStorage for user name
+    try {
+      const storedProfile = localStorage.getItem('clientProfile');
+      if (storedProfile) {
+        const parsed = JSON.parse(storedProfile);
+        console.log('🚀 Mount - Setting userName from localStorage:', parsed.name);
+        setUserName(parsed.name || 'User');
+      }
+    } catch (e) {
+      console.error('Error on mount:', e);
+      setUserName('User');
+    }
+  }, []);
+
+  // Debug effect to monitor clientProfile state changes
+  useEffect(() => {
+    console.log('🔍 ClientProfile state changed:', clientProfile);
+    console.log('🔍 ClientProfile name:', clientProfile?.name);
+    
+    // Update userName whenever profile changes or on mount
+    const updateUserName = () => {
+      try {
+        const storedProfile = localStorage.getItem('clientProfile');
+        if (storedProfile) {
+          const parsed = JSON.parse(storedProfile);
+          console.log('📋 Updating userName from localStorage:', parsed.name);
+          setUserName(parsed.name || 'User');
+        }
+      } catch (e) {
+        console.error('Error parsing stored profile:', e);
+        setUserName('User');
+      }
+    };
+    
+    updateUserName();
+    
+    // Force a re-render if profile exists but name is missing
+    if (clientProfile && !clientProfile.name) {
+      console.log('⚠️ Profile missing name, attempting to refresh from localStorage');
+      const storedProfile = localStorage.getItem('clientProfile');
+      if (storedProfile) {
+        try {
+          const parsed = JSON.parse(storedProfile);
+          if (parsed?.name && parsed.name !== clientProfile.name) {
+            console.log('🔄 Updating profile with stored name:', parsed.name);
+            setClientProfile(parsed);
+          }
+        } catch (e) {
+          console.error('Error parsing stored profile:', e);
+        }
+      }
+    }
+  }, [clientProfile]);
+
+  // Client-side data fetching
+  useEffect(() => {
+    const fetchClientData = async () => {
+      try {
+        if (clientProfile) {
+          // Use static data for demo - in real app this would be API calls
+          setProjects(projectsData);
+          setActivities(recentActivities);
+          setNotificationsList(notifications);
+        }
+      } catch (error) {
+        console.error('Error fetching client data:', error);
+        // Fallback to static data on error
+        setProjects(projectsData);
+        setActivities(recentActivities);
+        setNotificationsList(notifications);
+      }
+    };
+
+    if (clientProfile) {
+      fetchClientData();
+    }
+  }, [clientProfile]);
 
   // Close modals when clicking outside
   useEffect(() => {
@@ -135,6 +287,33 @@ export function ClientDashboard() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showNotifications, showNewProjectModal]);
+
+  // Loading state - now comes after all hooks
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-lg font-medium">Loading Dashboard...</p>
+          <p className="text-gray-400">Fetching your project data</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleLogout = async () => {
+    try {
+      // Use ClientAuth logout
+      ClientAuth.logout();
+      
+      // Force page reload to ensure complete state reset
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Even if logout fails, redirect
+      window.location.href = '/';
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -186,11 +365,46 @@ export function ClientDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-4">
               <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center">
-                <User className="w-6 h-6 text-white" />
+                {clientProfile?.profilePicture ? (
+                  <img 
+                    src={clientProfile.profilePicture} 
+                    alt={clientProfile.name}
+                    className="w-full h-full rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="text-white font-semibold text-sm">
+                    {clientProfile?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                  </div>
+                )}
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Client Portal</h1>
-                <p className="text-sm text-gray-400">Welcome back, John!</p>
+                <h1 className="text-xl font-bold text-white">Client Dashboard</h1>
+                <p className="text-sm text-gray-400">
+                  Welcome back, {(() => {
+                    try {
+                      const profile = localStorage.getItem('clientProfile');
+                      if (profile) {
+                        const parsed = JSON.parse(profile);
+                        return parsed.name || 'User';
+                      }
+                      return 'User';
+                    } catch (e) {
+                      return 'User';
+                    }
+                  })()}!
+                </p>
+                {/* Debug info - remove after fixing */}
+                <div className="text-xs text-yellow-400 mt-1 p-2 bg-yellow-900/20 rounded">
+                  Debug: ClientProfile="{clientProfile?.name}" | LocalStorage="{(() => {
+                    try {
+                      const stored = localStorage.getItem('clientProfile');
+                      return stored ? JSON.parse(stored).name : 'null';
+                    } catch { return 'error'; }
+                  })()}" | UserName State="{userName}"
+                </div>
+                {clientProfile?.company && (
+                  <p className="text-xs text-gray-500">{clientProfile.company}</p>
+                )}
               </div>
             </div>
             
@@ -227,15 +441,32 @@ export function ClientDashboard() {
                 </span>
               </Button>
               
-              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-gray-400 hover:text-white"
+                title="Account Settings"
+              >
                 <Settings className="w-5 h-5" />
+              </Button>
+
+              {/* Home button */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-gray-400 hover:text-white"
+                onClick={() => router.push('/')}
+                title="Go to Home"
+              >
+                <Home className="w-5 h-5" />
               </Button>
               
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className="text-red-400 hover:text-red-300"
-                onClick={() => alert('Logout functionality would be implemented here')}
+                onClick={handleLogout}
+                title={`Logout (${clientProfile?.email})`}
               >
                 <LogOut className="w-5 h-5" />
               </Button>
@@ -301,7 +532,6 @@ export function ClientDashboard() {
           {[
             { id: "overview", label: "Overview", icon: BarChart3 },
             { id: "projects", label: "Projects", icon: Briefcase },
-            { id: "roadmap", label: "Roadmap", icon: Target },
             { id: "messages", label: "Messages", icon: MessageCircle }
           ].map((tab) => (
             <button
@@ -650,8 +880,9 @@ export function ClientDashboard() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedProject(project);
-                            setActiveTab("roadmap");
+                            // Open project details with roadmap integrated
                           }}
+                          title="View project details and roadmap"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -661,8 +892,21 @@ export function ClientDashboard() {
                           className="text-gray-400 hover:text-emerald-400"
                           onClick={(e) => {
                             e.stopPropagation();
+                            setSelectedProject(project);
+                          }}
+                          title="View interactive roadmap"
+                        >
+                          <GitBranch className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-gray-400 hover:text-emerald-400"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             alert(`Downloading report for ${project.name}`);
                           }}
+                          title="Download project report"
                         >
                           <Download className="w-4 h-4" />
                         </Button>
@@ -694,16 +938,7 @@ export function ClientDashboard() {
           </div>
         )}
 
-        {/* Roadmap Tab */}
-        {activeTab === "roadmap" && (
-          <div>
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">Project Roadmap</h2>
-              <p className="text-gray-400">Track the development progress of your selected project</p>
-            </div>
-            <ProjectRoadmap />
-          </div>
-        )}
+
 
         {/* Messages Tab */}
         {activeTab === "messages" && (
@@ -815,6 +1050,161 @@ export function ClientDashboard() {
           </div>
         )}
       </div>
+
+      {/* Project Details Modal with Integrated Roadmap */}
+      {selectedProject && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-3xl w-full max-w-7xl max-h-[95vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">{selectedProject.name}</h2>
+                  <p className="text-gray-400">{selectedProject.description}</p>
+                </div>
+                <button 
+                  onClick={() => setSelectedProject(null)}
+                  className="text-gray-400 hover:text-white p-2"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Project Details and Roadmap Layout */}
+              <div className="space-y-6 mb-8">
+                {/* Project Overview Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Project Progress */}
+                  <div className="lg:col-span-2 space-y-6">
+                  {/* Progress Overview */}
+                  <Card className="bg-gray-800/50 border-gray-700/50 p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">Project Progress</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-300">Overall Progress</span>
+                        <span className="text-2xl font-bold text-emerald-400">{selectedProject.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-3">
+                        <div 
+                          className="bg-gradient-to-r from-emerald-500 to-blue-500 h-3 rounded-full transition-all duration-500"
+                          style={{ width: `${selectedProject.progress}%` }}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div className="text-center p-3 bg-gray-700/50 rounded-lg">
+                          <div className="text-xl font-bold text-white">${selectedProject.spent.toLocaleString()}</div>
+                          <div className="text-sm text-gray-400">Spent</div>
+                        </div>
+                        <div className="text-center p-3 bg-gray-700/50 rounded-lg">
+                          <div className="text-xl font-bold text-white">${selectedProject.budget.toLocaleString()}</div>
+                          <div className="text-sm text-gray-400">Total Budget</div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Advanced Graph Roadmap - Full Width */}
+                </div>
+
+                {/* Project Sidebar */}
+                <div className="space-y-6">
+                  {/* Project Details */}
+                  <Card className="bg-gray-800/50 border-gray-700/50 p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">Details</h3>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Status:</span>
+                        <Badge className={getStatusColor(selectedProject.status)}>
+                          {selectedProject.status.replace("-", " ")}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Priority:</span>
+                        <Badge className={getPriorityColor(selectedProject.priority)}>
+                          {selectedProject.priority}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Start Date:</span>
+                        <span className="text-white">{selectedProject.startDate}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Due Date:</span>
+                        <span className="text-white">{selectedProject.estimatedCompletion}</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Team Members */}
+                  <Card className="bg-gray-800/50 border-gray-700/50 p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">Team Members</h3>
+                    <div className="space-y-3">
+                      {selectedProject.team.map((member, index) => (
+                        <div key={index} className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full flex items-center justify-center text-sm text-white font-medium">
+                            {member.split(" ").map(n => n[0]).join("")}
+                          </div>
+                          <span className="text-white">{member}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+
+                  {/* Technologies */}
+                  <Card className="bg-gray-800/50 border-gray-700/50 p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">Technologies</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProject.technologies.map((tech, index) => (
+                        <Badge key={index} className="bg-blue-500/20 text-blue-400 border-blue-500/50">
+                          {tech}
+                        </Badge>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Full-Width Advanced Graph Roadmap */}
+              <div className="mb-8">
+                <Card className="bg-gray-800/50 border-gray-700/50 p-0 overflow-hidden">
+                  <div className="p-6 border-b border-gray-700/50">
+                    <h3 className="text-lg font-semibold text-white flex items-center">
+                      <GitBranch className="w-5 h-5 text-emerald-400 mr-2" />
+                      Project Roadmap
+                    </h3>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Click nodes to view task details and dependencies
+                    </p>
+                  </div>
+                  {/* Temporarily disabled for debugging */}
+                  <div className="p-6 text-center text-gray-400">
+                    <p>Project roadmap will be displayed here</p>
+                  </div>
+                  {/* <CleanGraphRoadmap /> */}
+                </Card>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-gray-700/50">
+                <Button className="bg-emerald-600 hover:bg-emerald-700">
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Message Team
+                </Button>
+                <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-800">
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Report
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setSelectedProject(null)}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* New Project Modal */}
       {showNewProjectModal && (

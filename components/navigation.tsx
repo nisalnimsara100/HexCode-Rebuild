@@ -25,6 +25,7 @@ export function Navigation() {
 	const [isOpen, setIsOpen] = useState(false)
 	const [scrolled, setScrolled] = useState(false)
 	const [showAuthModal, setShowAuthModal] = useState(false)
+	const [isAuthenticated, setIsAuthenticated] = useState(false)
 	const pathname = usePathname()
 
 	useEffect(() => {
@@ -34,6 +35,61 @@ export function Navigation() {
 		window.addEventListener("scroll", handleScroll)
 		return () => window.removeEventListener("scroll", handleScroll)
 	}, [])
+
+	useEffect(() => {
+		// Check authentication status from localStorage
+		const checkAuthStatus = () => {
+			const storedProfile = localStorage.getItem('clientProfile');
+			if (storedProfile) {
+				try {
+					const profile = JSON.parse(storedProfile);
+					if (profile && profile.role === 'client') {
+						setIsAuthenticated(true);
+						setShowAuthModal(false);
+					} else {
+						setIsAuthenticated(false);
+					}
+				} catch (error) {
+					console.error('Error parsing clientProfile:', error);
+					localStorage.removeItem('clientProfile');
+					setIsAuthenticated(false);
+				}
+			} else {
+				setIsAuthenticated(false);
+			}
+		};
+
+		// Initial check
+		checkAuthStatus();
+
+		// Listen for storage events (cross-tab synchronization)
+		const handleStorageChange = (e: StorageEvent) => {
+			if (e.key === 'clientProfile') {
+				checkAuthStatus();
+			}
+		};
+
+		window.addEventListener('storage', handleStorageChange);
+
+		// Custom event listener for same-tab updates
+		const handleAuthChange = () => {
+			checkAuthStatus();
+		};
+
+		window.addEventListener('authStateChanged', handleAuthChange);
+
+		return () => {
+			window.removeEventListener('storage', handleStorageChange);
+			window.removeEventListener('authStateChanged', handleAuthChange);
+		};
+	}, [])
+
+	// Prevent modal from opening if user is authenticated
+	const handleGetStarted = () => {
+		if (!isAuthenticated) {
+			setShowAuthModal(true)
+		}
+	}
 
 	return (
 		<nav
@@ -73,12 +129,18 @@ export function Navigation() {
 								></span>
 							</Link>
 						))}
-						<Button
-							className="animate-pulse-glow hover-lift bg-emerald-500 hover:bg-emerald-600"
-							onClick={() => setShowAuthModal(true)}
-						>
-							Get Started
-						</Button>
+						{isAuthenticated ? (
+							<Link href="/client/dashboard">
+								<Button className="bg-emerald-500 hover:bg-emerald-600">Client Panel</Button>
+							</Link>
+						) : (
+							<Button
+								className="animate-pulse-glow hover-lift bg-emerald-500 hover:bg-emerald-600"
+								onClick={handleGetStarted}
+							>
+								Get Started
+							</Button>
+						)}
 					</div>
 
 					{/* Mobile menu button */}
@@ -103,25 +165,11 @@ export function Navigation() {
 									{item.name}
 								</Link>
 							))}
-							<Button
-								className="w-full hover-lift bg-emerald-500 hover:bg-emerald-600"
-								onClick={() => {
-									setShowAuthModal(true)
-									setIsOpen(false)
-								}}
-							>
-								Get Started
-							</Button>
 						</div>
 					</div>
 				)}
 			</div>
-
-			{/* Client Auth Modal */}
-			<ClientAuthModal
-				isOpen={showAuthModal}
-				onClose={() => setShowAuthModal(false)}
-			/>
+			{showAuthModal && <ClientAuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />}
 		</nav>
 	)
 }

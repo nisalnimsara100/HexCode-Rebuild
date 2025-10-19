@@ -2,14 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ClientAuth, DEMO_ACCOUNTS } from "@/lib/client-auth";
-import { auth } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { 
   Eye, 
   EyeOff, 
@@ -62,60 +59,28 @@ export function ClientAuthModal({ isOpen, onClose, initialMode = "login" }: Clie
 
     try {
       const provider = new GoogleAuthProvider();
-      
-      // Request specific scopes to ensure we get user profile information
-      provider.addScope('profile');
-      provider.addScope('email');
-      
-      console.log('🚀 Starting Google authentication...');
       const result = await signInWithPopup(auth, provider);
 
       // Extract user information
       const user = result.user;
-      console.log('👤 Google user data received:', {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL
-      });
-      
-      // Extract name from Google account - try multiple sources
-      let userName = user.displayName;
-      if (!userName || userName.trim() === '') {
-        // Try to get name from email
-        userName = user.email?.split('@')[0] || 'User';
-        // Convert email username to proper name (e.g., "john.doe" -> "John Doe")
-        userName = userName.replace(/[^a-zA-Z]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).trim();
-      }
-      
-      console.log('📝 Final username to be used:', userName);
-      
-      // Use ClientAuth for consistent user management
-      const profile = await ClientAuth.loginWithGoogle({
+      const profile = {
         uid: user.uid,
         email: user.email || "",
-        displayName: userName,
-        photoURL: user.photoURL || ""
-      });
+        name: user.displayName || "Anonymous",
+        photoURL: user.photoURL || "",
+        role: "client" as const,
+        joinDate: new Date().toISOString().split("T")[0],
+        projects: [] // Initialize with no projects
+      };
 
-      console.log('✅ Profile created and stored:', profile);
-      
-      // Verify the profile was stored correctly
-      const verifyProfile = ClientAuth.getCurrentUser();
-      console.log('🔍 Verification check - Profile in localStorage:', verifyProfile);
+      // Store user profile in localStorage for demo purposes
+      localStorage.setItem("clientProfile", JSON.stringify(profile));
 
+      // Ensure redirection after authentication
       setLoading(false);
       onClose();
-      
-      // Dispatch a custom event to notify dashboard of auth change
-      window.dispatchEvent(new CustomEvent('authStateChanged'));
-      
-      // Add a small delay to ensure localStorage is properly written
-      setTimeout(() => {
-        router.push("/client/dashboard");
-      }, 100);
+      router.push("/client/dashboard");
     } catch (err: any) {
-      console.error('❌ Google auth error:', err);
       setError("Google authentication failed. Please try again.");
       setLoading(false);
     }
@@ -127,17 +92,34 @@ export function ClientAuthModal({ isOpen, onClose, initialMode = "login" }: Clie
     setError("");
 
     try {
-      console.log('🔐 Regular login attempt with:', loginData);
-      const profile = await ClientAuth.login(loginData.email, loginData.password);
-      console.log('✅ Regular login successful, profile:', profile);
-      
-      setLoading(false);
-      onClose();
-      
-      // Navigate to dashboard
-      router.push('/client/dashboard');
+      // For now, simulate successful login for demo purposes
+      if (loginData.email && loginData.password) {
+        // Create a mock client profile for demo
+        const mockProfile = {
+          uid: "demo-client-123",
+          email: loginData.email,
+          name: loginData.email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          company: "Demo Company Inc.",
+          phone: "+1 (555) 123-4567",
+          role: "client" as const,
+          joinDate: new Date().toISOString().split('T')[0],
+          projects: ["1", "2"] // Mock project IDs
+        };
+        
+        // Store in localStorage for demo
+        localStorage.setItem('clientProfile', JSON.stringify(mockProfile));
+        
+        setTimeout(() => {
+          setLoading(false);
+          onClose();
+          // Force page refresh to load the dashboard with auth
+          window.location.href = '/client/dashboard';
+        }, 1000);
+      } else {
+        throw new Error("Please fill in all fields");
+      }
     } catch (err: any) {
-      setError(err.message || "Login failed. Please try again.");
+      setError(err.message || "Invalid email or password");
       setLoading(false);
     }
   };
@@ -164,31 +146,31 @@ export function ClientAuthModal({ isOpen, onClose, initialMode = "login" }: Clie
     setLoading(true);
 
     try {
-      await ClientAuth.register({
+      // For now, simulate successful registration for demo purposes
+      const mockProfile = {
+        uid: "new-client-" + Date.now(),
         email: registerData.email,
-        password: registerData.password,
         name: registerData.name,
-        company: registerData.company
-      });
+        company: registerData.company || "My Company",
+        phone: "+1 (555) 123-4567",
+        role: "client" as const,
+        joinDate: new Date().toISOString().split('T')[0],
+        projects: [] // New clients start with no projects
+      };
       
-      setLoading(false);
-      onClose();
+      // Store in localStorage for demo
+      localStorage.setItem('clientProfile', JSON.stringify(mockProfile));
       
-      // Navigate to dashboard
-      router.push('/client/dashboard');
+      setTimeout(() => {
+        setLoading(false);
+        onClose();
+        // Force page refresh to load the dashboard with auth
+        window.location.href = '/client/dashboard';
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");
       setLoading(false);
     }
-  };
-
-  const fillDemoAccount = () => {
-    const demoAccount = DEMO_ACCOUNTS[0];
-    console.log('🎯 Demo account being used:', demoAccount);
-    setLoginData({
-      email: demoAccount.email,
-      password: demoAccount.password
-    });
   };
 
   if (!isOpen) return null;
@@ -259,21 +241,6 @@ export function ClientAuthModal({ isOpen, onClose, initialMode = "login" }: Clie
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
-              )}
-
-              {/* Demo Account Helper for Login */}
-              {mode === "login" && (
-                <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                  <p className="text-sm text-emerald-400 mb-2">Demo Account Available:</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={fillDemoAccount}
-                    className="text-emerald-400 border-emerald-500/50 hover:bg-emerald-500/10"
-                  >
-                    Use Demo Account
-                  </Button>
-                </div>
               )}
 
               {/* Login Form */}
@@ -493,3 +460,6 @@ export function ClientAuthModal({ isOpen, onClose, initialMode = "login" }: Clie
     </Dialog>
   );
 }
+
+// Export alias for compatibility
+export const ClientLoginModal = ClientAuthModal;

@@ -1,0 +1,741 @@
+{
+  "clients": {
+    "client_001": {
+      "uid": "client_001",
+      "email": "john.doe@techstartup.com",
+      "name": "John Doe",
+      "company": "TechStartup Inc.",
+      "phone": "+1 (555) 123-4567",
+      "profilePicture": "https://api.dicebear.com/7.x/avataaars/svg?seed=john",
+      "role": "client",
+      "joinDate": "2024-01-15",
+      "projects": ["project_001", "project_002"],
+      "address": {
+        "street": "123 Innovation Drive",
+        "city": "San Francisco",
+        "state": "CA",
+        "zipCode": "94105",
+        "country": "United States"
+      },
+      "businessInfo": {
+        "industry": "Financial Technology",
+        "companySize": "50-100 employees",
+        "website": "https://techstartup.com",
+        "foundedYear": 2019
+      },
+      "preferences": {
+        "notifications": {
+          "email": true,
+          "sms": false,
+          "push": true
+        },
+        "communicationPreference": "email",
+        "timezone": "America/Los_Angeles"
+      }
+    },
+    "client_002": {
+      "uid": "client_002",
+      "email": "sarah.johnson@shopflow.com",
+      "name": "Sarah Johnson",
+      "company": "ShopFlow Inc",
+      "phone": "+1 (555) 987-6543",
+      "profilePicture": "https://api.dicebear.com/7.x/avataaars/svg?seed=sarah",
+      "role": "client",
+      "joinDate": "2024-02-20",
+      "projects": ["project_003"],
+      "address": {
+        "street": "456 Commerce Boulevard",
+        "city": "Austin",
+        "state": "TX",
+        "zipCode": "78701",
+        "country": "United States"
+      },
+      "businessInfo": {
+        "industry": "E-commerce",
+        "companySize": "100-500 employees", 
+        "website": "https://shopflow.com",
+        "foundedYear": 2018
+      },
+      "preferences": {
+        "notifications": {
+          "email": true,
+          "sms": true,
+          "push": true
+        },
+        "communicationPreference": "phone",
+        "timezone": "America/Chicago"
+      }
+    }
+  },
+
+  "projects": {
+    "project_001": {
+      "id": "project_001",
+      "name": "FinTech Mobile Banking App",
+      "description": "Revolutionary digital banking platform with AI-powered financial insights, biometric security, and real-time transaction monitoring.",
+      "clientId": "client_001",
+      "status": "completed",
+      "priority": "critical",
+      "type": "mobile-app",
+      "projectValue": 850000,
+      "currency": "USD",
+      
+      "timeline": {
+        "startDate": "2024-01-15",
+        "endDate": "2024-08-30",
+        "estimatedHours": 2400,
+        "actualHours": 2280,
+        "milestones": [
+          {
+            "id": "milestone_001",
+            "title": "Discovery & Requirements",
+            "description": "Complete business analysis and technical requirements gathering",
+            "targetDate": "2024-02-15",
+            "completedDate": "2024-02-12",
+            "status": "completed",
+            "deliverables": [
+              "Technical Requirements Document",
+              "UI/UX Wireframes", 
+              "Security Architecture Plan",
+              "Project Timeline & Budget"
+            ],
+            "stakeholders": ["CTO", "Product Manager", "Security Lead"]
+          },
+          {
+            "id": "milestone_002", 
+            "title": "MVP Development",
+            "description": "Core banking features development and testing",
+            "targetDate": "2024-04-15",
+            "completedDate": "2024-04-12",
+            "status": "completed",
+            "deliverables": [
+              "Account Management System",
+              "Transfer & Payment Features",
+              "Biometric Authentication",
+              "Security Framework"
+            ],
+            "stakeholders": ["CTO", "Development Team", "QA Team"]
+          },
+          {
+            "id": "milestone_003",
+            "title": "AI Integration & Advanced Features", 
+            "description": "Implementation of AI-powered insights and advanced banking features",
+            "targetDate": "2024-06-30",
+            "completedDate": "2024-06-28",
+            "status": "completed",
+            "deliverables": [
+              "AI Spending Analysis Engine",
+              "Predictive Budgeting Tools",
+              "Advanced Security Features",
+              "Performance Optimization"
+            ],
+            "stakeholders": ["AI Team", "Product Manager", "Client Stakeholders"]
+          },
+          {
+            "id": "milestone_004",
+            "title": "Production Launch & Support",
+            "description": "Final testing, deployment, and post-launch support setup",
+            "targetDate": "2024-08-30",
+            "completedDate": "2024-08-30",
+            "status": "completed", 
+            "deliverables": [
+              "Production Deployment",
+              "User Training Materials",
+              "Support Documentation",
+              "Monitoring & Analytics Setup"
+            ],
+            "stakeholders": ["DevOps Team", "Support Team", "Client Team"]
+          }
+        ]
+      },
+      
+      "team": {
+        "projectManager": {
+          "id": "emp_001",
+          "name": "Michael Chen",
+          "role": "Senior Project Manager",
+          "email": "michael.chen@hexcode.com",
+          "phone": "+1 (555) 111-2222",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=michael",
+          "skills": ["Project Management", "Agile", "Risk Management"],
+          "availability": 100,
+          "hourlyRate": 120
+        },
+        "technicalLead": {
+          "id": "emp_002", 
+          "name": "Sarah Chen",
+          "role": "Senior Full Stack Developer",
+          "email": "sarah.chen@hexcode.com",
+          "phone": "+1 (555) 111-3333",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=sarahc",
+          "skills": ["React Native", "Node.js", "Firebase", "AI Integration"],
+          "availability": 100,
+          "hourlyRate": 95
+        },
+        "developers": [
+          {
+            "id": "emp_003",
+            "name": "Alex Rodriguez",
+            "role": "Mobile Developer", 
+            "email": "alex.rodriguez@hexcode.com",
+            "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=alex",
+            "skills": ["React Native", "iOS", "Android", "Swift"],
+            "availability": 80,
+            "hourlyRate": 85
+          },
+          {
+            "id": "emp_004",
+            "name": "Emily Watson",
+            "role": "Backend Developer",
+            "email": "emily.watson@hexcode.com", 
+            "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=emily",
+            "skills": ["Node.js", "PostgreSQL", "AWS", "Security"],
+            "availability": 90,
+            "hourlyRate": 80
+          }
+        ],
+        "designer": {
+          "id": "emp_005",
+          "name": "Marcus Johnson", 
+          "role": "Senior UX/UI Designer",
+          "email": "marcus.johnson@hexcode.com",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=marcus",
+          "skills": ["Figma", "User Research", "Prototyping", "Mobile Design"],
+          "availability": 70,
+          "hourlyRate": 75
+        }
+      },
+      
+      "tasks": [
+        {
+          "id": "task_001",
+          "title": "Biometric Authentication Implementation", 
+          "description": "Implement fingerprint and face recognition authentication with fallback security measures",
+          "completed": true,
+          "assignedTo": "emp_003",
+          "priority": "critical",
+          "estimatedHours": 120,
+          "actualHours": 115,
+          "startDate": "2024-02-15",
+          "endDate": "2024-03-15", 
+          "tags": ["security", "mobile", "authentication"],
+          "category": "Security",
+          "dependencies": ["task_002"],
+          "attachments": [
+            {
+              "name": "Security Architecture.pdf",
+              "url": "/documents/security-architecture.pdf",
+              "type": "document", 
+              "uploadedBy": "emp_002",
+              "uploadedDate": "2024-02-20"
+            }
+          ]
+        },
+        {
+          "id": "task_002",
+          "title": "AI Spending Insights Engine",
+          "description": "Develop machine learning algorithms for transaction categorization and spending pattern analysis",
+          "completed": true,
+          "assignedTo": "emp_002",
+          "priority": "high", 
+          "estimatedHours": 200,
+          "actualHours": 190,
+          "startDate": "2024-03-01",
+          "endDate": "2024-05-15",
+          "tags": ["ai", "analytics", "machine-learning"],
+          "category": "AI/ML",
+          "dependencies": [],
+          "attachments": [
+            {
+              "name": "ML Model Documentation.pdf", 
+              "url": "/documents/ml-documentation.pdf",
+              "type": "document",
+              "uploadedBy": "emp_002",
+              "uploadedDate": "2024-04-10"
+            }
+          ]
+        },
+        {
+          "id": "task_003",
+          "title": "Real-time Transaction Monitoring",
+          "description": "Implement real-time fraud detection and transaction monitoring system",
+          "completed": true,
+          "assignedTo": "emp_004",
+          "priority": "critical",
+          "estimatedHours": 150,
+          "actualHours": 145,
+          "startDate": "2024-03-15", 
+          "endDate": "2024-05-30",
+          "tags": ["security", "real-time", "monitoring"],
+          "category": "Security",
+          "dependencies": ["task_001"],
+          "attachments": []
+        }
+      ],
+      
+      "technologies": [
+        "React Native",
+        "Node.js", 
+        "Firebase",
+        "PostgreSQL",
+        "TensorFlow",
+        "AWS Services",
+        "Biometric APIs",
+        "Plaid API"
+      ],
+      
+      "deliverables": {
+        "completed": [
+          {
+            "name": "Mobile Banking Application",
+            "description": "Full-featured iOS and Android banking app",
+            "deliveryDate": "2024-08-30", 
+            "type": "application",
+            "downloadUrl": "/deliverables/banking-app.zip"
+          },
+          {
+            "name": "Admin Dashboard",
+            "description": "Web-based administration panel for bank staff",
+            "deliveryDate": "2024-08-15",
+            "type": "web-application", 
+            "downloadUrl": "/deliverables/admin-dashboard.zip"
+          },
+          {
+            "name": "Technical Documentation",
+            "description": "Complete API documentation and system architecture", 
+            "deliveryDate": "2024-08-30",
+            "type": "documentation",
+            "downloadUrl": "/deliverables/technical-docs.pdf"
+          }
+        ],
+        "pending": []
+      },
+      
+      "finances": {
+        "totalBudget": 850000,
+        "paidAmount": 850000,
+        "remainingAmount": 0,
+        "paymentSchedule": [
+          {
+            "milestone": "milestone_001",
+            "amount": 170000,
+            "dueDate": "2024-02-20",
+            "paidDate": "2024-02-18",
+            "status": "paid"
+          },
+          {
+            "milestone": "milestone_002", 
+            "amount": 255000,
+            "dueDate": "2024-04-20", 
+            "paidDate": "2024-04-15",
+            "status": "paid"
+          },
+          {
+            "milestone": "milestone_003",
+            "amount": 255000,
+            "dueDate": "2024-07-05",
+            "paidDate": "2024-07-01", 
+            "status": "paid"
+          },
+          {
+            "milestone": "milestone_004",
+            "amount": 170000,
+            "dueDate": "2024-09-05",
+            "paidDate": "2024-09-02",
+            "status": "paid"
+          }
+        ]
+      },
+      
+      "communications": [
+        {
+          "id": "comm_001",
+          "type": "meeting",
+          "title": "Project Kickoff Meeting",
+          "date": "2024-01-20",
+          "participants": ["client_001", "emp_001", "emp_002"],
+          "summary": "Project scope, timeline, and initial requirements discussion",
+          "attachments": ["meeting-notes-kickoff.pdf"]
+        },
+        {
+          "id": "comm_002", 
+          "type": "email",
+          "subject": "Milestone 1 Completion",
+          "date": "2024-02-12",
+          "from": "emp_001",
+          "to": "client_001",
+          "summary": "Confirmation of first milestone completion with deliverables"
+        },
+        {
+          "id": "comm_003",
+          "type": "demo", 
+          "title": "MVP Demo Session",
+          "date": "2024-04-12",
+          "participants": ["client_001", "emp_001", "emp_002", "emp_003"],
+          "summary": "Live demonstration of core banking features and AI integration"
+        }
+      ],
+      
+      "risks": [
+        {
+          "id": "risk_001",
+          "title": "Security Compliance Delays",
+          "description": "Potential delays in security certification process",
+          "probability": "low",
+          "impact": "medium",
+          "status": "resolved",
+          "mitigation": "Early engagement with security auditors and parallel development approach"
+        }
+      ],
+      
+      "feedback": {
+        "clientRating": 5,
+        "clientTestimonial": "Exceptional work! The banking app exceeded our expectations with its intuitive design and powerful AI features. The team was professional and delivered on time.",
+        "internalLessonsLearned": [
+          "AI integration timeline was accurate",
+          "Early security planning prevented delays", 
+          "Client communication frequency was optimal"
+        ]
+      }
+    },
+
+    "project_002": {
+      "id": "project_002",
+      "name": "Enterprise Analytics Dashboard",
+      "description": "Advanced business intelligence platform with real-time data visualization, predictive analytics, and automated reporting capabilities.",
+      "clientId": "client_001",
+      "status": "in-progress", 
+      "priority": "high",
+      "type": "web-application",
+      "projectValue": 650000,
+      "currency": "USD",
+      
+      "timeline": {
+        "startDate": "2024-09-01",
+        "endDate": "2025-03-30",
+        "estimatedHours": 1800,
+        "actualHours": 720,
+        "completion": 40,
+        "milestones": [
+          {
+            "id": "milestone_005",
+            "title": "Data Architecture & Backend Setup",
+            "description": "Design and implement scalable data processing infrastructure",
+            "targetDate": "2024-10-15",
+            "completedDate": "2024-10-12", 
+            "status": "completed",
+            "deliverables": [
+              "Data Warehouse Architecture",
+              "API Gateway Setup",
+              "Authentication System",
+              "Database Schema Design"
+            ],
+            "stakeholders": ["CTO", "Data Architect", "Backend Team"]
+          },
+          {
+            "id": "milestone_006",
+            "title": "Core Dashboard Development",
+            "description": "Build responsive dashboard with key analytics widgets",
+            "targetDate": "2024-12-15",
+            "completedDate": null,
+            "status": "in-progress",
+            "deliverables": [
+              "Executive Dashboard",
+              "Interactive Charts & Graphs",
+              "Real-time Data Streaming",
+              "User Management System"
+            ],
+            "stakeholders": ["Product Manager", "Frontend Team", "UX Designer"]
+          },
+          {
+            "id": "milestone_007",
+            "title": "Advanced Analytics & AI",
+            "description": "Implement predictive analytics and machine learning models",
+            "targetDate": "2025-02-15", 
+            "completedDate": null,
+            "status": "upcoming",
+            "deliverables": [
+              "Predictive Models",
+              "Anomaly Detection",
+              "Automated Insights", 
+              "Custom Analytics Engine"
+            ],
+            "stakeholders": ["AI Team", "Data Scientists", "Client Analysts"]
+          }
+        ]
+      },
+      
+      "team": {
+        "projectManager": {
+          "id": "emp_006",
+          "name": "David Kim",
+          "role": "Senior Project Manager",
+          "email": "david.kim@hexcode.com",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=david",
+          "skills": ["Enterprise Projects", "Data Analytics", "Stakeholder Management"],
+          "availability": 100,
+          "hourlyRate": 125
+        },
+        "technicalLead": {
+          "id": "emp_007",
+          "name": "Jennifer Liu", 
+          "role": "Senior Data Engineer",
+          "email": "jennifer.liu@hexcode.com",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=jennifer",
+          "skills": ["Data Engineering", "Python", "Apache Spark", "Cloud Architecture"],
+          "availability": 100,
+          "hourlyRate": 100
+        },
+        "developers": [
+          {
+            "id": "emp_008",
+            "name": "Robert Zhang",
+            "role": "Frontend Developer",
+            "email": "robert.zhang@hexcode.com", 
+            "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=robert",
+            "skills": ["React", "D3.js", "TypeScript", "Data Visualization"],
+            "availability": 85,
+            "hourlyRate": 85
+          },
+          {
+            "id": "emp_009",
+            "name": "Lisa Thompson",
+            "role": "Data Scientist",
+            "email": "lisa.thompson@hexcode.com",
+            "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lisa",
+            "skills": ["Machine Learning", "Python", "TensorFlow", "Statistics"],
+            "availability": 90, 
+            "hourlyRate": 90
+          }
+        ]
+      },
+      
+      "tasks": [
+        {
+          "id": "task_004",
+          "title": "Real-time Data Pipeline",
+          "description": "Build scalable data ingestion and processing pipeline for real-time analytics",
+          "completed": true,
+          "assignedTo": "emp_007",
+          "priority": "critical",
+          "estimatedHours": 180,
+          "actualHours": 175,
+          "startDate": "2024-09-01",
+          "endDate": "2024-10-15",
+          "tags": ["data-engineering", "real-time", "pipeline"],
+          "category": "Backend",
+          "dependencies": []
+        },
+        {
+          "id": "task_005", 
+          "title": "Interactive Dashboard Components",
+          "description": "Develop reusable chart components with drill-down capabilities",
+          "completed": false,
+          "assignedTo": "emp_008",
+          "priority": "high",
+          "estimatedHours": 200,
+          "actualHours": 120,
+          "startDate": "2024-10-15",
+          "endDate": "2024-12-15",
+          "tags": ["frontend", "charts", "visualization"],
+          "category": "Frontend", 
+          "dependencies": ["task_004"]
+        }
+      ],
+      
+      "technologies": [
+        "React",
+        "TypeScript",
+        "Python",
+        "Apache Spark",
+        "PostgreSQL", 
+        "Redis",
+        "D3.js",
+        "Chart.js",
+        "Docker",
+        "Kubernetes"
+      ]
+    },
+
+    "project_003": {
+      "id": "project_003",
+      "name": "E-Commerce Platform Redesign",
+      "description": "Complete overhaul of existing e-commerce platform with modern UI/UX, improved performance, and advanced analytics integration.",
+      "clientId": "client_002",
+      "status": "in-progress",
+      "priority": "high",
+      "type": "web-application",
+      "projectValue": 480000,
+      "currency": "USD",
+      
+      "timeline": {
+        "startDate": "2024-08-15",
+        "endDate": "2025-02-28", 
+        "estimatedHours": 1400,
+        "actualHours": 560,
+        "completion": 60,
+        "milestones": [
+          {
+            "id": "milestone_008",
+            "title": "UI/UX Design & Prototyping",
+            "description": "Complete design system and interactive prototypes",
+            "targetDate": "2024-09-30",
+            "completedDate": "2024-09-28",
+            "status": "completed",
+            "deliverables": [
+              "Design System Documentation",
+              "High-fidelity Mockups", 
+              "Interactive Prototypes",
+              "User Journey Maps"
+            ],
+            "stakeholders": ["Design Team", "Product Manager", "Client Stakeholders"]
+          },
+          {
+            "id": "milestone_009",
+            "title": "Frontend Development", 
+            "description": "Implementation of new user interface and user experience",
+            "targetDate": "2024-12-31",
+            "completedDate": null,
+            "status": "in-progress",
+            "deliverables": [
+              "Responsive Web Interface",
+              "Mobile Optimization",
+              "Performance Optimization",
+              "Accessibility Compliance"
+            ],
+            "stakeholders": ["Frontend Team", "QA Team"]
+          }
+        ]
+      },
+      
+      "team": {
+        "projectManager": {
+          "id": "emp_010",
+          "name": "Amanda Foster", 
+          "role": "Project Manager",
+          "email": "amanda.foster@hexcode.com",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=amanda",
+          "skills": ["E-commerce", "Agile Management", "Client Relations"],
+          "availability": 100,
+          "hourlyRate": 110
+        },
+        "designers": [
+          {
+            "id": "emp_011",
+            "name": "Carlos Rivera",
+            "role": "Lead UX Designer",
+            "email": "carlos.rivera@hexcode.com", 
+            "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=carlos",
+            "skills": ["UX Research", "Figma", "User Testing", "E-commerce Design"],
+            "availability": 80,
+            "hourlyRate": 85
+          }
+        ],
+        "developers": [
+          {
+            "id": "emp_012", 
+            "name": "Priya Patel",
+            "role": "Senior Frontend Developer",
+            "email": "priya.patel@hexcode.com",
+            "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=priya",
+            "skills": ["React", "Next.js", "E-commerce", "Performance Optimization"],
+            "availability": 90,
+            "hourlyRate": 90
+          }
+        ]
+      }
+    }
+  },
+
+  "communications": {
+    "global_comm_001": {
+      "id": "global_comm_001",
+      "type": "newsletter",
+      "title": "Monthly Project Updates - October 2024", 
+      "date": "2024-10-15",
+      "recipients": ["client_001", "client_002"],
+      "content": "Summary of all active projects and upcoming milestones",
+      "status": "sent"
+    }
+  },
+  
+  "company": {
+    "info": {
+      "name": "HexCode Solutions",
+      "founded": "2018",
+      "headquarters": "San Francisco, CA",
+      "employees": 85,
+      "website": "https://hexcode.com",
+      "email": "hello@hexcode.com",
+      "phone": "+1 (555) 100-0000"
+    },
+    "services": [
+      "Custom Software Development",
+      "Mobile App Development", 
+      "Web Application Development",
+      "AI & Machine Learning Solutions",
+      "Data Analytics & Business Intelligence",
+      "Cloud Infrastructure & DevOps",
+      "UI/UX Design",
+      "Technical Consulting"
+    ],
+    "technologies": [
+      "React", "React Native", "Node.js", "Python", "TypeScript",
+      "AWS", "Google Cloud", "Firebase", "PostgreSQL", "MongoDB", 
+      "TensorFlow", "Docker", "Kubernetes", "Next.js", "Vue.js"
+    ],
+    "certifications": [
+      "AWS Advanced Consulting Partner",
+      "Google Cloud Partner", 
+      "Microsoft Azure Partner",
+      "ISO 27001 Information Security",
+      "SOC 2 Type II Compliance"
+    ]
+  },
+
+  "templates": {
+    "projectTemplate": {
+      "basic": {
+        "phases": ["Discovery", "Design", "Development", "Testing", "Deployment", "Support"],
+        "defaultTasks": [
+          "Requirements Gathering", 
+          "Technical Architecture",
+          "UI/UX Design",
+          "Frontend Development",
+          "Backend Development", 
+          "Testing & QA",
+          "Deployment & Launch",
+          "Documentation"
+        ],
+        "defaultRoles": [
+          "Project Manager",
+          "Technical Lead", 
+          "Frontend Developer",
+          "Backend Developer",
+          "UI/UX Designer",
+          "QA Engineer"
+        ]
+      }
+    }
+  },
+
+  "settings": {
+    "notifications": {
+      "emailTemplates": {
+        "milestoneCompleted": {
+          "subject": "Milestone Completed: {{milestone.title}}",
+          "template": "milestone-completed.html"
+        },
+        "projectStatusUpdate": {
+          "subject": "Project Update: {{project.name}}", 
+          "template": "project-update.html"
+        }
+      }
+    },
+    "billing": {
+      "currency": "USD",
+      "paymentTerms": "Net 30",
+      "lateFee": 0.015
+    }
+  }
+}

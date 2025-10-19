@@ -3,15 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-context";
+import { useClientAuth } from "@/components/auth/client-auth-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Mail, Lock, Building2, AlertCircle, ArrowRight, UserPlus, Shield, Users } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Building2, AlertCircle, ArrowRight, UserPlus, Shield, Users, User } from "lucide-react";
 import Link from "next/link";
 
 export default function UnifiedLoginPage() {
   const { signIn } = useAuth();
+  const { signIn: clientSignIn } = useClientAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,25 +27,48 @@ export default function UnifiedLoginPage() {
     setError("");
 
     try {
-      const profile = await signIn(email, password);
-      
-      console.log("User Profile after login:", profile);
-      console.log("Role detected:", profile?.role);
+      // Try staff/admin login first
+      try {
+        const profile = await signIn(email, password);
+        
+        console.log("Staff/Admin Profile after login:", profile);
+        console.log("Role detected:", profile?.role);
 
-      // Role-based redirection
-      if (profile?.role === "admin") {
-        console.log("Redirecting admin to admin panel");
-        router.push("/admin");
-      } else if (profile?.role === "employee" || profile?.role === "manager") {
-        console.log("Redirecting employee/manager to staff dashboard");
-        router.push("/staff/dashboard");
-      } else {
-        console.log("Unknown role:", profile?.role);
-        setError("Access denied. Invalid user role.");
+        // Role-based redirection for staff/admin
+        if (profile?.role === "admin") {
+          console.log("Redirecting admin to admin panel");
+          router.push("/admin");
+          return;
+        } else if (profile?.role === "employee" || profile?.role === "manager") {
+          console.log("Redirecting employee/manager to staff dashboard");
+          router.push("/staff/dashboard");
+          return;
+        }
+      } catch (staffError) {
+        console.log("Staff login failed, trying client login:", staffError);
+        
+        // If staff login fails, try client login
+        try {
+          const clientProfile = await clientSignIn(email, password);
+          
+          console.log("Client Profile after login:", clientProfile);
+          
+          if (clientProfile?.role === "client") {
+            console.log("Redirecting client to client dashboard");
+            router.push("/client/dashboard");
+            return;
+          }
+        } catch (clientError) {
+          console.log("Client login also failed:", clientError);
+          throw new Error("Invalid email or password. Please check your credentials.");
+        }
       }
-    } catch (err) {
+      
+      // If we get here, neither login worked
+      setError("Access denied. Invalid user role or credentials.");
+    } catch (err: any) {
       console.error("Login Error:", err);
-      setError("Invalid email or password. Please check your credentials.");
+      setError(err.message || "Invalid email or password. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -82,16 +107,20 @@ export default function UnifiedLoginPage() {
           {/* Role Info */}
           <div className="mb-6 p-4 bg-gradient-to-r from-blue-500/10 to-orange-500/10 border border-blue-500/20 rounded-xl">
             <div className="text-center">
-              <div className="flex items-center justify-center space-y-2 mb-2">
-                <Shield className="h-5 w-5 text-orange-400 mr-2" />
-                <span className="text-sm text-slate-300">Admins → Admin Panel</span>
+              <div className="flex items-center justify-center space-y-1 mb-2">
+                <Shield className="h-4 w-4 text-orange-400 mr-2" />
+                <span className="text-xs text-slate-300">Admins → Admin Panel</span>
               </div>
-              <div className="flex items-center justify-center space-y-2">
-                <Users className="h-5 w-5 text-blue-400 mr-2" />
-                <span className="text-sm text-slate-300">Employees → Staff Portal</span>
+              <div className="flex items-center justify-center space-y-1 mb-2">
+                <Users className="h-4 w-4 text-blue-400 mr-2" />
+                <span className="text-xs text-slate-300">Employees → Staff Portal</span>
+              </div>
+              <div className="flex items-center justify-center space-y-1">
+                <User className="h-4 w-4 text-emerald-400 mr-2" />
+                <span className="text-xs text-slate-300">Clients → Client Dashboard</span>
               </div>
               <p className="text-xs text-slate-400 mt-3">
-                Note: Admin accounts are created by system administrators
+                Universal login portal - automatically redirects based on your account type
               </p>
             </div>
           </div>

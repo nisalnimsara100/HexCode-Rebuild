@@ -1,0 +1,177 @@
+{
+  "clientProjects": [
+    {
+      "email": "nisalnimsara100@gmail.com",
+      "id": "project-1",
+      "name": "Mobile Banking App",
+      "description": "Secure mobile banking application with biometric authentication.",
+      "startDate": "2023-09-01",
+      "dueDate": "2023-12-15",
+      "budget": 120000,
+      "nextMilestone": "Project Completed",
+      "progress": 100,
+      "teamMembers": [
+        { "id": "dk", "name": "David Kim", "role": "Project Manager" },
+        { "id": "lw", "name": "Lisa Wong", "role": "Lead Developer" },
+        { "id": "jm", "name": "James Miller", "role": "QA Engineer" }
+      ],
+      "technologies": ["React Native", "Firebase", "Node.js"],
+      "roadmap": [
+        {
+          "id": "discovery",
+          "title": "Discovery",
+          "description": "Requirements gathering and planning",
+          "status": "completed",
+          "tasks": [
+            { "id": "1", "title": "Requirements Analysis", "completed": true },
+            { "id": "2", "title": "Stakeholder Interviews", "completed": true }
+          ],
+          "dependencies": [],
+          "duration": "2 weeks",
+          "priority": "high",
+          "category": "design",
+          "position": { "x": 200, "y": 150 },
+          "color": "#8B5CF6",
+          "radius": 40
+        },
+        {
+          "id": "design",
+          "title": "UI/UX Design",
+          "description": "User interface design",
+          "status": "completed",
+          "tasks": [
+            { "id": "1", "title": "Wireframes", "completed": true },
+            { "id": "2", "title": "Prototypes", "completed": true }
+          ],
+          "dependencies": ["discovery"],
+          "duration": "3 weeks",
+          "priority": "high",
+          "category": "design",
+          "position": { "x": 450, "y": 100 },
+          "color": "#EC4899",
+          "radius": 40
+        },
+        {
+          "id": "testing",
+          "title": "Testing",
+          "description": "Quality assurance",
+          "status": "in-progress",
+          "tasks": [
+            { "id": "1", "title": "Unit Tests", "completed": false },
+            { "id": "2", "title": "Integration Tests", "completed": false }
+          ],
+          "dependencies": ["design"],
+          "duration": "3 weeks",
+          "priority": "high",
+          "category": "testing",
+          "position": { "x": 700, "y": 400 },
+          "color": "#8B5CF6",
+          "radius": 40
+        },
+        {
+          "id": "deployment",
+          "title": "Deployment",
+          "description": "Production launch",
+          "status": "upcoming",
+          "tasks": [
+            { "id": "1", "title": "Go-live", "completed": false }
+          ],
+          "dependencies": ["testing"],
+          "duration": "1 week",
+          "priority": "high",
+          "category": "deployment",
+          "position": { "x": 950, "y": 300 },
+          "color": "#6366F1",
+          "radius": 40
+        }
+      ]
+    },
+    {
+      "email": "nisalnimsara100@gmail.com",
+      "id": "project-2",
+      "name": "Social Media App",
+      "description": "A platform for connecting people and sharing content.",
+      "startDate": "2024-01-01",
+      "dueDate": "2024-06-30",
+      "budget": 80000,
+      "nextMilestone": "Design Phase",
+      "progress": 40,
+      "teamMembers": [
+        { "id": "nn", "name": "Nisal Nimsara", "role": "Product Owner" },
+        { "id": "ak", "name": "Alice Kim", "role": "UI/UX Designer" },
+        { "id": "tb", "name": "Tom Brown", "role": "Backend Developer" }
+      ],
+      "technologies": ["Next.js", "Firebase", "Tailwind CSS"],
+      "roadmap": [
+        {
+          "id": "discovery",
+          "title": "Discovery",
+          "description": "Requirements gathering and planning",
+          "status": "completed",
+          "tasks": [
+            { "id": "1", "title": "Market Research", "completed": true },
+            { "id": "2", "title": "Stakeholder Interviews", "completed": true }
+          ],
+          "dependencies": [],
+          "duration": "2 weeks",
+          "priority": "high",
+          "category": "design",
+          "position": { "x": 200, "y": 150 },
+          "color": "#8B5CF6",
+          "radius": 40
+        },
+        {
+          "id": "design",
+          "title": "UI/UX Design",
+          "description": "User interface design",
+          "status": "in-progress",
+          "tasks": [
+            { "id": "1", "title": "Wireframes", "completed": false },
+            { "id": "2", "title": "Prototypes", "completed": false }
+          ],
+          "dependencies": ["discovery"],
+          "duration": "3 weeks",
+          "priority": "high",
+          "category": "design",
+          "position": { "x": 450, "y": 100 },
+          "color": "#EC4899",
+          "radius": 40
+        },
+        {
+          "id": "development",
+          "title": "Development",
+          "description": "Building the application",
+          "status": "upcoming",
+          "tasks": [
+            { "id": "1", "title": "Frontend Development", "completed": false },
+            { "id": "2", "title": "Backend Development", "completed": false }
+          ],
+          "dependencies": ["design"],
+          "duration": "8 weeks",
+          "priority": "high",
+          "category": "development",
+          "position": { "x": 700, "y": 400 },
+          "color": "#6366F1",
+          "radius": 40
+        },
+        {
+          "id": "testing",
+          "title": "Testing",
+          "description": "Quality assurance",
+          "status": "upcoming",
+          "tasks": [
+            { "id": "1", "title": "Unit Tests", "completed": false },
+            { "id": "2", "title": "Integration Tests", "completed": false }
+          ],
+          "dependencies": ["development"],
+          "duration": "4 weeks",
+          "priority": "high",
+          "category": "testing",
+          "position": { "x": 950, "y": 300 },
+          "color": "#8B5CF6",
+          "radius": 40
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Graph } from "@/lib/graph";
@@ -24,9 +24,15 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
-  Users
+  Users,
+  DollarSign,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  X
 } from "lucide-react";
 
+// Enhanced Graph Node with Canvas Support
 interface GraphNode {
   id: string;
   title: string;
@@ -42,8 +48,12 @@ interface GraphNode {
   duration: string;
   priority: "high" | "medium" | "low";
   category: "design" | "development" | "testing" | "deployment";
-  position?: { x: number; y: number };
+  position: { x: number; y: number };
   color: string;
+  // Canvas-specific properties
+  radius: number;
+  isHovered: boolean;
+  isSelected: boolean;
 }
 
 interface Connection {
@@ -52,146 +62,745 @@ interface Connection {
   type: "dependency" | "parallel" | "conditional";
 }
 
-export function ProjectRoadmap() {
+interface ProjectData {
+  id: string;
+  name: string;
+  status: string;
+  progress: number;
+  technologies: string[];
+}
+
+interface ProjectRoadmapProps {
+  projectData?: ProjectData;
+}
+
+export function ProjectRoadmap({ projectData }: ProjectRoadmapProps = {}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [animationFrame, setAnimationFrame] = useState(0);
+
+  // Generate dynamic nodes based on project data
+  const generateNodes = useCallback((projectData?: ProjectData): GraphNode[] => {
+    const nodes: GraphNode[] = [
+      {
+        id: "discovery",
+        title: "Discovery",
+        description: projectData ? `Planning for ${projectData.name}` : "Project planning",
+        status: "completed",
+        icon: <Target className="w-6 h-6" />,
+        dependencies: [],
+        duration: "2 weeks",
+        priority: "high",
+        category: "design",
+        position: { x: 200, y: 150 },
+        color: "#8B5CF6",
+        radius: 40,
+        isHovered: false,
+        isSelected: false,
+        tasks: [
+          { id: "1", title: "Requirements", completed: true },
+          { id: "2", title: "Analysis", completed: true }
+        ]
+      },
+      {
+        id: "design",
+        title: "UI/UX Design",
+        description: "User interface design",
+        status: "completed",
+        icon: <Palette className="w-6 h-6" />,
+        dependencies: ["discovery"],
+        duration: "3 weeks",
+        priority: "high",
+        category: "design",
+        position: { x: 450, y: 100 },
+        color: "#EC4899",
+        radius: 40,
+        isHovered: false,
+        isSelected: false,
+        tasks: [
+          { id: "1", title: "Wireframes", completed: true },
+          { id: "2", title: "Prototypes", completed: true }
+        ]
+      }
+    ];
+
+    // Add technology-specific nodes
+    if (projectData?.technologies) {
+      if (projectData.technologies.includes("React") || projectData.technologies.includes("Next.js")) {
+        nodes.push({
+          id: "frontend",
+          title: "Frontend Dev",
+          description: "React development",
+          status: projectData.progress > 40 ? (projectData.status === "completed" ? "completed" : "in-progress") : "upcoming",
+          icon: <Code className="w-6 h-6" />,
+          dependencies: ["design"],
+          duration: "5 weeks",
+          priority: "high",
+          category: "development",
+          position: { x: 700, y: 200 },
+          color: "#10B981",
+          radius: 40,
+          isHovered: false,
+          isSelected: false,
+          tasks: [
+            { id: "1", title: "Components", completed: projectData.progress > 50 },
+            { id: "2", title: "Pages", completed: projectData.progress > 70 }
+          ]
+        });
+      }
+
+      if (projectData.technologies.includes("Node.js") || projectData.technologies.includes("MongoDB")) {
+        nodes.push({
+          id: "backend",
+          title: "Backend Dev",
+          description: "API development",
+          status: projectData.progress > 30 ? (projectData.status === "completed" ? "completed" : "in-progress") : "upcoming",
+          icon: <Server className="w-6 h-6" />,
+          dependencies: ["discovery"],
+          duration: "4 weeks",
+          priority: "high",
+          category: "development",
+          position: { x: 450, y: 300 },
+          color: "#F59E0B",
+          radius: 40,
+          isHovered: false,
+          isSelected: false,
+          tasks: [
+            { id: "1", title: "API", completed: projectData.progress > 40 },
+            { id: "2", title: "Database", completed: projectData.progress > 60 }
+          ]
+        });
+      }
+
+      if (projectData.technologies.includes("Stripe")) {
+        nodes.push({
+          id: "payment",
+          title: "Payment",
+          description: "Stripe integration",
+          status: projectData.progress > 60 ? "in-progress" : "upcoming",
+          icon: <DollarSign className="w-6 h-6" />,
+          dependencies: ["backend"],
+          duration: "2 weeks",
+          priority: "high",
+          category: "development",
+          position: { x: 200, y: 400 },
+          color: "#8B5CF6",
+          radius: 40,
+          isHovered: false,
+          isSelected: false,
+          tasks: [
+            { id: "1", title: "Integration", completed: projectData.progress > 70 }
+          ]
+        });
+      }
+    }
+
+    // Always add testing and deployment
+    nodes.push(
+      {
+        id: "testing",
+        title: "Testing",
+        description: "Quality assurance",
+        status: projectData ? (projectData.progress > 80 ? "in-progress" : "upcoming") : "upcoming",
+        icon: <Shield className="w-6 h-6" />,
+        dependencies: nodes.find(n => n.id === "frontend") ? ["frontend"] : ["backend"],
+        duration: "3 weeks",
+        priority: "high",
+        category: "testing",
+        position: { x: 700, y: 400 },
+        color: "#8B5CF6",
+        radius: 40,
+        isHovered: false,
+        isSelected: false,
+        tasks: [
+          { id: "1", title: "Unit tests", completed: projectData ? projectData.progress > 85 : false }
+        ]
+      },
+      {
+        id: "deployment",
+        title: "Deployment",
+        description: "Production launch",
+        status: projectData ? (projectData.status === "completed" ? "completed" : "upcoming") : "upcoming",
+        icon: <Rocket className="w-6 h-6" />,
+        dependencies: ["testing"],
+        duration: "1 week",
+        priority: "high",
+        category: "deployment",
+        position: { x: 950, y: 300 },
+        color: "#6366F1",
+        radius: 40,
+        isHovered: false,
+        isSelected: false,
+        tasks: [
+          { id: "1", title: "Go-live", completed: projectData?.status === "completed" }
+        ]
+      }
+    );
+
+    return nodes;
+  }, []);
+
+  const graphNodes = useMemo(() => generateNodes(projectData), [generateNodes, projectData]);
+
+  // Generate connections based on dependencies
+  const connections: Connection[] = useMemo(() => {
+    const conn: Connection[] = [];
+    graphNodes.forEach(node => {
+      node.dependencies.forEach(depId => {
+        conn.push({
+          from: depId,
+          to: node.id,
+          type: "dependency"
+        });
+      });
+    });
+    return conn;
+  }, [graphNodes]);
+
+  // Canvas drawing function
+  const drawGraph = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear canvas with dark theme
+    ctx.fillStyle = '#0F172A';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw grid
+    ctx.strokeStyle = '#1E293B';
+    ctx.lineWidth = 1;
+    const gridSize = 50;
+    for (let x = 0; x <= canvas.width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= canvas.height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+
+    // Draw connections
+    connections.forEach(connection => {
+      const fromNode = graphNodes.find(n => n.id === connection.from);
+      const toNode = graphNodes.find(n => n.id === connection.to);
+      
+      if (!fromNode || !toNode) return;
+
+      ctx.beginPath();
+      ctx.moveTo(fromNode.position.x, fromNode.position.y);
+      ctx.lineTo(toNode.position.x, toNode.position.y);
+      
+      const isActive = fromNode.status === 'completed';
+      ctx.strokeStyle = isActive ? '#10B981' : '#374151';
+      ctx.lineWidth = isActive ? 3 : 2;
+      ctx.globalAlpha = 0.8;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // Draw arrow
+      const angle = Math.atan2(toNode.position.y - fromNode.position.y, toNode.position.x - fromNode.position.x);
+      const arrowLength = 15;
+      const arrowX = toNode.position.x - Math.cos(angle) * (toNode.radius + 10);
+      const arrowY = toNode.position.y - Math.sin(angle) * (toNode.radius + 10);
+      
+      ctx.save();
+      ctx.translate(arrowX, arrowY);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-arrowLength, -5);
+      ctx.lineTo(-arrowLength, 5);
+      ctx.closePath();
+      ctx.fillStyle = isActive ? '#10B981' : '#374151';
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // Draw nodes
+    graphNodes.forEach(node => {
+      const isSelected = selectedNode === node.id;
+      const isHovered = hoveredNode === node.id;
+      const radius = isSelected ? node.radius + 8 : isHovered ? node.radius + 4 : node.radius;
+
+      // Node shadow and glow
+      ctx.shadowColor = node.color;
+      ctx.shadowBlur = isSelected ? 20 : isHovered ? 15 : 10;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Node background
+      ctx.beginPath();
+      ctx.arc(node.position.x, node.position.y, radius, 0, 2 * Math.PI);
+      
+      const gradient = ctx.createRadialGradient(
+        node.position.x, node.position.y, 0,
+        node.position.x, node.position.y, radius
+      );
+      
+      switch (node.status) {
+        case 'completed':
+          gradient.addColorStop(0, '#10B981');
+          gradient.addColorStop(1, '#059669');
+          break;
+        case 'in-progress':
+          gradient.addColorStop(0, '#F59E0B');
+          gradient.addColorStop(1, '#D97706');
+          break;
+        case 'blocked':
+          gradient.addColorStop(0, '#EF4444');
+          gradient.addColorStop(1, '#DC2626');
+          break;
+        default:
+          gradient.addColorStop(0, '#6B7280');
+          gradient.addColorStop(1, '#4B5563');
+      }
+      
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Node border
+      ctx.strokeStyle = isSelected ? '#FFFFFF' : '#E5E7EB';
+      ctx.lineWidth = isSelected ? 4 : 2;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Progress ring
+      if (projectData && node.status === 'in-progress') {
+        const progressRadius = radius + 12;
+        const progress = node.tasks.filter(t => t.completed).length / node.tasks.length;
+        const progressAngle = progress * 2 * Math.PI - Math.PI / 2;
+        
+        ctx.beginPath();
+        ctx.arc(node.position.x, node.position.y, progressRadius, -Math.PI / 2, progressAngle);
+        ctx.strokeStyle = '#10B981';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      }
+
+      // Node label
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = `bold ${isSelected ? '14px' : '12px'} Inter, system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      const words = node.title.split(' ');
+      if (words.length > 1) {
+        ctx.fillText(words[0], node.position.x, node.position.y - 6);
+        ctx.fillText(words.slice(1).join(' '), node.position.x, node.position.y + 8);
+      } else {
+        ctx.fillText(node.title, node.position.x, node.position.y);
+      }
+
+      // Status indicator
+      const statusX = node.position.x + radius - 8;
+      const statusY = node.position.y - radius + 8;
+      ctx.beginPath();
+      ctx.arc(statusX, statusY, 6, 0, 2 * Math.PI);
+      
+      switch (node.status) {
+        case 'completed':
+          ctx.fillStyle = '#10B981';
+          break;
+        case 'in-progress':
+          ctx.fillStyle = '#F59E0B';
+          break;
+        case 'blocked':
+          ctx.fillStyle = '#EF4444';
+          break;
+        default:
+          ctx.fillStyle = '#6B7280';
+      }
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  }, [graphNodes, connections, selectedNode, hoveredNode, projectData]);
+
+  // Animation loop
+  useEffect(() => {
+    const animate = () => {
+      drawGraph();
+      setAnimationFrame(prev => prev + 1);
+      requestAnimationFrame(animate);
+    };
+    animate();
+  }, [drawGraph]);
+
+  // Mouse event handlers
+  const getNodeAtPosition = useCallback((x: number, y: number): string | null => {
+    for (const node of graphNodes) {
+      const dx = x - node.position.x;
+      const dy = y - node.position.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance <= node.radius) {
+        return node.id;
+      }
+    }
+    return null;
+  }, [graphNodes]);
+
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const nodeId = getNodeAtPosition(x, y);
+    setSelectedNode(nodeId === selectedNode ? null : nodeId);
+  }, [getNodeAtPosition, selectedNode]);
+
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const nodeId = getNodeAtPosition(x, y);
+    setHoveredNode(nodeId);
+    canvas.style.cursor = nodeId ? 'pointer' : 'default';
+  }, [getNodeAtPosition]);
+
+  const selectedNodeData = selectedNode ? graphNodes.find(n => n.id === selectedNode) : null;
+
+  return (
+    <div className={`relative w-full ${isFullscreen ? 'fixed inset-0 z-50 bg-slate-900' : 'h-[600px] bg-slate-900 rounded-xl border border-slate-700'} overflow-hidden`}>
+      {/* Header */}
+      <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
+        <div className="bg-slate-800/90 backdrop-blur-sm rounded-lg p-3 border border-slate-600">
+          <h3 className="text-white font-semibold flex items-center">
+            <GitBranch className="w-5 h-5 text-emerald-400 mr-2" />
+            {projectData ? `${projectData.name} Roadmap` : 'Project Roadmap'}
+          </h3>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="bg-slate-800/90 border border-slate-600 rounded-lg p-2 text-white hover:bg-slate-700"
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+          {isFullscreen && (
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="bg-slate-800/90 border border-slate-600 rounded-lg p-2 text-white hover:bg-slate-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Canvas */}
+      <canvas
+        ref={canvasRef}
+        width={isFullscreen ? window.innerWidth : 1200}
+        height={isFullscreen ? window.innerHeight : 600}
+        className="w-full h-full"
+        onClick={handleCanvasClick}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseLeave={() => setHoveredNode(null)}
+      />
+
+      {/* Legend */}
+      <div className="absolute bottom-4 left-4 bg-slate-800/90 backdrop-blur-sm rounded-lg p-4 border border-slate-600">
+        <h4 className="text-white font-medium mb-3">Status</h4>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-emerald-500 rounded-full"></div>
+            <span className="text-gray-300 text-sm">Completed</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-amber-500 rounded-full"></div>
+            <span className="text-gray-300 text-sm">In Progress</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-gray-500 rounded-full"></div>
+            <span className="text-gray-300 text-sm">Upcoming</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Node Details */}
+      {selectedNodeData && (
+        <div className="absolute top-20 right-4 w-80 bg-slate-800/95 backdrop-blur-sm rounded-lg border border-slate-600 p-6 shadow-2xl">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-white font-semibold">{selectedNodeData.title}</h4>
+            <button
+              onClick={() => setSelectedNode(null)}
+              className="text-gray-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          
+          <p className="text-gray-300 text-sm mb-4">{selectedNodeData.description}</p>
+          
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">Status</span>
+              <Badge className={`${
+                selectedNodeData.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' :
+                selectedNodeData.status === 'in-progress' ? 'bg-amber-500/20 text-amber-400' :
+                'bg-gray-500/20 text-gray-400'
+              }`}>
+                {selectedNodeData.status.replace('-', ' ')}
+              </Badge>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">Duration</span>
+              <span className="text-gray-300 text-sm">{selectedNodeData.duration}</span>
+            </div>
+
+            <div>
+              <span className="text-gray-400 text-sm block mb-2">Tasks</span>
+              <div className="space-y-1">
+                {selectedNodeData.tasks.map((task, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    {task.completed ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-gray-500" />
+                    )}
+                    <span className={`text-sm ${task.completed ? 'text-gray-300 line-through' : 'text-gray-300'}`}>
+                      {task.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="absolute bottom-4 right-4 bg-slate-800/90 backdrop-blur-sm rounded-lg p-4 border border-slate-600">
+        <h4 className="text-white font-medium mb-3">Graph Stats</h4>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400">Nodes</span>
+            <span className="text-white">{graphNodes.length}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400">Connections</span>
+            <span className="text-white">{connections.length}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400">Completed</span>
+            <span className="text-emerald-400">
+              {graphNodes.filter(n => n.status === 'completed').length}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [animatedConnections, setAnimatedConnections] = useState<Set<string>>(new Set());
   const [projectGraph, setProjectGraph] = useState<Graph<string> | null>(null);
   const [graphStats, setGraphStats] = useState<any>(null);
 
-  // Graph data structure with proper dependencies
-  const graphNodes: GraphNode[] = [
-    {
-      id: "discovery",
-      title: "Discovery & Planning",
-      description: "Project requirements gathering and strategic planning",
-      status: "completed",
-      icon: <Target className="w-6 h-6" />,
-      dependencies: [],
-      duration: "2 weeks",
-      priority: "high",
-      category: "design",
-      color: "from-purple-500 to-indigo-600",
-      tasks: [
-        { id: "1", title: "Requirements analysis", completed: true },
-        { id: "2", title: "Stakeholder interviews", completed: true },
-        { id: "3", title: "Technical feasibility", completed: true },
-        { id: "4", title: "Project charter", completed: true }
-      ]
-    },
-    {
-      id: "design",
-      title: "UI/UX Design",
-      description: "User experience design and visual identity creation",
-      status: "completed",
-      icon: <Palette className="w-6 h-6" />,
-      dependencies: ["discovery"],
-      duration: "3 weeks",
-      priority: "high",
-      category: "design",
-      color: "from-pink-500 to-rose-600",
-      tasks: [
-        { id: "1", title: "User research", completed: true },
-        { id: "2", title: "Wireframes", completed: true },
-        { id: "3", title: "Design system", completed: true },
-        { id: "4", title: "Prototypes", completed: true }
-      ]
-    },
-    {
-      id: "database",
-      title: "Database Architecture",
-      description: "Data modeling and database schema design",
-      status: "completed",
-      icon: <Database className="w-6 h-6" />,
-      dependencies: ["discovery"],
-      duration: "2 weeks",
-      priority: "high",
-      category: "development",
-      color: "from-blue-500 to-cyan-600",
-      tasks: [
-        { id: "1", title: "Entity modeling", completed: true },
-        { id: "2", title: "Schema design", completed: true },
-        { id: "3", title: "Migration scripts", completed: true },
-        { id: "4", title: "Indexing strategy", completed: true }
-      ]
-    },
-    {
-      id: "frontend",
-      title: "Frontend Development",
-      description: "Interactive user interface implementation",
-      status: "in-progress",
-      icon: <Code className="w-6 h-6" />,
-      dependencies: ["design"],
-      duration: "5 weeks",
-      priority: "high",
-      category: "development",
-      color: "from-emerald-500 to-teal-600",
-      tasks: [
-        { id: "1", title: "Component library", completed: true },
-        { id: "2", title: "Page layouts", completed: true },
-        { id: "3", title: "State management", completed: false },
-        { id: "4", title: "API integration", completed: false },
-        { id: "5", title: "Responsive design", completed: false }
-      ]
-    },
-    {
-      id: "backend",
-      title: "Backend Development",
-      description: "Server-side logic and API development",
-      status: "upcoming",
-      icon: <Server className="w-6 h-6" />,
-      dependencies: ["database"],
-      duration: "4 weeks",
-      priority: "high",
-      category: "development",
-      color: "from-orange-500 to-red-600",
-      tasks: [
-        { id: "1", title: "API endpoints", completed: false },
-        { id: "2", title: "Authentication", completed: false },
-        { id: "3", title: "Business logic", completed: false },
-        { id: "4", title: "Data validation", completed: false }
-      ]
-    },
-    {
-      id: "integration",
-      title: "System Integration",
-      description: "Connecting frontend and backend systems",
-      status: "upcoming",
-      icon: <Zap className="w-6 h-6" />,
-      dependencies: ["frontend", "backend"],
-      duration: "2 weeks",
-      priority: "medium",
-      category: "development",
-      color: "from-yellow-500 to-amber-600",
-      tasks: [
-        { id: "1", title: "API integration", completed: false },
-        { id: "2", title: "Error handling", completed: false },
-        { id: "3", title: "Performance optimization", completed: false }
-      ]
-    },
-    {
+  // Generate dynamic graph data based on project information
+  const generateProjectRoadmap = (projectData?: ProjectData): GraphNode[] => {
+    const baseNodes: GraphNode[] = [
+      {
+        id: "discovery",
+        title: "Discovery & Planning",
+        description: projectData ? `Requirements gathering for ${projectData.name}` : "Project requirements gathering and strategic planning",
+        status: "completed",
+        icon: <Target className="w-6 h-6" />,
+        dependencies: [],
+        duration: "2 weeks",
+        priority: "high",
+        category: "design",
+        color: "from-purple-500 to-indigo-600",
+        tasks: [
+          { id: "1", title: "Requirements analysis", completed: true },
+          { id: "2", title: "Stakeholder interviews", completed: true },
+          { id: "3", title: "Technical feasibility", completed: true },
+          { id: "4", title: "Project charter", completed: true }
+        ]
+      },
+      {
+        id: "design",
+        title: "UI/UX Design",
+        description: projectData ? `User experience design for ${projectData.name}` : "User experience design and visual identity creation",
+        status: "completed",
+        icon: <Palette className="w-6 h-6" />,
+        dependencies: ["discovery"],
+        duration: "3 weeks",
+        priority: "high",
+        category: "design",
+        color: "from-pink-500 to-rose-600",
+        tasks: [
+          { id: "1", title: "User research", completed: true },
+          { id: "2", title: "Wireframes", completed: true },
+          { id: "3", title: "Design system", completed: true },
+          { id: "4", title: "Prototypes", completed: true }
+        ]
+      }
+    ];
+
+    // Add technology-specific nodes based on project technologies
+    if (projectData?.technologies) {
+      if (projectData.technologies.includes("MongoDB") || projectData.technologies.includes("Firebase")) {
+        baseNodes.push({
+          id: "database",
+          title: "Database Architecture",
+          description: `${projectData.technologies.find(t => t.includes("MongoDB") || t.includes("Firebase"))} schema design`,
+          status: "completed",
+          icon: <Database className="w-6 h-6" />,
+          dependencies: ["discovery"],
+          duration: "2 weeks",
+          priority: "high",
+          category: "development",
+          color: "from-blue-500 to-cyan-600",
+          tasks: [
+            { id: "1", title: "Entity modeling", completed: true },
+            { id: "2", title: "Schema design", completed: true },
+            { id: "3", title: "Migration scripts", completed: projectData.status === "completed" },
+            { id: "4", title: "Indexing strategy", completed: projectData.status === "completed" }
+          ]
+        });
+      }
+
+      // Frontend development node
+      if (projectData.technologies.includes("React") || projectData.technologies.includes("Next.js") || projectData.technologies.includes("React Native")) {
+        const frontendTech = projectData.technologies.find(t => t.includes("React") || t.includes("Next"));
+        baseNodes.push({
+          id: "frontend",
+          title: `${frontendTech || "Frontend"} Development`,
+          description: `Interactive user interface using ${frontendTech || "React"}`,
+          status: projectData.status === "completed" ? "completed" : projectData.status === "in-progress" ? "in-progress" : "upcoming",
+          icon: <Code className="w-6 h-6" />,
+          dependencies: ["design"],
+          duration: "5 weeks",
+          priority: "high",
+          category: "development",
+          color: "from-emerald-500 to-teal-600",
+          tasks: [
+            { id: "1", title: "Component library", completed: true },
+            { id: "2", title: "Page layouts", completed: true },
+            { id: "3", title: "State management", completed: projectData.progress > 60 },
+            { id: "4", title: "API integration", completed: projectData.progress > 80 },
+            { id: "5", title: "Responsive design", completed: projectData.status === "completed" }
+          ]
+        });
+      }
+
+      // Backend development node
+      if (projectData.technologies.includes("Node.js") || projectData.technologies.includes("Express")) {
+        const backendTech = projectData.technologies.find(t => t.includes("Node") || t.includes("Express"));
+        baseNodes.push({
+          id: "backend",
+          title: `${backendTech || "Backend"} Development`,
+          description: `Server-side logic using ${backendTech || "Node.js"}`,
+          status: projectData.progress > 40 ? (projectData.status === "completed" ? "completed" : "in-progress") : "upcoming",
+          icon: <Server className="w-6 h-6" />,
+          dependencies: baseNodes.find(n => n.id === "database") ? ["database"] : ["discovery"],
+          duration: "4 weeks",
+          priority: "high",
+          category: "development",
+          color: "from-orange-500 to-red-600",
+          tasks: [
+            { id: "1", title: "API endpoints", completed: projectData.progress > 50 },
+            { id: "2", title: "Authentication", completed: projectData.progress > 60 },
+            { id: "3", title: "Business logic", completed: projectData.progress > 70 },
+            { id: "4", title: "Data validation", completed: projectData.status === "completed" }
+          ]
+        });
+      }
+
+      // Payment integration for e-commerce
+      if (projectData.technologies.includes("Stripe") || projectData.name.toLowerCase().includes("e-commerce")) {
+        baseNodes.push({
+          id: "payment",
+          title: "Payment Integration",
+          description: "Secure payment processing with Stripe",
+          status: projectData.progress > 60 ? (projectData.status === "completed" ? "completed" : "in-progress") : "upcoming",
+          icon: <DollarSign className="w-6 h-6" />,
+          dependencies: ["backend"],
+          duration: "2 weeks",
+          priority: "high",
+          category: "development",
+          color: "from-green-500 to-emerald-600",
+          tasks: [
+            { id: "1", title: "Stripe setup", completed: projectData.progress > 65 },
+            { id: "2", title: "Payment forms", completed: projectData.progress > 75 },
+            { id: "3", title: "Webhook handling", completed: projectData.progress > 85 },
+            { id: "4", title: "Security testing", completed: projectData.status === "completed" }
+          ]
+        });
+      }
+    }
+
+    // Add integration node
+    const hasMultipleDevelopmentNodes = baseNodes.filter(n => n.category === "development").length > 1;
+    if (hasMultipleDevelopmentNodes) {
+      const developmentDeps = baseNodes.filter(n => n.category === "development" && n.id !== "integration").map(n => n.id);
+      baseNodes.push({
+        id: "integration",
+        title: "System Integration",
+        description: "Connecting all system components",
+        status: projectData ? (projectData.progress > 80 ? (projectData.status === "completed" ? "completed" : "in-progress") : "upcoming") : "upcoming",
+        icon: <Zap className="w-6 h-6" />,
+        dependencies: developmentDeps,
+        duration: "2 weeks",
+        priority: "medium",
+        category: "development",
+        color: "from-yellow-500 to-amber-600",
+        tasks: [
+          { id: "1", title: "Component integration", completed: projectData ? projectData.progress > 85 : false },
+          { id: "2", title: "Error handling", completed: projectData ? projectData.progress > 90 : false },
+          { id: "3", title: "Performance optimization", completed: projectData ? projectData.status === "completed" : false }
+        ]
+      });
+    }
+
+    // Testing phase
+    baseNodes.push({
       id: "testing",
       title: "Quality Assurance",
       description: "Comprehensive testing and bug fixes",
-      status: "upcoming",
+      status: projectData ? (projectData.progress > 90 ? (projectData.status === "completed" ? "completed" : "in-progress") : "upcoming") : "upcoming",
       icon: <Shield className="w-6 h-6" />,
-      dependencies: ["integration"],
+      dependencies: hasMultipleDevelopmentNodes ? ["integration"] : ["frontend"],
       duration: "3 weeks",
       priority: "high",
       category: "testing",
       color: "from-violet-500 to-purple-600",
       tasks: [
-        { id: "1", title: "Unit testing", completed: false },
-        { id: "2", title: "Integration testing", completed: false },
-        { id: "3", title: "User acceptance testing", completed: false },
-        { id: "4", title: "Performance testing", completed: false }
+        { id: "1", title: "Unit testing", completed: projectData ? projectData.progress > 92 : false },
+        { id: "2", title: "Integration testing", completed: projectData ? projectData.progress > 95 : false },
+        { id: "3", title: "User acceptance testing", completed: projectData ? projectData.progress > 98 : false },
+        { id: "4", title: "Performance testing", completed: projectData ? projectData.status === "completed" : false }
       ]
-    },
-    {
+    });
+
+    // Deployment phase
+    baseNodes.push({
       id: "deployment",
       title: "Production Deployment",
       description: "Launch and go-live operations",
-      status: "upcoming",
+      status: projectData ? (projectData.status === "completed" ? "completed" : "upcoming") : "upcoming",
       icon: <Rocket className="w-6 h-6" />,
       dependencies: ["testing"],
       duration: "1 week",
@@ -199,13 +808,18 @@ export function ProjectRoadmap() {
       category: "deployment",
       color: "from-indigo-500 to-blue-600",
       tasks: [
-        { id: "1", title: "Environment setup", completed: false },
-        { id: "2", title: "Deployment pipeline", completed: false },
-        { id: "3", title: "Monitoring setup", completed: false },
-        { id: "4", title: "Go-live checklist", completed: false }
+        { id: "1", title: "Environment setup", completed: projectData ? projectData.status === "completed" : false },
+        { id: "2", title: "Deployment pipeline", completed: projectData ? projectData.status === "completed" : false },
+        { id: "3", title: "Monitoring setup", completed: projectData ? projectData.status === "completed" : false },
+        { id: "4", title: "Go-live checklist", completed: projectData ? projectData.status === "completed" : false }
       ]
-    }
-  ];
+    });
+
+    return baseNodes;
+  };
+
+  // Graph data structure with proper dependencies
+  const graphNodes: GraphNode[] = generateProjectRoadmap(projectData);
 
   // Initialize and manage the graph data structure
   useEffect(() => {
@@ -452,11 +1066,16 @@ export function ProjectRoadmap() {
         <div className="inline-flex items-center justify-center mb-4 sm:mb-6 px-4 sm:px-6 py-2 sm:py-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
           <GitBranch className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400 mr-2 sm:mr-3" />
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
-            Development Roadmap
+            {projectData ? `${projectData.name} Roadmap` : "Development Roadmap"}
           </h1>
           <div className="ml-3 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
         </div>
-        <p className="text-gray-400 mb-6">Interactive project timeline with advanced graph-based dependency tracking</p>
+        <p className="text-gray-400 mb-6">
+          {projectData 
+            ? `Interactive timeline for ${projectData.name} with ${projectData.technologies.join(", ")} technology stack`
+            : "Interactive project timeline with advanced graph-based dependency tracking"
+          }
+        </p>
         
         {/* Graph Statistics */}
         {graphStats && (
