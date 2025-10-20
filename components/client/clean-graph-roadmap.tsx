@@ -57,12 +57,10 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [firebaseNodes, setFirebaseNodes] = useState<Node[]>([]);
+  const [hoveredNodeIndex, setHoveredNodeIndex] = useState<number | null>(null);
+  const [clickedNodeIndex, setClickedNodeIndex] = useState<number | null>(null);
   
-  // Debug logging
-  useEffect(() => {
-    console.log('CleanGraphRoadmap - roadmapData received:', roadmapData);
-    console.log('CleanGraphRoadmap - roadmapData length:', roadmapData?.length || 0);
-  }, [roadmapData]);
+
   
   // Remove swipe functionality - not needed for graph structure
 
@@ -419,22 +417,30 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
     nodePositions.forEach(({ node, x, y, index }) => {
 
       const isSelected = index === currentIndex;
+      const isHovered = index === hoveredNodeIndex;
+      const isClicked = index === clickedNodeIndex;
       const isCompleted = node.status === 'completed';
-      const nodeRadius = isSelected ? 28 : 16;
       
-      // Animated pulse for selected node
+      // Dynamic radius based on state
+      let nodeRadius = 16; // base radius
+      if (isSelected) nodeRadius = 28;
+      else if (isClicked) nodeRadius = 32; // Larger when clicked
+      else if (isHovered) nodeRadius = 22;
+      
+      // Animated pulse for selected node, gentle pulse for hover
       const time = Date.now() * 0.003;
-      const pulse = isSelected ? 1 + Math.sin(time) * 0.1 : 1;
+      const pulse = isSelected ? 1 + Math.sin(time) * 0.1 : 
+                   isHovered ? 1 + Math.sin(time * 2) * 0.05 : 1;
       const finalRadius = nodeRadius * pulse;
       
-      // Node shadow/glow
-      if (isSelected) {
+      // Node shadow/glow for selected and hovered states
+      if (isSelected || isHovered) {
         ctx.shadowColor = isCompleted ? '#10b981' : 
                           node.status === 'in-progress' ? '#f59e0b' : '#6366f1';
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = isSelected ? 20 : 10;
       }
       
-      // Outer glow ring
+      // Outer glow ring for selected nodes
       if (isSelected) {
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, 50);
         gradient.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
@@ -442,6 +448,17 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.arc(x, y, 50, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+      
+      // Subtle hover glow for hovered nodes
+      if (isHovered && !isSelected) {
+        const hoverGradient = ctx.createRadialGradient(x, y, 0, x, y, 35);
+        hoverGradient.addColorStop(0, 'rgba(99, 102, 241, 0.2)');
+        hoverGradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+        ctx.fillStyle = hoverGradient;
+        ctx.beginPath();
+        ctx.arc(x, y, 35, 0, 2 * Math.PI);
         ctx.fill();
       }
       
@@ -525,9 +542,9 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
     // Reset shadow
     ctx.shadowBlur = 0;
 
-  }, [nodes, currentIndex]);
+  }, [nodes, currentIndex, hoveredNodeIndex, clickedNodeIndex]);
 
-  // Handle canvas click
+  // Handle canvas click - using same positioning logic as drawing
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -536,25 +553,95 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
     
-    // Create node positions for click detection
-    const cols = Math.ceil(Math.sqrt(nodes.length));
+    // Use the same positioning logic as the drawing function
+    const { width, height } = rect;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    
     const nodePositions = nodes.map((node, index) => {
-      const row = Math.floor(index / cols);
-      const col = index % cols;
+      // Use original position from Firebase data if available
+      if (node.position && node.position.x && node.position.y) {
+        // Scale the position to fit canvas (same as drawing)
+        const scaledX = (node.position.x / 1000) * width * 0.8 + width * 0.1;
+        const scaledY = (node.position.y / 500) * height * 0.6 + height * 0.2;
+        return { x: scaledX, y: scaledY, node, index };
+      }
       
-      const x = (rect.width / (cols + 1)) * (col + 1);
-      const y = (rect.height / (Math.ceil(nodes.length / cols) + 1)) * (row + 1);
+      // Fallback: horizontal timeline layout (same as drawing)
+      const spacing = Math.min(width / (nodes.length + 1), 200);
+      const x = spacing * (index + 1);
+      const y = centerY;
       
       return { x, y, node, index };
     });
 
     nodePositions.forEach(({ x, y, node, index }) => {
       const distance = Math.sqrt((clickX - x) ** 2 + (clickY - y) ** 2);
-      if (distance <= 35) {
+      
+      // Use a larger click radius for better usability
+      if (distance <= 50) {
+        
+        // Set click effect
+        setClickedNodeIndex(index);
+        setTimeout(() => setClickedNodeIndex(null), 200); // Clear after 200ms
+        
         setCurrentIndex(index);
         setSelectedNode(node);
+        return; // Exit early once we find a clicked node
       }
     });
+  };
+
+  // Handle mouse move for hover effects
+  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    
+    const { width, height } = rect;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    
+    // Use same positioning logic as click and draw
+    const nodePositions = nodes.map((node, index) => {
+      if (node.position && node.position.x && node.position.y) {
+        const scaledX = (node.position.x / 1000) * width * 0.8 + width * 0.1;
+        const scaledY = (node.position.y / 500) * height * 0.6 + height * 0.2;
+        return { x: scaledX, y: scaledY, node, index };
+      }
+      
+      const spacing = Math.min(width / (nodes.length + 1), 200);
+      const x = spacing * (index + 1);
+      const y = centerY;
+      
+      return { x, y, node, index };
+    });
+
+    let foundHover = false;
+    nodePositions.forEach(({ x, y, node, index }) => {
+      const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+      if (distance <= 50) {
+        setHoveredNodeIndex(index);
+        foundHover = true;
+        canvas.style.cursor = 'pointer';
+      }
+    });
+
+    if (!foundHover) {
+      setHoveredNodeIndex(null);
+      canvas.style.cursor = 'default';
+    }
+  };
+
+  // Handle mouse leave to reset hover state
+  const handleMouseLeave = () => {
+    setHoveredNodeIndex(null);
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = 'default';
+    }
   };
 
   // Removed swipe and keyboard navigation - using click-only interaction for graph structure
@@ -580,6 +667,8 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
         ref={canvasRef}
         className="w-full h-96 cursor-pointer transition-all duration-300 hover:opacity-95"
         onClick={handleCanvasClick}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       />
 
       {/* Node Details Panel */}
