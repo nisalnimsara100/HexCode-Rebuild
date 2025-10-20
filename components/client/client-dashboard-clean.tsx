@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import CleanGraphRoadmap from "./clean-graph-roadmap";
 import { useRouter } from "next/navigation";
+import { getDatabase, ref, get } from "firebase/database";
 import { 
   User, 
   Bell, 
@@ -41,90 +42,76 @@ import {
   GitBranch
 } from "lucide-react";
 
-interface Project {
+interface TeamMember {
   id: string;
   name: string;
-  status: string;
-  progress: number;
-  startDate: string;
-  estimatedCompletion: string;
-  budget: string;
-  technologies: string[];
-  description: string;
-  team: string[];
-  projectManager: string;
-  nextMilestone: string;
-  milestoneDue: string;
-  recentUpdates: string[];
+  role: string;
 }
 
-// Sample data
-const projectsData = [
-  {
-    id: "1",
-    name: "E-Commerce Platform",
-    status: "in-progress",
-    progress: 75,
-    startDate: "2024-01-15",
-    estimatedCompletion: "2024-03-15",
-    budget: "$85,000",
-    technologies: ["React", "Node.js", "MongoDB", "Stripe"],
-    description: "A comprehensive e-commerce platform with payment integration and inventory management.",
-    team: ["Sarah Johnson", "Mike Chen", "Alex Rodriguez"],
-    projectManager: "Sarah Johnson",
-    nextMilestone: "Payment Integration Testing",
-    milestoneDue: "2024-02-28",
-    recentUpdates: [
-      "Payment gateway integration completed",
-      "User authentication system implemented",
-      "Product catalog design finalized"
-    ]
-  },
-  {
-    id: "2",
-    name: "Mobile Banking App",
-    status: "completed",
-    progress: 100,
-    startDate: "2023-09-01",
-    estimatedCompletion: "2023-12-15",
-    budget: "$120,000",
-    technologies: ["React Native", "Firebase", "Node.js"],
-    description: "Secure mobile banking application with biometric authentication.",
-    team: ["David Kim", "Lisa Wong", "James Miller"],
-    projectManager: "David Kim",
-    nextMilestone: "Project Completed",
-    milestoneDue: "Completed",
-    recentUpdates: [
-      "App successfully launched on both iOS and Android",
-      "Security audit passed with flying colors",
-      "User onboarding process optimized"
-    ]
-  },
-  {
-    id: "3",
-    name: "Healthcare Portal",
-    status: "planning",
-    progress: 25,
-    startDate: "2024-02-01",
-    estimatedCompletion: "2024-07-01",
-    budget: "$95,000",
-    technologies: ["Vue.js", "Python", "PostgreSQL"],
-    description: "Patient management system for healthcare providers.",
-    team: ["Emma Thompson", "Carlos Mendez"],
-    projectManager: "Emma Thompson",
-    nextMilestone: "Requirements Finalization",
-    milestoneDue: "2024-02-15",
-    recentUpdates: [
-      "Initial requirements gathering phase started",
-      "Stakeholder interviews scheduled",
-      "Technology stack finalized"
-    ]
+interface Task {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+interface RoadmapPhase {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  tasks: Task[];
+  dependencies: string[];
+  duration: string;
+  priority: string;
+  category: string;
+  position: { x: number; y: number };
+  color: string;
+  radius: number;
+}
+
+interface Project {
+  id: string;
+  email: string;
+  name: string;
+  description: string;
+  startDate: string;
+  dueDate: string;
+  budget: number;
+  nextMilestone: string;
+  progress: number;
+  teamMembers: TeamMember[];
+  technologies: string[];
+  roadmap: RoadmapPhase[];
+  status?: string; // derived from progress
+}
+
+// Firebase fetch function
+async function fetchClientProjectsByEmail(userEmail: string): Promise<Project[]> {
+  try {
+    const database = getDatabase();
+    const clientProjectsRef = ref(database, 'clientProjects');
+    const snapshot = await get(clientProjectsRef);
+    
+    if (snapshot.exists()) {
+      const projects = snapshot.val();
+      // Filter projects by user email
+      return projects.filter((project: Project) => project.email === userEmail);
+    } else {
+      console.log("No client projects found");
+      return [];
+    }
+  } catch (error) {
+    console.error("Error fetching client projects:", error);
+    return [];
   }
-];
+}
 
 export function ClientDashboard() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState<string>("");
   const [newProjectForm, setNewProjectForm] = useState({
     name: "",
     description: "",
@@ -134,6 +121,58 @@ export function ClientDashboard() {
   });
   const newProjectModalRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // Utility function to get status from progress
+  const getProjectStatus = (progress: number) => {
+    if (progress === 100) return 'completed';
+    if (progress > 0) return 'in-progress';
+    return 'planning';
+  };
+
+  // Utility function to format budget
+  const formatBudget = (budget: number) => {
+    return `$${(budget / 1000).toFixed(0)}K`;
+  };
+
+  // Fetch projects on component mount
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        // Get user email from localStorage
+        const profile = localStorage.getItem('clientProfile');
+        if (profile) {
+          const parsed = JSON.parse(profile);
+          const email = parsed.email;
+          console.log('Dashboard - User email:', email);
+          setUserEmail(email);
+          
+          // Fetch projects from Firebase
+          const fetchedProjects = await fetchClientProjectsByEmail(email);
+          console.log('Dashboard - Fetched projects:', fetchedProjects);
+          
+          // Add status to each project based on progress and ensure roadmap exists
+          const projectsWithStatus = fetchedProjects.map(project => ({
+            ...project,
+            status: getProjectStatus(project.progress),
+            roadmap: project.roadmap || [], // Ensure roadmap is always an array
+            teamMembers: project.teamMembers || [], // Ensure teamMembers is always an array
+            technologies: project.technologies || [] // Ensure technologies is always an array
+          }));
+          
+          console.log('Dashboard - Projects with status:', projectsWithStatus);
+          setProjects(projectsWithStatus);
+        } else {
+          console.log('Dashboard - No client profile found in localStorage');
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
   
   const handleLogout = async () => {
     try {
@@ -254,7 +293,7 @@ export function ClientDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-emerald-400 text-sm font-medium">Active Projects</p>
-                <p className="text-2xl font-bold text-white">{projectsData.filter(p => p.status === 'in-progress').length}</p>
+                <p className="text-2xl font-bold text-white">{projects.filter((p: Project) => p.status === 'in-progress').length}</p>
               </div>
               <Briefcase className="w-8 h-8 text-emerald-400" />
             </div>
@@ -264,7 +303,7 @@ export function ClientDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-400 text-sm font-medium">Completed</p>
-                <p className="text-2xl font-bold text-white">{projectsData.filter(p => p.status === 'completed').length}</p>
+                <p className="text-2xl font-bold text-white">{projects.filter((p: Project) => p.status === 'completed').length}</p>
               </div>
               <CheckCircle className="w-8 h-8 text-blue-400" />
             </div>
@@ -274,7 +313,7 @@ export function ClientDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-amber-400 text-sm font-medium">In Planning</p>
-                <p className="text-2xl font-bold text-white">{projectsData.filter(p => p.status === 'planning').length}</p>
+                <p className="text-2xl font-bold text-white">{projects.filter((p: Project) => p.status === 'planning').length}</p>
               </div>
               <Target className="w-8 h-8 text-amber-400" />
             </div>
@@ -284,7 +323,7 @@ export function ClientDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-400 text-sm font-medium">Total Investment</p>
-                <p className="text-2xl font-bold text-white">$300K</p>
+                <p className="text-2xl font-bold text-white">${(projects.reduce((total, p) => total + p.budget, 0) / 1000).toFixed(0)}K</p>
               </div>
               <DollarSign className="w-8 h-8 text-purple-400" />
             </div>
@@ -292,85 +331,91 @@ export function ClientDashboard() {
         </div>
 
         {/* Projects Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-          {projectsData.map((project) => (
-            <Card key={project.id} className="bg-gray-800/50 border-gray-700/50 hover:border-emerald-500/50 transition-all duration-300 cursor-pointer group"
-                  onClick={() => setSelectedProject(project)}>
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors">
-                      {project.name}
-                    </h3>
-                    <p className="text-gray-400 text-sm mt-1">{project.description}</p>
-                  </div>
-                  <Badge className={getStatusColor(project.status)}>
-                    {getStatusIcon(project.status)}
-                    <span className="ml-1 capitalize">{project.status.replace('-', ' ')}</span>
-                  </Badge>
-                </div>
-                
-                {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm text-gray-400 mb-2">
-                    <span>Progress</span>
-                    <span>{project.progress}%</span>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${project.progress}%` }}
-                    ></div>
-                  </div>
-                </div>
-                
-                {/* Project Details */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Budget:</span>
-                    <span className="text-white font-medium">{project.budget}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Due:</span>
-                    <span className="text-white">{project.estimatedCompletion}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">PM:</span>
-                    <span className="text-white">{project.projectManager}</span>
-                  </div>
-                </div>
-                
-                {/* Technologies */}
-                <div className="flex flex-wrap gap-1 mt-4">
-                  {project.technologies.slice(0, 3).map((tech, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs bg-blue-500/20 text-blue-400 border-blue-500/50">
-                      {tech}
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+            {projects.map((project: Project) => (
+              <Card key={project.id} className="bg-gray-800/50 border-gray-700/50 hover:border-emerald-500/50 transition-all duration-300 cursor-pointer group"
+                    onClick={() => setSelectedProject(project)}>
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors">
+                        {project.name}
+                      </h3>
+                      <p className="text-gray-400 text-sm mt-1">{project.description}</p>
+                    </div>
+                    <Badge className={getStatusColor(project.status || 'planning')}>
+                      {getStatusIcon(project.status || 'planning')}
+                      <span className="ml-1 capitalize">{(project.status || 'planning').replace('-', ' ')}</span>
                     </Badge>
-                  ))}
-                  {project.technologies.length > 3 && (
-                    <Badge variant="secondary" className="text-xs bg-gray-500/20 text-gray-400">
-                      +{project.technologies.length - 3}
-                    </Badge>
-                  )}
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-sm text-gray-400 mb-2">
+                      <span>Progress</span>
+                      <span>{project.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${project.progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  {/* Project Details */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Budget:</span>
+                      <span className="text-white font-medium">{formatBudget(project.budget)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Due:</span>
+                      <span className="text-white">{project.dueDate}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Next:</span>
+                      <span className="text-white">{project.nextMilestone}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Technologies */}
+                  <div className="flex flex-wrap gap-1 mt-4">
+                    {project.technologies.slice(0, 3).map((tech: string, index: number) => (
+                      <Badge key={index} variant="secondary" className="text-xs bg-blue-500/20 text-blue-400 border-blue-500/50">
+                        {tech}
+                      </Badge>
+                    ))}
+                    {project.technologies.length > 3 && (
+                      <Badge variant="secondary" className="text-xs bg-gray-500/20 text-gray-400">
+                        +{project.technologies.length - 3}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          
+            {/* New Project Card */}
+            <Card className="bg-gray-800/30 border-gray-700/50 border-dashed hover:border-emerald-500/50 transition-all duration-300 cursor-pointer group"
+                  onClick={() => setShowNewProjectModal(true)}>
+              <div className="p-6 h-full flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-emerald-500/30 transition-colors">
+                    <Target className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">New Project</h3>
+                  <p className="text-gray-400 text-sm">Click to request a new project</p>
                 </div>
               </div>
             </Card>
-          ))}
-          
-          {/* New Project Card */}
-          <Card className="bg-gray-800/30 border-gray-700/50 border-dashed hover:border-emerald-500/50 transition-all duration-300 cursor-pointer group"
-                onClick={() => setShowNewProjectModal(true)}>
-            <div className="p-6 h-full flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-emerald-500/30 transition-colors">
-                  <Target className="w-6 h-6 text-emerald-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-white mb-2">New Project</h3>
-                <p className="text-gray-400 text-sm">Click to request a new project</p>
-              </div>
-            </div>
-          </Card>
-        </div>
+          </div>
+        )}
       </main>
 
       {/* Project Details Modal */}
@@ -378,6 +423,8 @@ export function ClientDashboard() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-3xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
             <div className="p-8">
+
+              
               {/* Header */}
               <div className="flex items-start justify-between mb-8">
                 <div>
@@ -385,9 +432,9 @@ export function ClientDashboard() {
                   <p className="text-gray-400 text-lg">{selectedProject.description}</p>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <Badge className={getStatusColor(selectedProject.status)}>
-                    {getStatusIcon(selectedProject.status)}
-                    <span className="ml-1 capitalize">{selectedProject.status.replace('-', ' ')}</span>
+                  <Badge className={getStatusColor(selectedProject.status || 'planning')}>
+                    {getStatusIcon(selectedProject.status || 'planning')}
+                    <span className="ml-1 capitalize">{(selectedProject.status || 'planning').replace('-', ' ')}</span>
                   </Badge>
                   <Button 
                     variant="ghost" 
@@ -428,11 +475,11 @@ export function ClientDashboard() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Due Date:</span>
-                      <span className="text-white">{selectedProject.estimatedCompletion}</span>
+                      <span className="text-white">{selectedProject.dueDate}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Budget:</span>
-                      <span className="text-white">{selectedProject.budget}</span>
+                      <span className="text-white">{formatBudget(selectedProject.budget)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Next Milestone:</span>
@@ -445,12 +492,15 @@ export function ClientDashboard() {
                 <Card className="bg-gray-800/50 border-gray-700/50 p-6">
                   <h3 className="text-lg font-semibold text-white mb-4">Team Members</h3>
                   <div className="space-y-3">
-                    {selectedProject.team.map((member: string, index: number) => (
+                    {selectedProject.teamMembers.map((member: TeamMember, index: number) => (
                       <div key={index} className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full flex items-center justify-center text-sm text-white font-medium">
-                          {member.split(" ").map(n => n[0]).join("")}
+                          {member.name.split(" ").map(n => n[0]).join("")}
                         </div>
-                        <span className="text-white">{member}</span>
+                        <div>
+                          <span className="text-white">{member.name}</span>
+                          <p className="text-xs text-gray-400">{member.role}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -481,7 +531,7 @@ export function ClientDashboard() {
                       Swipe or click nodes to explore tasks and progress
                     </p>
                   </div>
-                  <CleanGraphRoadmap />
+                  <CleanGraphRoadmap roadmapData={selectedProject.roadmap} />
                 </Card>
               </div>
 

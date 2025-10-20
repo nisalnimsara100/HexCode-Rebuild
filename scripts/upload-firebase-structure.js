@@ -1,0 +1,922 @@
+const { initializeApp } = require('firebase/app');
+const { getDatabase, ref, set } = require('firebase/database');
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD_mq2ETgW45C-qEaOVjc3ZEgCPbPPfPoE",
+  authDomain: "hexcode-website-897f4.firebaseapp.com",
+  databaseURL: "https://hexcode-website-897f4-default-rtdb.firebaseio.com",
+  projectId: "hexcode-website-897f4",
+  storageBucket: "hexcode-website-897f4.firebasestorage.app",
+  messagingSenderId: "968376624063",
+  appId: "1:968376624063:web:e4c893fa4945b155b4370a",
+  measurementId: "G-Z8J9M847RD"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+// Complete Firebase structure data
+const firebaseData = {
+  "clients": {
+    "client_001": {
+      "uid": "client_001",
+      "email": "john.doe@techstartup.com",
+      "name": "John Doe",
+      "company": "TechStartup Inc.",
+      "phone": "+1 (555) 123-4567",
+      "profilePicture": "https://api.dicebear.com/7.x/avataaars/svg?seed=john",
+      "role": "client",
+      "joinDate": "2024-01-15",
+      "projects": ["project_001", "project_002"],
+      "address": {
+        "street": "123 Innovation Drive",
+        "city": "San Francisco",
+        "state": "CA",
+        "zipCode": "94105",
+        "country": "United States"
+      },
+      "businessInfo": {
+        "industry": "Financial Technology",
+        "companySize": "50-100 employees",
+        "website": "https://techstartup.com",
+        "foundedYear": 2019,
+        "linkedIn": "https://linkedin.com/company/techstartup-inc"
+      },
+      "preferences": {
+        "notifications": {
+          "email": true,
+          "sms": false,
+          "push": true,
+          "projectUpdates": true,
+          "milestoneAlerts": true,
+          "weeklyReports": true
+        },
+        "communicationPreference": "email",
+        "timezone": "America/Los_Angeles",
+        "preferredMeetingTimes": ["9:00-11:00", "14:00-16:00"],
+        "dashboardView": "detailed"
+      },
+      "contactHistory": {
+        "lastContact": "2024-12-20T14:30:00Z",
+        "totalMeetings": 24,
+        "averageResponseTime": "2 hours"
+      }
+    },
+    "client_002": {
+      "uid": "client_002",
+      "email": "sarah.johnson@shopflow.com",
+      "name": "Sarah Johnson",
+      "company": "ShopFlow Inc",
+      "phone": "+1 (555) 987-6543",
+      "profilePicture": "https://api.dicebear.com/7.x/avataaars/svg?seed=sarah",
+      "role": "client",
+      "joinDate": "2024-02-20",
+      "projects": ["project_003", "project_004"],
+      "address": {
+        "street": "456 Commerce Boulevard",
+        "city": "Austin",
+        "state": "TX",
+        "zipCode": "78701",
+        "country": "United States"
+      },
+      "businessInfo": {
+        "industry": "E-commerce",
+        "companySize": "25-50 employees",
+        "website": "https://shopflow.com",
+        "foundedYear": 2020,
+        "linkedIn": "https://linkedin.com/company/shopflow-inc"
+      },
+      "preferences": {
+        "notifications": {
+          "email": true,
+          "sms": true,
+          "push": true,
+          "projectUpdates": true,
+          "milestoneAlerts": true,
+          "weeklyReports": false
+        },
+        "communicationPreference": "slack",
+        "timezone": "America/Chicago",
+        "preferredMeetingTimes": ["10:00-12:00", "15:00-17:00"],
+        "dashboardView": "summary"
+      },
+      "contactHistory": {
+        "lastContact": "2024-12-19T16:45:00Z",
+        "totalMeetings": 18,
+        "averageResponseTime": "1.5 hours"
+      }
+    }
+  },
+  
+  "projects": {
+    "project_001": {
+      "id": "project_001",
+      "clientId": "client_001",
+      "name": "AI-Powered Trading Platform",
+      "description": "Revolutionary trading platform with AI-driven market analysis and automated trading capabilities",
+      "type": "Web Application",
+      "status": "in-progress",
+      "priority": "high",
+      "budget": {
+        "total": 485000,
+        "spent": 276000,
+        "remaining": 209000,
+        "currency": "USD"
+      },
+      "timeline": {
+        "startDate": "2024-01-20",
+        "expectedEndDate": "2024-06-15",
+        "actualEndDate": null,
+        "estimatedHours": 2800,
+        "spentHours": 1680
+      },
+      "team": {
+        "projectManager": "staff_002",
+        "leadDeveloper": "staff_003",
+        "members": ["staff_003", "staff_004", "staff_005", "staff_006"]
+      },
+      "technologies": ["React", "Node.js", "Python", "TensorFlow", "PostgreSQL", "Redis", "Docker", "AWS"],
+      "repository": {
+        "url": "https://github.com/hexcode/trading-platform",
+        "branch": "main",
+        "lastCommit": "2024-12-20T10:30:00Z"
+      },
+      "roadmap": {
+        "phases": [
+          {
+            "id": "phase_001_001",
+            "name": "Research & Architecture",
+            "description": "Market research, technology stack selection, and system architecture design",
+            "status": "completed",
+            "startDate": "2024-01-20",
+            "endDate": "2024-02-15",
+            "deliverables": [
+              "Market research report",
+              "Technical architecture document",
+              "Technology stack evaluation",
+              "Database schema design"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_001_001",
+                "name": "Architecture Approval",
+                "description": "Client approval of system architecture and technology stack",
+                "dueDate": "2024-02-15",
+                "status": "completed",
+                "completedDate": "2024-02-14"
+              }
+            ]
+          },
+          {
+            "id": "phase_001_002",
+            "name": "Core Development",
+            "description": "Development of core trading engine and user authentication system",
+            "status": "completed",
+            "startDate": "2024-02-16",
+            "endDate": "2024-04-10",
+            "deliverables": [
+              "Trading engine API",
+              "User authentication system",
+              "Basic UI framework",
+              "Database implementation"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_001_002",
+                "name": "MVP Release",
+                "description": "Minimum viable product with basic trading functionality",
+                "dueDate": "2024-04-10",
+                "status": "completed",
+                "completedDate": "2024-04-08"
+              }
+            ]
+          },
+          {
+            "id": "phase_001_003",
+            "name": "AI Integration",
+            "description": "Integration of AI models for market analysis and trading recommendations",
+            "status": "in-progress",
+            "startDate": "2024-04-11",
+            "endDate": "2024-05-20",
+            "progress": 65,
+            "deliverables": [
+              "AI market analysis module",
+              "Trading recommendation engine",
+              "Risk assessment algorithms",
+              "Performance analytics dashboard"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_001_003",
+                "name": "AI Beta Release",
+                "description": "Beta version with AI-powered trading recommendations",
+                "dueDate": "2024-05-20",
+                "status": "in-progress",
+                "progress": 65
+              }
+            ]
+          },
+          {
+            "id": "phase_001_004",
+            "name": "Testing & Optimization",
+            "description": "Comprehensive testing, performance optimization, and security auditing",
+            "status": "not-started",
+            "startDate": "2024-05-21",
+            "endDate": "2024-06-10",
+            "deliverables": [
+              "Automated test suite",
+              "Performance optimization report",
+              "Security audit results",
+              "Load testing analysis"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_001_004",
+                "name": "Production Ready",
+                "description": "Platform ready for production deployment",
+                "dueDate": "2024-06-10",
+                "status": "not-started"
+              }
+            ]
+          },
+          {
+            "id": "phase_001_005",
+            "name": "Deployment & Launch",
+            "description": "Production deployment, user training, and go-live support",
+            "status": "not-started",
+            "startDate": "2024-06-11",
+            "endDate": "2024-06-15",
+            "deliverables": [
+              "Production deployment",
+              "User documentation",
+              "Training materials",
+              "Support documentation"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_001_005",
+                "name": "Go Live",
+                "description": "Official platform launch and handover to client",
+                "dueDate": "2024-06-15",
+                "status": "not-started"
+              }
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "from": "phase_001_001",
+            "to": "phase_001_002",
+            "type": "finish-to-start"
+          },
+          {
+            "from": "phase_001_002",
+            "to": "phase_001_003",
+            "type": "finish-to-start"
+          },
+          {
+            "from": "phase_001_003",
+            "to": "phase_001_004",
+            "type": "finish-to-start"
+          },
+          {
+            "from": "phase_001_004",
+            "to": "phase_001_005",
+            "type": "finish-to-start"
+          }
+        ],
+        "criticalPath": ["phase_001_001", "phase_001_002", "phase_001_003", "phase_001_004", "phase_001_005"],
+        "risks": [
+          {
+            "id": "risk_001_001",
+            "description": "AI model training may take longer than expected",
+            "impact": "medium",
+            "probability": "low",
+            "mitigation": "Parallel development of fallback algorithms",
+            "owner": "staff_003"
+          },
+          {
+            "id": "risk_001_002",
+            "description": "Regulatory compliance requirements may change",
+            "impact": "high",
+            "probability": "medium",
+            "mitigation": "Regular compliance reviews and flexible architecture",
+            "owner": "staff_002"
+          }
+        ]
+      },
+      "communications": [
+        {
+          "id": "comm_001_001",
+          "type": "meeting",
+          "subject": "Project Kickoff Meeting",
+          "date": "2024-01-22T10:00:00Z",
+          "participants": ["client_001", "staff_002", "staff_003"],
+          "summary": "Discussed project requirements, timeline, and initial architecture approach",
+          "actionItems": [
+            {
+              "item": "Finalize technical requirements document",
+              "assignee": "staff_003",
+              "dueDate": "2024-01-25",
+              "status": "completed"
+            }
+          ]
+        },
+        {
+          "id": "comm_001_002",
+          "type": "email",
+          "subject": "Weekly Progress Update - Week 16",
+          "date": "2024-12-20T09:00:00Z",
+          "from": "staff_002",
+          "to": ["client_001"],
+          "summary": "AI integration phase at 65% completion, on track for milestone delivery",
+          "attachments": ["progress-report-week16.pdf", "ai-demo-screenshots.zip"]
+        }
+      ],
+      "documents": [
+        {
+          "id": "doc_001_001",
+          "name": "Technical Requirements Document",
+          "type": "requirements",
+          "url": "/documents/project_001/trd_v2.3.pdf",
+          "version": "2.3",
+          "uploadDate": "2024-02-10T14:30:00Z",
+          "uploadedBy": "staff_003"
+        },
+        {
+          "id": "doc_001_002",
+          "name": "System Architecture Diagram",
+          "type": "architecture",
+          "url": "/documents/project_001/architecture_v1.5.pdf",
+          "version": "1.5",
+          "uploadDate": "2024-02-14T11:20:00Z",
+          "uploadedBy": "staff_003"
+        }
+      ],
+      "metrics": {
+        "codeQuality": {
+          "coverage": 87,
+          "complexity": "medium",
+          "bugs": 12,
+          "vulnerabilities": 2
+        },
+        "performance": {
+          "responseTime": "245ms",
+          "throughput": "1200 req/s",
+          "uptime": "99.8%"
+        }
+      }
+    },
+
+    "project_002": {
+      "id": "project_002",
+      "clientId": "client_001",
+      "name": "Mobile Trading App",
+      "description": "Companion mobile application for the AI trading platform with real-time notifications and portfolio management",
+      "type": "Mobile Application",
+      "status": "planning",
+      "priority": "medium",
+      "budget": {
+        "total": 180000,
+        "spent": 0,
+        "remaining": 180000,
+        "currency": "USD"
+      },
+      "timeline": {
+        "startDate": "2024-03-01",
+        "expectedEndDate": "2024-07-15",
+        "actualEndDate": null,
+        "estimatedHours": 1200,
+        "spentHours": 0
+      },
+      "team": {
+        "projectManager": "staff_002",
+        "leadDeveloper": "staff_007",
+        "members": ["staff_007", "staff_008"]
+      },
+      "technologies": ["React Native", "TypeScript", "Redux", "Firebase", "Push Notifications"],
+      "roadmap": {
+        "phases": [
+          {
+            "id": "phase_002_001",
+            "name": "Design & Prototyping",
+            "description": "UI/UX design and interactive prototype development",
+            "status": "not-started",
+            "startDate": "2024-03-01",
+            "endDate": "2024-03-30",
+            "deliverables": [
+              "UI/UX wireframes",
+              "Interactive prototype",
+              "Design system",
+              "User flow diagrams"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_002_001",
+                "name": "Design Approval",
+                "description": "Client approval of mobile app design and user experience",
+                "dueDate": "2024-03-30",
+                "status": "not-started"
+              }
+            ]
+          },
+          {
+            "id": "phase_002_002",
+            "name": "Core App Development",
+            "description": "Development of core mobile application features",
+            "status": "not-started",
+            "startDate": "2024-04-01",
+            "endDate": "2024-06-15",
+            "deliverables": [
+              "Authentication screens",
+              "Portfolio dashboard",
+              "Trading interface",
+              "Push notification system"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_002_002",
+                "name": "Beta App Release",
+                "description": "Beta version available for testing",
+                "dueDate": "2024-06-15",
+                "status": "not-started"
+              }
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "from": "project_001",
+            "to": "project_002",
+            "type": "dependency",
+            "description": "Mobile app requires API endpoints from main platform"
+          }
+        ]
+      }
+    },
+
+    "project_003": {
+      "id": "project_003",
+      "clientId": "client_002",
+      "name": "E-commerce Analytics Dashboard",
+      "description": "Advanced analytics dashboard for e-commerce businesses with AI-powered insights and recommendations",
+      "type": "Web Application",
+      "status": "in-progress",
+      "priority": "high",
+      "budget": {
+        "total": 320000,
+        "spent": 145000,
+        "remaining": 175000,
+        "currency": "USD"
+      },
+      "timeline": {
+        "startDate": "2024-02-25",
+        "expectedEndDate": "2024-08-10",
+        "actualEndDate": null,
+        "estimatedHours": 2200,
+        "spentHours": 980
+      },
+      "team": {
+        "projectManager": "staff_001",
+        "leadDeveloper": "staff_004",
+        "members": ["staff_004", "staff_005", "staff_009"]
+      },
+      "technologies": ["Vue.js", "Python", "Django", "PostgreSQL", "D3.js", "Machine Learning", "Docker"],
+      "roadmap": {
+        "phases": [
+          {
+            "id": "phase_003_001",
+            "name": "Data Integration",
+            "description": "Integration with major e-commerce platforms and data sources",
+            "status": "completed",
+            "startDate": "2024-02-25",
+            "endDate": "2024-04-15",
+            "deliverables": [
+              "Shopify integration",
+              "WooCommerce connector",
+              "Amazon API integration",
+              "Google Analytics connector"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_003_001",
+                "name": "Data Pipeline Complete",
+                "description": "All major platform integrations completed and tested",
+                "dueDate": "2024-04-15",
+                "status": "completed",
+                "completedDate": "2024-04-12"
+              }
+            ]
+          },
+          {
+            "id": "phase_003_002",
+            "name": "Analytics Engine",
+            "description": "Development of core analytics processing and ML algorithms",
+            "status": "in-progress",
+            "startDate": "2024-04-16",
+            "endDate": "2024-06-30",
+            "progress": 75,
+            "deliverables": [
+              "Sales analytics engine",
+              "Customer behavior analysis",
+              "Predictive modeling",
+              "Recommendation algorithms"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_003_002",
+                "name": "Analytics MVP",
+                "description": "Core analytics functionality ready for testing",
+                "dueDate": "2024-06-30",
+                "status": "in-progress",
+                "progress": 75
+              }
+            ]
+          },
+          {
+            "id": "phase_003_003",
+            "name": "Dashboard UI",
+            "description": "Interactive dashboard interface with data visualizations",
+            "status": "not-started",
+            "startDate": "2024-07-01",
+            "endDate": "2024-08-10",
+            "deliverables": [
+              "Interactive charts and graphs",
+              "Customizable dashboard",
+              "Report generation",
+              "Export functionality"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_003_003",
+                "name": "Dashboard Complete",
+                "description": "Fully functional dashboard ready for production",
+                "dueDate": "2024-08-10",
+                "status": "not-started"
+              }
+            ]
+          }
+        ]
+      },
+      "communications": [
+        {
+          "id": "comm_003_001",
+          "type": "video-call",
+          "subject": "Analytics Requirements Review",
+          "date": "2024-12-18T15:00:00Z",
+          "participants": ["client_002", "staff_001", "staff_004"],
+          "summary": "Reviewed analytics requirements and discussed additional KPI tracking features",
+          "duration": "1 hour 15 minutes",
+          "actionItems": [
+            {
+              "item": "Add conversion funnel analytics",
+              "assignee": "staff_004",
+              "dueDate": "2024-12-25",
+              "status": "in-progress"
+            }
+          ]
+        }
+      ]
+    },
+
+    "project_004": {
+      "id": "project_004",
+      "clientId": "client_002",
+      "name": "Inventory Management System",
+      "description": "Comprehensive inventory management system with automated reordering and supplier integration",
+      "type": "Web Application",
+      "status": "planning",
+      "priority": "low",
+      "budget": {
+        "total": 250000,
+        "spent": 0,
+        "remaining": 250000,
+        "currency": "USD"
+      },
+      "timeline": {
+        "startDate": "2024-09-01",
+        "expectedEndDate": "2025-02-28",
+        "actualEndDate": null,
+        "estimatedHours": 1800,
+        "spentHours": 0
+      },
+      "team": {
+        "projectManager": "staff_001",
+        "leadDeveloper": "staff_006",
+        "members": ["staff_006", "staff_008"]
+      },
+      "technologies": ["React", "Node.js", "Express", "MongoDB", "Redis", "Stripe API"],
+      "roadmap": {
+        "phases": [
+          {
+            "id": "phase_004_001",
+            "name": "Planning & Architecture",
+            "description": "System requirements analysis and architecture design",
+            "status": "not-started",
+            "startDate": "2024-09-01",
+            "endDate": "2024-09-30",
+            "deliverables": [
+              "Requirements specification",
+              "System architecture",
+              "Database design",
+              "API specifications"
+            ],
+            "milestones": [
+              {
+                "id": "milestone_004_001",
+                "name": "Architecture Sign-off",
+                "description": "Client approval of system architecture and requirements",
+                "dueDate": "2024-09-30",
+                "status": "not-started"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+
+  "staff": {
+    "staff_001": {
+      "uid": "staff_001",
+      "email": "alex.chen@hexcode.com",
+      "name": "Alex Chen",
+      "role": "manager",
+      "department": "Project Management",
+      "title": "Senior Project Manager",
+      "phone": "+1 (555) 234-5678",
+      "profilePicture": "https://api.dicebear.com/7.x/avataaars/svg?seed=alex",
+      "joinDate": "2022-03-15",
+      "skills": ["Project Management", "Agile", "Scrum", "Risk Management", "Client Relations"],
+      "currentProjects": ["project_003", "project_004"],
+      "availability": "available"
+    },
+    "staff_002": {
+      "uid": "staff_002",
+      "email": "maria.rodriguez@hexcode.com",
+      "name": "Maria Rodriguez",
+      "role": "manager",
+      "department": "Project Management",
+      "title": "Lead Project Manager",
+      "phone": "+1 (555) 345-6789",
+      "profilePicture": "https://api.dicebear.com/7.x/avataaars/svg?seed=maria",
+      "joinDate": "2021-08-20",
+      "skills": ["Project Management", "Agile", "Technical Leadership", "Budget Management"],
+      "currentProjects": ["project_001", "project_002"],
+      "availability": "busy"
+    },
+    "staff_003": {
+      "uid": "staff_003",
+      "email": "david.kim@hexcode.com",
+      "name": "David Kim",
+      "role": "employee",
+      "department": "Engineering",
+      "title": "Senior Full Stack Developer",
+      "phone": "+1 (555) 456-7890",
+      "profilePicture": "https://api.dicebear.com/7.x/avataaars/svg?seed=david",
+      "joinDate": "2020-05-10",
+      "skills": ["React", "Node.js", "Python", "AWS", "PostgreSQL", "Machine Learning"],
+      "currentProjects": ["project_001"],
+      "availability": "available"
+    },
+    "staff_004": {
+      "uid": "staff_004",
+      "email": "jessica.brown@hexcode.com",
+      "name": "Jessica Brown",
+      "role": "employee",
+      "department": "Engineering",
+      "title": "Senior Backend Developer",
+      "phone": "+1 (555) 567-8901",
+      "profilePicture": "https://api.dicebear.com/7.x/avataaars/svg?seed=jessica",
+      "joinDate": "2021-01-12",
+      "skills": ["Python", "Django", "PostgreSQL", "Redis", "Docker", "Machine Learning"],
+      "currentProjects": ["project_001", "project_003"],
+      "availability": "available"
+    }
+  },
+
+  "communications": {
+    "comm_001_001": {
+      "id": "comm_001_001",
+      "projectId": "project_001",
+      "clientId": "client_001",
+      "type": "meeting",
+      "subject": "Project Kickoff Meeting",
+      "date": "2024-01-22T10:00:00Z",
+      "participants": ["client_001", "staff_002", "staff_003"],
+      "summary": "Discussed project requirements, timeline, and initial architecture approach",
+      "actionItems": [
+        {
+          "item": "Finalize technical requirements document",
+          "assignee": "staff_003",
+          "dueDate": "2024-01-25",
+          "status": "completed"
+        }
+      ],
+      "attachments": ["kickoff-presentation.pdf", "requirements-template.docx"]
+    },
+    "comm_001_002": {
+      "id": "comm_001_002",
+      "projectId": "project_001",
+      "clientId": "client_001",
+      "type": "email",
+      "subject": "Weekly Progress Update - Week 16",
+      "date": "2024-12-20T09:00:00Z",
+      "from": "staff_002",
+      "to": ["client_001"],
+      "summary": "AI integration phase at 65% completion, on track for milestone delivery",
+      "attachments": ["progress-report-week16.pdf", "ai-demo-screenshots.zip"]
+    }
+  },
+
+  "tasks": {
+    "task_001_001": {
+      "id": "task_001_001",
+      "projectId": "project_001",
+      "phaseId": "phase_001_003",
+      "name": "Implement sentiment analysis algorithm",
+      "description": "Develop and integrate sentiment analysis for market news processing",
+      "assignee": "staff_003",
+      "status": "in-progress",
+      "priority": "high",
+      "estimatedHours": 32,
+      "spentHours": 18,
+      "startDate": "2024-12-15",
+      "dueDate": "2024-12-30",
+      "dependencies": ["task_001_002"],
+      "tags": ["AI", "algorithm", "backend"]
+    },
+    "task_001_002": {
+      "id": "task_001_002",
+      "projectId": "project_001",
+      "phaseId": "phase_001_003",
+      "name": "Set up ML training pipeline",
+      "description": "Configure automated machine learning model training and validation pipeline",
+      "assignee": "staff_004",
+      "status": "completed",
+      "priority": "high",
+      "estimatedHours": 24,
+      "spentHours": 22,
+      "startDate": "2024-12-10",
+      "dueDate": "2024-12-20",
+      "completedDate": "2024-12-19",
+      "tags": ["ML", "pipeline", "infrastructure"]
+    }
+  },
+
+  "financials": {
+    "project_001": {
+      "projectId": "project_001",
+      "budget": {
+        "total": 485000,
+        "spent": 276000,
+        "remaining": 209000,
+        "currency": "USD"
+      },
+      "expenses": [
+        {
+          "id": "exp_001_001",
+          "date": "2024-02-01",
+          "category": "development",
+          "amount": 45000,
+          "description": "Development team - February 2024",
+          "approvedBy": "staff_002"
+        },
+        {
+          "id": "exp_001_002",
+          "date": "2024-03-01",
+          "category": "infrastructure",
+          "amount": 8500,
+          "description": "AWS cloud services - Q1 2024",
+          "approvedBy": "staff_002"
+        }
+      ],
+      "invoicing": {
+        "milestonePayments": [
+          {
+            "milestone": "Architecture Approval",
+            "amount": 97000,
+            "dueDate": "2024-02-15",
+            "status": "paid",
+            "paidDate": "2024-02-16"
+          },
+          {
+            "milestone": "MVP Release",
+            "amount": 145500,
+            "dueDate": "2024-04-10",
+            "status": "paid",
+            "paidDate": "2024-04-11"
+          },
+          {
+            "milestone": "AI Beta Release",
+            "amount": 145500,
+            "dueDate": "2024-05-20",
+            "status": "pending"
+          }
+        ]
+      }
+    }
+  },
+
+  "reports": {
+    "weekly": {
+      "week_2024_51": {
+        "weekOf": "2024-12-16",
+        "projects": {
+          "project_001": {
+            "status": "on-track",
+            "progress": 65,
+            "hoursSpent": 42,
+            "achievements": [
+              "Completed sentiment analysis algorithm testing",
+              "Integrated new ML model with 15% accuracy improvement",
+              "Fixed 8 critical bugs in trading engine"
+            ],
+            "blockers": [
+              "Waiting for client feedback on AI recommendation interface"
+            ],
+            "nextWeek": [
+              "Implement risk assessment algorithms",
+              "Complete performance optimization",
+              "Prepare milestone demo"
+            ]
+          }
+        }
+      }
+    }
+  },
+
+  "notifications": {
+    "client_001": [
+      {
+        "id": "notif_001",
+        "type": "milestone",
+        "title": "AI Beta Release milestone approaching",
+        "message": "The AI Beta Release milestone for your Trading Platform project is due in 5 days",
+        "projectId": "project_001",
+        "date": "2024-12-20T10:00:00Z",
+        "read": false,
+        "priority": "high"
+      },
+      {
+        "id": "notif_002",
+        "type": "update",
+        "title": "Weekly progress report available",
+        "message": "Your weekly progress report for Trading Platform is now available",
+        "projectId": "project_001",
+        "date": "2024-12-20T09:00:00Z",
+        "read": true,
+        "priority": "medium"
+      }
+    ]
+  },
+
+  "settings": {
+    "system": {
+      "version": "2.1.0",
+      "lastUpdated": "2024-12-20T12:00:00Z",
+      "features": {
+        "aiInsights": true,
+        "realTimeUpdates": true,
+        "advancedAnalytics": true,
+        "clientPortal": true,
+        "mobileNotifications": true
+      }
+    },
+    "notifications": {
+      "defaultSettings": {
+        "email": true,
+        "sms": false,
+        "push": true,
+        "projectUpdates": true,
+        "milestoneAlerts": true,
+        "weeklyReports": true
+      }
+    }
+  }
+};
+
+async function uploadFirebaseData() {
+  try {
+    console.log('Starting Firebase data upload...');
+    
+    // Upload the complete structure
+    await set(ref(database, '/'), firebaseData);
+    
+    console.log('✅ Firebase data uploaded successfully!');
+    console.log('📊 Data structure:');
+    console.log(`   - ${Object.keys(firebaseData.clients).length} clients`);
+    console.log(`   - ${Object.keys(firebaseData.projects).length} projects`);
+    console.log(`   - ${Object.keys(firebaseData.staff).length} staff members`);
+    console.log(`   - ${Object.keys(firebaseData.communications).length} communications`);
+    console.log(`   - ${Object.keys(firebaseData.tasks).length} tasks`);
+    
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error uploading Firebase data:', error);
+    process.exit(1);
+  }
+}
+
+uploadFirebaseData();

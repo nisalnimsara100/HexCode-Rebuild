@@ -26,6 +26,13 @@ export function ServicesSection() {
         const response = await fetch("https://hexcode-website-897f4-default-rtdb.firebaseio.com/services.json")
         const data = await response.json()
 
+        // Check if data exists and is an array
+        if (!data || !Array.isArray(data)) {
+          console.warn('No services data found or data is not an array:', data);
+          setServices([]);
+          return;
+        }
+
         // Map the fetched data to include icons and colors
         const servicesWithIcons = data.map((service: any, index: number) => {
           const icons = [

@@ -30,17 +30,39 @@ interface Project {
   name: string;
 }
 
-interface CleanGraphRoadmapProps {
-  className?: string;
+interface RoadmapPhase {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  tasks: any[];
+  dependencies: string[];
+  duration: string;
+  priority: string;
+  category: string;
+  position: { x: number; y: number };
+  color: string;
+  radius: number;
 }
 
-export default function CleanGraphRoadmap({ className = '' }: CleanGraphRoadmapProps) {
+interface CleanGraphRoadmapProps {
+  className?: string;
+  roadmapData?: RoadmapPhase[];
+}
+
+export default function CleanGraphRoadmap({ className = '', roadmapData }: CleanGraphRoadmapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [firebaseNodes, setFirebaseNodes] = useState<Node[]>([]);
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('CleanGraphRoadmap - roadmapData received:', roadmapData);
+    console.log('CleanGraphRoadmap - roadmapData length:', roadmapData?.length || 0);
+  }, [roadmapData]);
   
   // Remove swipe functionality - not needed for graph structure
 
@@ -90,11 +112,60 @@ export default function CleanGraphRoadmap({ className = '' }: CleanGraphRoadmapP
     loadFirebaseData();
   }, []);
 
-  // Initialize project data with Firebase data or fallback
+  // Initialize project data with roadmap data, Firebase data, or fallback
   useEffect(() => {
     const graph = createProjectGraph({});
     
-    if (firebaseNodes.length > 0) {
+    if (roadmapData && roadmapData.length > 0) {
+      // Use passed roadmap data (highest priority)
+      const allNodes = roadmapData.map((phase, index) => {
+        // Ensure tasks are properly structured with all required properties
+        const safeTasks = (phase.tasks || []).map(task => ({
+          id: task.id || `task-${index}-${Math.random()}`,
+          title: task.title || 'Untitled Task',
+          description: task.description || 'No description provided',
+          completed: Boolean(task.completed),
+          priority: task.priority || 'medium',
+          estimatedHours: task.estimatedHours || 0,
+          tags: Array.isArray(task.tags) ? task.tags : []
+        }));
+
+        return {
+          id: phase.id || `phase-${index}`,
+          title: phase.title || 'Untitled Phase',
+          description: phase.description || 'No description provided',
+          type: 'phase' as const,
+          status: phase.status as any || 'upcoming',
+          completion: phase.status === 'completed' ? 100 : phase.status === 'in-progress' ? 50 : 0,
+          estimatedHours: 80,
+          actualHours: phase.status === 'completed' ? 80 : phase.status === 'in-progress' ? 40 : 0,
+          startDate: new Date(),
+          endDate: new Date(),
+          tasks: safeTasks,
+          dependencies: Array.isArray(phase.dependencies) ? phase.dependencies : [],
+          priority: phase.priority as any || 'medium',
+          position: phase.position || { x: 200 + (index * 180), y: 200 },
+          radius: phase.radius || 50,
+          color: phase.color || (phase.status === 'completed' ? '#10b981' : 
+                                 phase.status === 'in-progress' ? '#f59e0b' : '#6366f1'),
+          zIndex: 1,
+          isSelected: false,
+          isHovered: false,
+          isAnimating: false
+        };
+      });
+      setNodes(allNodes);
+      
+      // Set the current active node (in-progress or first node)
+      const activeNodeIndex = allNodes.findIndex((node: any) => node.status === 'in-progress');
+      if (activeNodeIndex >= 0) {
+        setCurrentIndex(activeNodeIndex);
+        setSelectedNode(allNodes[activeNodeIndex]);
+      } else if (allNodes.length > 0) {
+        setCurrentIndex(0);
+        setSelectedNode(allNodes[0]);
+      }
+    } else if (firebaseNodes.length > 0) {
       // Use Firebase data and limit to 2 items
       const limitedFirebaseNodes = firebaseNodes.slice(0, 2);
       const allNodes = limitedFirebaseNodes.map(node => ({
@@ -197,7 +268,7 @@ export default function CleanGraphRoadmap({ className = '' }: CleanGraphRoadmapP
         setSelectedNode(completeNodes[activeNodeIndex]);
       }
     }
-  }, [firebaseNodes]);
+  }, [roadmapData, firebaseNodes]);
 
   // Canvas drawing
   const drawCanvas = useCallback(() => {
@@ -244,43 +315,98 @@ export default function CleanGraphRoadmap({ className = '' }: CleanGraphRoadmapP
     const centerX = width / 2;
     const centerY = height / 2;
     
-    // Create a more sophisticated graph layout
+    // Create a more sophisticated graph layout - horizontal timeline for roadmap
     const nodePositions = nodes.map((node, index) => {
-      // Arrange nodes in a flowing timeline layout
-      const cols = Math.ceil(Math.sqrt(nodes.length));
-      const row = Math.floor(index / cols);
-      const col = index % cols;
+      // Use original position from Firebase data if available
+      if (node.position && node.position.x && node.position.y) {
+        // Scale the position to fit canvas
+        const scaledX = (node.position.x / 1000) * width * 0.8 + width * 0.1;
+        const scaledY = (node.position.y / 500) * height * 0.6 + height * 0.2;
+        return { x: scaledX, y: scaledY, node, index };
+      }
       
-      const x = (width / (cols + 1)) * (col + 1);
-      const y = (height / (Math.ceil(nodes.length / cols) + 1)) * (row + 1);
+      // Fallback: horizontal timeline layout
+      const spacing = Math.min(width / (nodes.length + 1), 200);
+      const x = spacing * (index + 1);
+      const y = centerY;
       
       return { x, y, node, index };
     });
 
-    // Draw connections between dependent nodes
+    // Draw connections between dependent nodes with improved styling
     nodePositions.forEach(({ node, x, y }) => {
       if (node.dependencies && node.dependencies.length > 0) {
         node.dependencies.forEach(depId => {
           const depPosition = nodePositions.find(pos => pos.node.id === depId);
           if (depPosition) {
-            // Draw connection with glow effect
+            // Calculate connection points on circle edges instead of centers
+            const dx = x - depPosition.x;
+            const dy = y - depPosition.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const nodeRadius = 28;
+            
+            // Start point (edge of source node)
+            const startX = depPosition.x + (dx / distance) * nodeRadius;
+            const startY = depPosition.y + (dy / distance) * nodeRadius;
+            
+            // End point (edge of target node)
+            const endX = x - (dx / distance) * nodeRadius;
+            const endY = y - (dy / distance) * nodeRadius;
+            
+            // Draw connection with enhanced styling
             ctx.shadowColor = '#3b82f6';
-            ctx.shadowBlur = 3;
-            ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
-            ctx.lineWidth = 2;
+            ctx.shadowBlur = 6;
+            
+            // Draw main line with gradient
+            const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(99, 102, 241, 0.6)');
+            gradient.addColorStop(1, 'rgba(139, 92, 246, 0.8)');
+            
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.moveTo(depPosition.x, depPosition.y);
-            ctx.lineTo(x, y);
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
             ctx.stroke();
             
-            // Draw arrow head
-            const angle = Math.atan2(y - depPosition.y, x - depPosition.x);
-            const arrowLength = 8;
+            // Draw arrow head with better styling
+            const angle = Math.atan2(dy, dx);
+            const arrowLength = 12;
+            const arrowWidth = 6;
+            
+            ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.moveTo(x - arrowLength * Math.cos(angle - Math.PI / 6), y - arrowLength * Math.sin(angle - Math.PI / 6));
-            ctx.lineTo(x, y);
-            ctx.lineTo(x - arrowLength * Math.cos(angle + Math.PI / 6), y - arrowLength * Math.sin(angle + Math.PI / 6));
-            ctx.stroke();
+            ctx.moveTo(endX, endY);
+            ctx.lineTo(
+              endX - arrowLength * Math.cos(angle - arrowWidth / 2),
+              endY - arrowLength * Math.sin(angle - arrowWidth / 2)
+            );
+            ctx.lineTo(
+              endX - arrowLength * Math.cos(angle + arrowWidth / 2),
+              endY - arrowLength * Math.sin(angle + arrowWidth / 2)
+            );
+            ctx.closePath();
+            ctx.fill();
+            
+            // Add connection label for better understanding
+            const midX = (startX + endX) / 2;
+            const midY = (startY + endY) / 2;
+            
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.font = '10px system-ui';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Add small background for text readability
+            const textWidth = ctx.measureText('→').width;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(midX - textWidth/2 - 2, midY - 6, textWidth + 4, 12);
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillText('→', midX, midY);
           }
         });
       }
@@ -548,21 +674,21 @@ export default function CleanGraphRoadmap({ className = '' }: CleanGraphRoadmapP
                             <h5 className={`font-medium leading-tight ${
                               task.completed ? 'text-gray-400 line-through' : 'text-white'
                             }`}>
-                              {task.title}
+                              {task.title || 'Untitled Task'}
                             </h5>
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <span className={`px-2 py-1 rounded-md text-xs font-medium border ${
-                                task.priority === 'critical' ? 'bg-red-900/30 text-red-300 border-red-700/50' :
-                                task.priority === 'high' ? 'bg-orange-900/30 text-orange-300 border-orange-700/50' :
-                                task.priority === 'medium' ? 'bg-yellow-900/30 text-yellow-300 border-yellow-700/50' : 
+                                (task.priority || 'medium') === 'critical' ? 'bg-red-900/30 text-red-300 border-red-700/50' :
+                                (task.priority || 'medium') === 'high' ? 'bg-orange-900/30 text-orange-300 border-orange-700/50' :
+                                (task.priority || 'medium') === 'medium' ? 'bg-yellow-900/30 text-yellow-300 border-yellow-700/50' : 
                                 'bg-green-900/30 text-green-300 border-green-700/50'
                               }`}>
-                                {task.priority}
+                                {task.priority || 'medium'}
                               </span>
                             </div>
                           </div>
                           
-                          <p className="text-sm text-gray-400 mb-3">{task.description}</p>
+                          <p className="text-sm text-gray-400 mb-3">{task.description || 'No description provided'}</p>
                           
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
@@ -570,10 +696,10 @@ export default function CleanGraphRoadmap({ className = '' }: CleanGraphRoadmapP
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <span>{task.estimatedHours}h</span>
+                                <span>{task.estimatedHours || 0}h</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                {task.tags.map((tag, index) => (
+                                {task.tags && Array.isArray(task.tags) && task.tags.map((tag, index) => (
                                   <span key={index} className="px-2 py-0.5 bg-indigo-900/40 text-indigo-300 text-xs rounded-md border border-indigo-700/30">
                                     {tag}
                                   </span>
