@@ -61,9 +61,9 @@ export function TestimonialsSection() {
                 <p className="text-muted-foreground italic">"{testimonial.content}"</p>
 
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
+                  {/* <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
                     <div className="w-8 h-8 bg-emerald-500 rounded-full"></div>
-                  </div>
+                  </div> */}
                   <div>
                     <div className="font-semibold">{testimonial.name}</div>
                     <div className="text-sm text-muted-foreground">

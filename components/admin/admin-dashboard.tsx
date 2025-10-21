@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-context"
 import { AdminSidebar } from "./admin-sidebar"
 import { AdminHeader } from "./admin-header"
+import { ClientProjectsManagement } from "./client-projects-management"
 import { WebsiteOverview, ServicesManagement, PortfolioManagement, WebsiteStats, ContentManagement, WebsiteSettings, PricePackagesManagement } from "./website-components-fixed"
+import { fetchPendingApprovalProjects, FirebaseClientProject, approveProject, rejectProject } from "@/lib/client-projects-firebase"
 import {
   BarChart3,
   Users,
@@ -1067,604 +1069,74 @@ function ProjectsOverviewDashboard() {
     </div>
   )
 }
-
-function ClientProjectsManagement() {
-  const [projects, setProjects] = useState([
-    {
-      id: "1",
-      name: "E-Commerce Platform",
-      client: "TechCorp Inc.",
-      clientEmail: "contact@techcorp.com",
-      status: "in-progress",
-      progress: 65,
-      startDate: "2024-01-15",
-      estimatedCompletion: "2024-03-15",
-      budget: 45000,
-      spent: 29250,
-      team: ["John Doe", "Jane Smith", "Mike Johnson"],
-      description: "Full-featured e-commerce platform with payment integration",
-      technologies: ["React", "Node.js", "MongoDB", "Stripe"],
-      priority: "high",
-      lastUpdate: "2 hours ago",
-      objectives: [
-        "Create responsive e-commerce website",
-        "Integrate payment processing",
-        "Implement user authentication",
-        "Add admin dashboard",
-        "Optimize for mobile devices"
-      ],
-      milestones: [
-        { name: "UI/UX Design", completed: true, dueDate: "2024-01-30" },
-        { name: "Frontend Development", completed: true, dueDate: "2024-02-15" },
-        { name: "Backend API", completed: false, dueDate: "2024-02-28" },
-        { name: "Payment Integration", completed: false, dueDate: "2024-03-10" },
-        { name: "Testing & Launch", completed: false, dueDate: "2024-03-15" }
-      ]
-    },
-    {
-      id: "2",
-      name: "Mobile App Development",
-      client: "StartupXYZ",
-      clientEmail: "hello@startupxyz.com",
-      status: "planning",
-      progress: 15,
-      startDate: "2024-02-01",
-      estimatedCompletion: "2024-05-01",
-      budget: 35000,
-      spent: 5250,
-      team: ["Sarah Wilson", "Tom Brown"],
-      description: "Cross-platform mobile application for iOS and Android",
-      technologies: ["React Native", "Firebase", "TypeScript"],
-      priority: "medium",
-      lastUpdate: "1 day ago",
-      objectives: [
-        "Develop cross-platform mobile app",
-        "Implement real-time messaging",
-        "Add social media integration",
-        "Create user profiles",
-        "Implement push notifications"
-      ],
-      milestones: [
-        { name: "Project Planning", completed: true, dueDate: "2024-02-05" },
-        { name: "App Design", completed: false, dueDate: "2024-02-20" },
-        { name: "Core Development", completed: false, dueDate: "2024-03-20" },
-        { name: "Testing Phase", completed: false, dueDate: "2024-04-15" },
-        { name: "App Store Launch", completed: false, dueDate: "2024-05-01" }
-      ]
-    }
-  ])
-
-  const [selectedProject, setSelectedProject] = useState<typeof projects[0] | null>(projects[0])
-  const [showProjectDetails, setShowProjectDetails] = useState(false)
-  const [showAddProject, setShowAddProject] = useState(false)
-  const [showEditProject, setShowEditProject] = useState(false)
-  const [editingProject, setEditingProject] = useState<typeof projects[0] | null>(null)
-  const [showRoadmap, setShowRoadmap] = useState(false)
-  const [newProject, setNewProject] = useState({
-    name: "",
-    client: "",
-    clientEmail: "",
-    description: "",
-    budget: 0,
-    technologies: [],
-    priority: "medium",
-    objectives: [""],
-    milestones: [{ name: "", dueDate: "", completed: false }]
-  })
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed": return "bg-emerald-500/20 text-emerald-400 border-emerald-500/50";
-      case "in-progress": return "bg-yellow-500/20 text-yellow-400 border-yellow-500/50";
-      case "planning": return "bg-blue-500/20 text-blue-400 border-blue-500/50";
-      case "on-hold": return "bg-red-500/20 text-red-400 border-red-500/50";
-      default: return "bg-gray-500/20 text-gray-400 border-gray-500/50";
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "bg-red-500/20 text-red-400 border-red-500/50";
-      case "medium": return "bg-yellow-500/20 text-yellow-400 border-yellow-500/50";
-      case "low": return "bg-green-500/20 text-green-400 border-green-500/50";
-      default: return "bg-gray-500/20 text-gray-400 border-gray-500/50";
-    }
-  };
-
-  const handleAddProject = () => {
-    const projectId = String(projects.length + 1);
-    const newProjectData = {
-      ...newProject,
-      id: projectId,
-      status: "planning",
-      progress: 0,
-      startDate: new Date().toISOString().split('T')[0],
-      estimatedCompletion: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      spent: 0,
-      team: [],
-      lastUpdate: "Just created",
-      objectives: newProject.objectives.filter(obj => obj.trim() !== ""),
-      milestones: newProject.milestones.filter(ms => ms.name.trim() !== "")
-    };
-    setProjects([...projects, newProjectData]);
-    setNewProject({
-      name: "",
-      client: "",
-      clientEmail: "",
-      description: "",
-      budget: 0,
-      technologies: [],
-      priority: "medium",
-      objectives: [""],
-      milestones: [{ name: "", dueDate: "", completed: false }]
-    });
-    setShowAddProject(false);
-  };
-
-  const handleSaveEditProject = () => {
-    if (editingProject) {
-      setProjects(projects.map(p => p.id === editingProject.id ? editingProject : p));
-      setShowAddProject(false);
-      setEditingProject(null);
-      if (selectedProject && selectedProject.id === editingProject.id) {
-        setSelectedProject(editingProject);
-      }
-    }
-  };
-
-  const startEditProject = (project: typeof projects[0]) => {
-    setEditingProject(project);
-    setShowAddProject(true);
-    setShowProjectDetails(false);
-  };
-
-  const handleDeleteProject = (projectId: string) => {
-    if (confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
-      setProjects(projects.filter(p => p.id !== projectId));
-      if (selectedProject && selectedProject.id === projectId) {
-        setShowProjectDetails(false);
-        setSelectedProject(null);
-      }
-    }
-  };
-
-  const handleStatusChange = (projectId: string, newStatus: string) => {
-    setProjects(projects.map(p => 
-      p.id === projectId 
-        ? { ...p, status: newStatus, lastUpdate: "Just updated" }
-        : p
-    ));
-    if (selectedProject && selectedProject.id === projectId) {
-      setSelectedProject({ ...selectedProject, status: newStatus, lastUpdate: "Just updated" });
-    }
-  };
-
-  const updateMilestone = (projectId: string, milestoneIndex: number, completed: boolean) => {
-    const updatedProjects = projects.map(p => {
-      if (p.id === projectId) {
-        const updatedMilestones = [...p.milestones];
-        updatedMilestones[milestoneIndex] = { ...updatedMilestones[milestoneIndex], completed };
-        const completedCount = updatedMilestones.filter(m => m.completed).length;
-        const progress = Math.round((completedCount / updatedMilestones.length) * 100);
-        return { ...p, milestones: updatedMilestones, progress, lastUpdate: "Milestone updated" };
-      }
-      return p;
-    });
-    setProjects(updatedProjects);
-    if (selectedProject && selectedProject.id === projectId) {
-      const updatedProject = updatedProjects.find(p => p.id === projectId);
-      if (updatedProject) {
-        setSelectedProject(updatedProject);
-      }
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-gray-900 p-6 rounded-xl">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Client Projects Management</h2>
-            <p className="text-gray-400">Monitor and control all client projects and their progress</p>
-          </div>
-          <div className="flex space-x-3">
-            <button 
-              onClick={() => {setEditingProject(null); setShowAddProject(true)}}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Project</span>
-            </button>
-            <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
-              <Settings className="w-4 h-4" />
-              <span>Bulk Actions</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Projects List */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {projects.map((project) => (
-            <div key={project.id} className="bg-gray-800 p-6 rounded-lg hover:bg-gray-750 transition-all cursor-pointer"
-                 onClick={() => {setSelectedProject(project); setShowProjectDetails(true)}}>
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-1">{project.name}</h3>
-                  <p className="text-gray-400 text-sm">{project.client}</p>
-                </div>
-                <div className="flex flex-col items-end space-y-2">
-                  <span className={`px-2 py-1 rounded-full text-xs border ${getStatusColor(project.status)}`}>
-                    {project.status.replace("-", " ")}
-                  </span>
-                  <span className={`px-2 py-1 rounded-full text-xs border ${getPriorityColor(project.priority)}`}>
-                    {project.priority}
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-gray-400 text-sm mb-4">{project.description}</p>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">Progress</span>
-                  <span className="text-white font-medium">{project.progress}%</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${project.progress}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                  <div className="flex items-center space-x-1">
-                    <DollarSign className="w-3 h-3" />
-                    <span>${project.spent.toLocaleString()} / ${project.budget.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="w-3 h-3" />
-                    <span>{project.estimatedCompletion}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-3 border-t border-gray-700">
-                  <div className="flex -space-x-2">
-                    {project.team.slice(0, 3).map((member, index) => (
-                      <div 
-                        key={index}
-                        className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full border-2 border-gray-800 flex items-center justify-center text-xs text-white font-medium"
-                      >
-                        {member.split(" ").map(n => n[0]).join("")}
-                      </div>
-                    ))}
-                  </div>
-                  <span className="text-gray-400 text-xs">{project.lastUpdate}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Project Details Modal */}
-      {showProjectDetails && selectedProject && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">{selectedProject.name}</h2>
-                  <p className="text-gray-400">{selectedProject.client}</p>
-                </div>
-                <button 
-                  onClick={() => setShowProjectDetails(false)}
-                  className="text-gray-400 hover:text-white p-2"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Project Info */}
-                <div className="space-y-4">
-                  <div className="bg-gray-800 p-4 rounded-lg">
-                    <h3 className="text-lg font-semibold text-white mb-3">Project Details</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Status:</span>
-                        <span className={`px-2 py-1 rounded-full text-xs border ${getStatusColor(selectedProject.status)}`}>
-                          {selectedProject.status.replace("-", " ")}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Priority:</span>
-                        <span className={`px-2 py-1 rounded-full text-xs border ${getPriorityColor(selectedProject.priority)}`}>
-                          {selectedProject.priority}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Budget:</span>
-                        <span className="text-white">${selectedProject.budget.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Spent:</span>
-                        <span className="text-white">${selectedProject.spent.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Start Date:</span>
-                        <span className="text-white">{selectedProject.startDate}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Due Date:</span>
-                        <span className="text-white">{selectedProject.estimatedCompletion}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-800 p-4 rounded-lg">
-                    <h3 className="text-lg font-semibold text-white mb-3">Project Objectives</h3>
-                    <div className="space-y-2">
-                      {selectedProject.objectives.map((objective, index) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                          <span className="text-gray-300 text-sm">{objective}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Milestones */}
-                <div className="space-y-4">
-                  <div className="bg-gray-800 p-4 rounded-lg">
-                    <h3 className="text-lg font-semibold text-white mb-3">Project Milestones</h3>
-                    <div className="space-y-3">
-                      {selectedProject.milestones.map((milestone, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                              milestone.completed ? 'bg-green-500' : 'bg-gray-500'
-                            }`}>
-                              {milestone.completed && <span className="text-white text-xs">✓</span>}
-                            </div>
-                            <div>
-                              <p className="text-white font-medium text-sm">{milestone.name}</p>
-                              <p className="text-gray-400 text-xs">Due: {milestone.dueDate}</p>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => updateMilestone(selectedProject.id, index, !milestone.completed)}
-                            className="text-blue-400 hover:text-blue-300 text-sm"
-                          >
-                            {milestone.completed ? 'Mark Incomplete' : 'Mark Complete'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-800 p-4 rounded-lg">
-                    <h3 className="text-lg font-semibold text-white mb-3">Team Members</h3>
-                    <div className="space-y-2">
-                      {selectedProject.team.map((member, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-700 rounded">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-sm text-white font-medium">
-                              {member.split(" ").map(n => n[0]).join("")}
-                            </div>
-                            <span className="text-white text-sm">{member}</span>
-                          </div>
-                          <button className="text-blue-400 hover:text-blue-300 text-sm">
-                            Contact
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-700">
-                <button 
-                  onClick={() => startEditProject(selectedProject)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-                >
-                  Edit Project
-                </button>
-                <button 
-                  onClick={() => {
-                    const newStatus = selectedProject.status === 'active' ? 'completed' : 'active';
-                    handleStatusChange(selectedProject.id, newStatus);
-                  }}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-                >
-                  Update Status
-                </button>
-                <button 
-                  onClick={() => setShowProjectDetails(false)}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Project Modal */}
-      {showAddProject && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">
-                  {editingProject ? 'Edit Project' : 'Add New Project'}
-                </h2>
-                <button 
-                  onClick={() => setShowAddProject(false)}
-                  className="text-gray-400 hover:text-white p-2"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={(e) => {e.preventDefault(); editingProject ? handleSaveEditProject() : handleAddProject();}} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Project Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={editingProject ? editingProject.name : newProject.name}
-                      onChange={(e) => editingProject 
-                        ? setEditingProject({...editingProject, name: e.target.value})
-                        : setNewProject({...newProject, name: e.target.value})
-                      }
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter project name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Client Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={editingProject ? editingProject.client : newProject.client}
-                      onChange={(e) => editingProject 
-                        ? setEditingProject({...editingProject, client: e.target.value})
-                        : setNewProject({...newProject, client: e.target.value})
-                      }
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter client name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
-                    <select 
-                      defaultValue={editingProject?.status || 'pending'}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="active">Active</option>
-                      <option value="on-hold">On Hold</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Priority</label>
-                    <select 
-                      defaultValue={editingProject?.priority || 'medium'}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Budget ($)</label>
-                    <input 
-                      type="number" 
-                      required
-                      value={editingProject ? editingProject.budget : newProject.budget}
-                      onChange={(e) => editingProject 
-                        ? setEditingProject({...editingProject, budget: parseInt(e.target.value) || 0})
-                        : setNewProject({...newProject, budget: parseInt(e.target.value) || 0})
-                      }
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter budget amount"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Estimated Completion</label>
-                    <input 
-                      type="date" 
-                      required
-                      value={editingProject ? editingProject.estimatedCompletion : ''}
-                      onChange={(e) => editingProject 
-                        ? setEditingProject({...editingProject, estimatedCompletion: e.target.value})
-                        : setNewProject({...newProject})
-                      }
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Project Description</label>
-                  <textarea 
-                    required
-                    rows={3}
-                    value={editingProject ? editingProject.description : newProject.description}
-                    onChange={(e) => editingProject 
-                      ? setEditingProject({...editingProject, description: e.target.value})
-                      : setNewProject({...newProject, description: e.target.value})
-                    }
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter project description"
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button 
-                    type="submit"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
-                  >
-                    {editingProject ? 'Update Project' : 'Add Project'}
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setShowAddProject(false)}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 function ProjectRequestsManagement() {
-  const [requests] = useState([
-    {
-      id: 1,
-      projectName: "Enterprise CRM System",
-      clientName: "GlobalTech Solutions",
-      clientEmail: "ceo@globaltech.com",
-      requestDate: "2024-10-18",
-      estimatedBudget: 75000,
-      description: "Comprehensive CRM system with analytics dashboard, customer management, and reporting features",
-      requirements: "Multi-user authentication, Role-based access, Real-time analytics, Mobile responsive design, API integrations",
-      priority: "high",
-      status: "pending",
-      urgency: "urgent",
-      expectedStartDate: "2024-11-01",
-      expectedDuration: "6 months"
-    },
-    {
-      id: 2,
-      projectName: "Food Delivery Mobile App",
-      clientName: "QuickBite Inc.",
-      clientEmail: "founder@quickbite.com", 
-      requestDate: "2024-10-17",
-      estimatedBudget: 45000,
-      description: "Cross-platform mobile application for food ordering and delivery with real-time tracking",
-      requirements: "GPS tracking, Payment integration, Push notifications, Restaurant management portal, Customer reviews system",
-      priority: "medium",
-      status: "under-review",
-      urgency: "normal",
-      expectedStartDate: "2024-12-01",
-      expectedDuration: "4 months"
+  const [requests, setRequests] = useState<FirebaseClientProject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Fetch pending approval projects from Firebase
+  useEffect(() => {
+    const fetchPendingRequests = async () => {
+      try {
+        setLoading(true);
+        const pendingProjects = await fetchPendingApprovalProjects();
+        setRequests(pendingProjects);
+      } catch (error) {
+        console.error('Error fetching pending approval projects:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPendingRequests();
+  }, []);
+
+  // Handle project approval
+  const handleApproveProject = async (projectId: string) => {
+    try {
+      setProcessingId(projectId);
+      await approveProject(projectId);
+      
+      // Remove the approved project from the requests list
+      setRequests(prevRequests => 
+        prevRequests.filter(request => request.id !== projectId)
+      );
+      
+      // Show success message
+      setSuccessMessage('Project approved successfully and moved to client projects!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+      
+    } catch (error) {
+      console.error('Error approving project:', error);
+      // You can add error handling here (show error toast)
+    } finally {
+      setProcessingId(null);
     }
-  ])
+  };
+
+  // Handle project rejection
+  const handleRejectProject = async (projectId: string) => {
+    try {
+      setProcessingId(projectId);
+      await rejectProject(projectId);
+      
+      // Remove the rejected project from the requests list
+      setRequests(prevRequests => 
+        prevRequests.filter(request => request.id !== projectId)
+      );
+      
+      // Show success message
+      setSuccessMessage('Project rejected and removed from system.');
+      setTimeout(() => setSuccessMessage(null), 3000);
+      
+    } catch (error) {
+      console.error('Error rejecting project:', error);
+      // You can add error handling here
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -1685,9 +1157,28 @@ function ProjectRequestsManagement() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-gray-900 p-6 rounded-xl">
+          <h2 className="text-2xl font-bold text-white">Project Requests Management</h2>
+          <div className="mt-6 p-8 bg-gray-800 rounded-lg text-center">
+            <p className="text-gray-300">Loading pending project requests...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-gray-900 p-6 rounded-xl">
+        {successMessage && (
+          <div className="mb-4 p-4 bg-green-600/20 border border-green-500/50 rounded-lg">
+            <p className="text-green-400 font-medium">{successMessage}</p>
+          </div>
+        )}
+        
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-2xl font-bold text-white">Project Requests Management</h2>
@@ -1703,37 +1194,50 @@ function ProjectRequestsManagement() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6">
-          {requests.map((request) => (
-            <div key={request.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700 hover:border-blue-500/50 transition-all">
+        {requests.length === 0 ? (
+          <div className="mt-6 p-8 bg-gray-800 rounded-lg text-center">
+            <p className="text-gray-300">No pending project requests at this time.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6">
+            {requests.map((request) => (
+              <div key={request.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700 hover:border-blue-500/50 transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-xl font-semibold text-white">{request.projectName}</h3>
-                    <span className={`px-3 py-1 rounded-full text-sm border ${getStatusColor(request.status)}`}>
-                      {request.status.replace("-", " ")}
+                    <h3 className="text-xl font-semibold text-white">{request.name || 'Untitled Project'}</h3>
+                    <span className={`px-3 py-1 rounded-full text-sm border ${getStatusColor(request.status || 'pending-approval')}`}>
+                      {(request.status || 'pending-approval').replace("-", " ")}
                     </span>
-                    <span className={`px-3 py-1 rounded-full text-sm border ${getPriorityColor(request.priority)}`}>
-                      {request.priority}
+                    <span className={`px-3 py-1 rounded-full text-sm border ${getPriorityColor('medium')}`}>
+                      medium
                     </span>
                   </div>
                   <div className="flex items-center space-x-4 text-sm text-gray-400 mb-3">
-                    <span>Client: {request.clientName}</span>
+                    <span>Client: {request.email || 'Not provided'}</span>
                     <span>•</span>
-                    <span>Requested: {request.requestDate}</span>
+                    <span>Requested: {request.id ? new Date(parseInt(request.id)).toLocaleDateString() : 'Unknown'}</span>
                     <span>•</span>
-                    <span>Budget: ${request.estimatedBudget.toLocaleString()}</span>
+                    <span>Budget: ${request.budget ? parseInt(request.budget.toString()).toLocaleString() : 'Not specified'}</span>
                   </div>
                 </div>
                 <div className="flex space-x-2">
-                  <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">
-                    Approve
+                  <button 
+                    onClick={() => handleApproveProject(request.id)}
+                    disabled={processingId === request.id}
+                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                  >
+                    {processingId === request.id ? 'Approving...' : 'Approve'}
                   </button>
                   <button className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm">
                     Review
                   </button>
-                  <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm">
-                    Reject
+                  <button 
+                    onClick={() => handleRejectProject(request.id)}
+                    disabled={processingId === request.id}
+                    className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                  >
+                    {processingId === request.id ? 'Rejecting...' : 'Reject'}
                   </button>
                 </div>
               </div>
@@ -1743,23 +1247,23 @@ function ProjectRequestsManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="bg-gray-700 p-4 rounded-lg">
                   <h4 className="text-white font-semibold mb-2">Requirements</h4>
-                  <p className="text-gray-300 text-sm">{request.requirements}</p>
+                  <p className="text-gray-300 text-sm">{request.description || 'No requirements specified'}</p>
                 </div>
                 <div className="bg-gray-700 p-4 rounded-lg">
                   <h4 className="text-white font-semibold mb-2">Project Timeline</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Expected Start:</span>
-                      <span className="text-white">{request.expectedStartDate}</span>
+                      <span className="text-white">{'To be determined'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Duration:</span>
-                      <span className="text-white">{request.expectedDuration}</span>
+                      <span className="text-white">{'To be estimated'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Urgency:</span>
-                      <span className={`${request.urgency === 'urgent' ? 'text-red-400' : 'text-yellow-400'}`}>
-                        {request.urgency}
+                      <span className="text-yellow-400">
+                        medium
                       </span>
                     </div>
                   </div>
@@ -1768,7 +1272,8 @@ function ProjectRequestsManagement() {
 
               <div className="flex items-center justify-between pt-4 border-t border-gray-700">
                 <div className="text-sm text-gray-400">
-                  Contact: {request.clientEmail}
+                  Contact: {request.email || 'Not provided'}
+                </div>
                 </div>
                 <div className="flex space-x-3">
                   <button className="text-blue-400 hover:text-blue-300 text-sm">
@@ -1782,9 +1287,9 @@ function ProjectRequestsManagement() {
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

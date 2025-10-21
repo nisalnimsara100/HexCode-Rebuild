@@ -92,8 +92,87 @@ export default function ServicesPage() {
         const response = await fetch("https://hexcode-website-897f4-default-rtdb.firebaseio.com/services.json")
         const data = await response.json()
 
+        let servicesData: any[] = []
+
+        if (data) {
+          if (Array.isArray(data)) {
+            servicesData = data.filter(service => service !== null)
+          } else if (typeof data === 'object' && data !== null) {
+            servicesData = Object.values(data).filter(service => service !== null)
+          } else {
+            console.error("Invalid services data format from Firebase. Expected array or object, got:", typeof data)
+            servicesData = []
+          }
+        }
+
+        // If no valid data found, use fallback services
+        if (servicesData.length === 0) {
+          servicesData = [
+            {
+              title: "Web Development",
+              description: "Custom web applications built with modern technologies for optimal performance and user experience.",
+              features: [
+                "Responsive Design",
+                "Modern Frameworks",
+                "SEO Optimization",
+                "Performance Tuning"
+              ]
+            },
+            {
+              title: "Mobile Development",
+              description: "Native and cross-platform mobile applications for iOS and Android devices.",
+              features: [
+                "iOS & Android Apps",
+                "Cross-platform Solutions",
+                "App Store Deployment",
+                "Push Notifications"
+              ]
+            },
+            {
+              title: "Cloud Solutions",
+              description: "Scalable cloud infrastructure and services to power your applications reliably.",
+              features: [
+                "AWS/Azure/GCP",
+                "Serverless Architecture",
+                "Auto Scaling",
+                "Monitoring & Analytics"
+              ]
+            },
+            {
+              title: "Database Design",
+              description: "Robust database solutions optimized for your specific business requirements.",
+              features: [
+                "SQL & NoSQL Databases",
+                "Data Modeling",
+                "Performance Optimization",
+                "Backup & Recovery"
+              ]
+            },
+            {
+              title: "Security Services",
+              description: "Comprehensive security measures to protect your applications and data.",
+              features: [
+                "Authentication Systems",
+                "Data Encryption",
+                "Security Audits",
+                "Compliance Standards"
+              ]
+            },
+            {
+              title: "API Development",
+              description: "RESTful and GraphQL APIs designed for seamless integration and scalability.",
+              features: [
+                "RESTful APIs",
+                "GraphQL Services",
+                "API Documentation",
+                "Rate Limiting"
+              ]
+            }
+          ]
+        }
+
         // Map the fetched data to include icons and colors
-        const servicesWithIcons = data.map((service: any, index: number) => {
+        const servicesWithIcons = servicesData.map((service: any, index: number) => {
           const icons = [
             <Globe className="w-8 h-8" />,
             <Smartphone className="w-8 h-8" />,
@@ -115,6 +194,7 @@ export default function ServicesPage() {
         setServices(servicesWithIcons)
       } catch (error) {
         console.error("Error fetching services:", error)
+        setServices([]) // Set empty array as fallback
       } finally {
         setLoadingServices(false)
       }
@@ -131,13 +211,74 @@ export default function ServicesPage() {
         const response = await fetch("https://hexcode-website-897f4-default-rtdb.firebaseio.com/pricingPackages.json")
         const data = await response.json()
 
-        if (data && Array.isArray(data)) {
-          setPackages(data)
+        if (data) {
+          // Handle different data formats from Firebase
+          if (Array.isArray(data)) {
+            // Data is already an array
+            setPackages(data.filter(pkg => pkg !== null))
+          } else if (typeof data === 'object' && data !== null) {
+            // Data is an object - convert to array
+            const packagesArray = Object.values(data).filter(pkg => pkg !== null)
+            setPackages(packagesArray as Package[])
+          } else {
+            // Data is neither array nor object
+            console.error("Invalid data format from Firebase. Expected array or object, got:", typeof data)
+            setPackages([]) // Set empty array as fallback
+          }
         } else {
-          console.error("Invalid data format from Firebase")
+          // Use fallback packages data
+          const fallbackPackages: Package[] = [
+            {
+              name: "Starter",
+              price: "$2,500",
+              description: "Perfect for small businesses and startups",
+              features: [
+                "Responsive Web Design",
+                "Up to 5 Pages",
+                "Contact Form",
+                "Basic SEO Optimization",
+                "Mobile Friendly",
+                "1 Month Support"
+              ],
+              popular: false
+            },
+            {
+              name: "Professional",
+              price: "$5,000",
+              description: "Ideal for growing businesses",
+              features: [
+                "Everything in Starter",
+                "Up to 15 Pages",
+                "CMS Integration",
+                "Advanced SEO",
+                "Analytics Setup",
+                "Social Media Integration",
+                "3 Months Support"
+              ],
+              popular: true
+            },
+            {
+              name: "Enterprise",
+              price: "$10,000+",
+              description: "For large-scale applications",
+              features: [
+                "Everything in Professional",
+                "Unlimited Pages",
+                "Custom Functionality",
+                "Database Integration",
+                "User Authentication",
+                "Third-party APIs",
+                "6 Months Support",
+                "Performance Optimization"
+              ],
+              popular: false
+            }
+          ]
+          setPackages(fallbackPackages)
         }
       } catch (error) {
         console.error("Error fetching packages from Firebase:", error)
+        setPackages([]) // Set empty array as fallback
       } finally {
         setLoadingPackages(false)
       }

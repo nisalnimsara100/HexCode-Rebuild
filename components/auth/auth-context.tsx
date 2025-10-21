@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  signOut,
 } from "firebase/auth";
 import { ref, get, set } from "firebase/database";
 import { auth, database } from "@/lib/firebase";
@@ -24,6 +25,7 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   signIn: (email: string, password: string) => Promise<UserProfile>;
   signUp: (email: string, password: string, profile: Partial<UserProfile>) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,13 +44,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const userRef = ref(database, `users/${user.uid}`);
-        const snapshot = await get(userRef);
+        // First try to get user profile by UID
+        let userRef = ref(database, `users/${user.uid}`);
+        let snapshot = await get(userRef);
+        
         if (snapshot.exists()) {
           setUserProfile(snapshot.val());
-        } else {
-          setUserProfile(null);
+          return;
         }
+        
+        // If not found by UID, check if it's the admin user with static key
+        if (user.email === "admin@hexcode.lk") {
+          userRef = ref(database, `users/admin`);
+          snapshot = await get(userRef);
+          
+          if (snapshot.exists()) {
+            const profile = {
+              ...snapshot.val(),
+              uid: user.uid // Use the actual Firebase Auth UID
+            };
+            setUserProfile(profile);
+            return;
+          }
+        }
+        
+        setUserProfile(null);
       } else {
         setUserProfile(null);
       }
@@ -61,16 +81,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      const userRef = ref(database, `users/${user.uid}`);
-      const snapshot = await get(userRef);
+      
+      // First try to get user profile by UID
+      let userRef = ref(database, `users/${user.uid}`);
+      let snapshot = await get(userRef);
+      
       if (snapshot.exists()) {
         const profile = snapshot.val();
         setUserProfile(profile);
         return profile;
-      } else {
-        throw new Error("User profile not found");
       }
-    } catch (error) {
+      
+      // If not found by UID, check if it's the admin user with static key
+      if (user.email === "admin@hexcode.lk") {
+        userRef = ref(database, `users/admin`);
+        snapshot = await get(userRef);
+        
+        if (snapshot.exists()) {
+          const dbData = snapshot.val();
+          
+          // The database structure shows the role is under profile.role
+          const profile = {
+            uid: user.uid,
+            email: dbData.email || user.email,
+            name: dbData.profile?.name || "System Administrator",
+            role: dbData.profile?.role || "admin",
+            employeeId: dbData.profile?.employeeId || "ADM001",
+            department: dbData.profile?.department || "IT Administration"
+          };
+          
+          setUserProfile(profile);
+          return profile;
+        }
+      }
+      
+      throw new Error("User profile not found");
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        throw new Error("Invalid email or password");
+      }
       throw new Error("Invalid credentials");
     }
   };
@@ -99,10 +148,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const logout = async (): Promise<void> => {
+    try {
+      await signOut(auth);
+      setUserProfile(null);
+    } catch (error) {
+      throw new Error("Logout failed");
+    }
+  };
+
   const value = {
     userProfile,
     signIn,
     signUp,
+    logout,
   };
 
   return (

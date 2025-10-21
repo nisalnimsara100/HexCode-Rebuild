@@ -65,8 +65,7 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
   const { userProfile } = useAuth();
   const [localCollapsed, setLocalCollapsed] = useState(false);
   
-  // Debug: log the current pathname
-  console.log('Current pathname:', pathname);
+
   
   // Try to use context, fallback to local state
   let collapsed = localCollapsed;

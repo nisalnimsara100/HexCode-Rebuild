@@ -33,7 +33,7 @@ import { LoadingSpinner } from "@/components/loading-spinner"; // Import the loa
 
 // Define a TypeScript interface for project data
 interface Project {
-  id: number; // Changed from `string` to `number`
+  id: number; 
   title: string;
   description: string;
   category: string;

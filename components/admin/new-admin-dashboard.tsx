@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-context"
 import { StaffManagement, TicketSystem, TaskAssignments, ProjectManagement, StaffReports, StaffSettings } from "./staff-components"
 import { WebsiteOverview, ServicesManagement, PortfolioManagement, WebsiteStats, ContentManagement, WebsiteSettings, PricePackagesManagement } from "./website-components-fixed"
+import { FirebaseClientProjectsAdmin } from "./firebase-client-projects-admin"
 import { Modal } from "./modal"
 import {
   BarChart3,
@@ -127,14 +128,23 @@ interface PortfolioProject {
 }
 
 export function AdminDashboard() {
-  const { userProfile } = useAuth()
+  const { userProfile, logout } = useAuth()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
-  const [activeMainTab, setActiveMainTab] = useState<'staff' | 'website'>('staff')
+  const [activeMainTab, setActiveMainTab] = useState<'staff' | 'website' | 'projects'>('projects')
   const [activeStaffTab, setActiveStaffTab] = useState('overview')
   const [activeWebsiteTab, setActiveWebsiteTab] = useState('overview')
   const [showModal, setShowModal] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<any>(null)
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push("/");
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+  };
 
   // Staff Management Data
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([
@@ -295,6 +305,7 @@ export function AdminDashboard() {
 
   // Main navigation tabs
   const mainTabs = [
+    { id: 'projects', label: 'Client Projects', icon: <FolderOpen className="w-5 h-5" /> },
     { id: 'staff', label: 'Staff Management', icon: <Users className="w-5 h-5" /> },
     { id: 'website', label: 'Website Management', icon: <Globe className="w-5 h-5" /> }
   ]
@@ -338,7 +349,7 @@ export function AdminDashboard() {
             <div className="flex items-center space-x-4">
               <span className="text-gray-400">Welcome, {userProfile?.name}</span>
               <button 
-                onClick={() => router.push('/logout')}
+                onClick={handleLogout}
                 className="text-gray-400 hover:text-white"
               >
                 Logout
@@ -355,7 +366,7 @@ export function AdminDashboard() {
             {mainTabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveMainTab(tab.id as 'staff' | 'website')}
+                onClick={() => setActiveMainTab(tab.id as 'staff' | 'website' | 'projects')}
                 className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm ${
                   activeMainTab === tab.id
                     ? 'border-orange-500 text-orange-500'
@@ -411,6 +422,15 @@ export function AdminDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeMainTab === 'projects' && (
+          <FirebaseClientProjectsAdmin 
+            onProjectSelect={(project) => {
+              console.log('Selected project:', project);
+              // Handle project selection - could open modal or navigate
+            }}
+          />
+        )}
+
         {activeMainTab === 'staff' && (
           <div>
             {activeStaffTab === 'overview' && <StaffOverview staffMembers={staffMembers} tickets={tickets} projects={projects} />}

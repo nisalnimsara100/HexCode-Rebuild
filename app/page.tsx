@@ -9,7 +9,6 @@ import { TestimonialsSection } from "@/components/testimonials-section"
 import { CTASection } from "@/components/cta-section"
 import { Footer } from "@/components/footer"
 import { ScrollReveal } from "@/components/scroll-reveal"
-import { DebugAuth } from "@/components/debug-auth"
 import { useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 
@@ -87,9 +86,6 @@ export default function Home() {
       </ScrollReveal>
 
       <Footer />
-      
-      {/* Debug component */}
-      <DebugAuth />
     </div>
   )
 }

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import CleanGraphRoadmap from "./clean-graph-roadmap";
 import { useRouter } from "next/navigation";
-import { getDatabase, ref, get } from "firebase/database";
+import { fetchClientProjectsForDashboard, FirebaseClientProject, submitClientProjectRequest } from "@/lib/client-projects-firebase";
 import { 
   User, 
   Bell, 
@@ -59,7 +59,7 @@ interface RoadmapPhase {
   title: string;
   description: string;
   status: string;
-  tasks: Task[];
+  tasks: any[];
   dependencies: string[];
   duration: string;
   priority: string;
@@ -69,42 +69,8 @@ interface RoadmapPhase {
   radius: number;
 }
 
-interface Project {
-  id: string;
-  email: string;
-  name: string;
-  description: string;
-  startDate: string;
-  dueDate: string;
-  budget: number;
-  nextMilestone: string;
-  progress: number;
-  teamMembers: TeamMember[];
-  technologies: string[];
-  roadmap: RoadmapPhase[];
-  status?: string; // derived from progress
-}
-
-// Firebase fetch function
-async function fetchClientProjectsByEmail(userEmail: string): Promise<Project[]> {
-  try {
-    const database = getDatabase();
-    const clientProjectsRef = ref(database, 'clientProjects');
-    const snapshot = await get(clientProjectsRef);
-    
-    if (snapshot.exists()) {
-      const projects = snapshot.val();
-      // Filter projects by user email
-      return projects.filter((project: Project) => project.email === userEmail);
-    } else {
-      console.log("No client projects found");
-      return [];
-    }
-  } catch (error) {
-    console.error("Error fetching client projects:", error);
-    return [];
-  }
-}
+// Use the Firebase interface for projects
+type Project = FirebaseClientProject;
 
 export function ClientDashboard() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -119,6 +85,8 @@ export function ClientDashboard() {
     budget: "",
     requirements: ""
   });
+  const [isSubmittingProject, setIsSubmittingProject] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
   const newProjectModalRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -127,6 +95,23 @@ export function ClientDashboard() {
     if (progress === 100) return 'completed';
     if (progress > 0) return 'in-progress';
     return 'planning';
+  };
+
+  // Calculate project progress based on actual task completion
+  const calculateProjectProgress = (project: Project) => {
+    if (!project.roadmap || project.roadmap.length === 0) return project.progress || 0;
+    
+    let totalTasks = 0;
+    let completedTasks = 0;
+    
+    project.roadmap.forEach(phase => {
+      if (phase.tasks && Array.isArray(phase.tasks)) {
+        totalTasks += phase.tasks.length;
+        completedTasks += phase.tasks.filter(task => task.completed).length;
+      }
+    });
+    
+    return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : project.progress || 0;
   };
 
   // Utility function to format budget
@@ -143,26 +128,27 @@ export function ClientDashboard() {
         if (profile) {
           const parsed = JSON.parse(profile);
           const email = parsed.email;
-          console.log('Dashboard - User email:', email);
           setUserEmail(email);
           
-          // Fetch projects from Firebase
-          const fetchedProjects = await fetchClientProjectsByEmail(email);
-          console.log('Dashboard - Fetched projects:', fetchedProjects);
+          // Fetch projects from Firebase using the new function
+          const fetchedProjects = await fetchClientProjectsForDashboard(email);
           
-          // Add status to each project based on progress and ensure roadmap exists
-          const projectsWithStatus = fetchedProjects.map(project => ({
+          // Filter out pending approval projects (they belong in admin panel)
+          const approvedProjects = fetchedProjects.filter(project => 
+            project.status !== 'pending-approval'
+          );
+          
+          // Ensure required fields are present
+          const projectsWithDefaults = approvedProjects.map(project => ({
             ...project,
-            status: getProjectStatus(project.progress),
-            roadmap: project.roadmap || [], // Ensure roadmap is always an array
-            teamMembers: project.teamMembers || [], // Ensure teamMembers is always an array
-            technologies: project.technologies || [] // Ensure technologies is always an array
+            status: project.status || getProjectStatus(project.progress || 0),
+            roadmap: project.roadmap || [],
+            teamMembers: project.teamMembers || [],
+            technologies: project.technologies || [],
+            startDate: project.startDate || new Date().toISOString().split('T')[0]
           }));
           
-          console.log('Dashboard - Projects with status:', projectsWithStatus);
-          setProjects(projectsWithStatus);
-        } else {
-          console.log('Dashboard - No client profile found in localStorage');
+          setProjects(projectsWithDefaults);
         }
       } catch (error) {
         console.error('Error fetching projects:', error);
@@ -188,6 +174,64 @@ export function ClientDashboard() {
     router.push('/');
   };
 
+  const handleSubmitProjectRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!userEmail) {
+      alert('Please log in to submit a project request');
+      return;
+    }
+
+    if (!newProjectForm.name || !newProjectForm.description) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setIsSubmittingProject(true);
+    
+    try {
+      // Get user profile for additional info
+      const profile = localStorage.getItem('clientProfile');
+      const clientName = profile ? JSON.parse(profile).name : undefined;
+
+      await submitClientProjectRequest({
+        name: newProjectForm.name,
+        description: newProjectForm.description,
+        timeline: newProjectForm.timeline,
+        budget: newProjectForm.budget,
+        requirements: newProjectForm.requirements,
+        clientEmail: userEmail,
+        clientName
+      });
+
+      // Show success state
+      setSubmitSuccess(true);
+      
+      // Reset form
+      setNewProjectForm({ 
+        name: "", 
+        description: "", 
+        timeline: "", 
+        budget: "", 
+        requirements: "" 
+      });
+
+      // Auto-close modal after showing success message
+      setTimeout(() => {
+        setShowNewProjectModal(false);
+        setSubmitSuccess(false);
+        // Refresh projects list to show the new pending request
+        window.location.reload();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error submitting project request:', error);
+      alert('Failed to submit project request. Please try again.');
+    } finally {
+      setIsSubmittingProject(false);
+    }
+  };
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (newProjectModalRef.current && !newProjectModalRef.current.contains(event.target as Node)) {
@@ -206,6 +250,7 @@ export function ClientDashboard() {
       case 'completed': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50';
       case 'in-progress': return 'bg-amber-500/20 text-amber-400 border-amber-500/50';
       case 'planning': return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
+      case 'pending-approval': return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
     }
   };
@@ -215,6 +260,7 @@ export function ClientDashboard() {
       case 'completed': return <CheckCircle className="w-4 h-4" />;
       case 'in-progress': return <Clock className="w-4 h-4" />;
       case 'planning': return <Target className="w-4 h-4" />;
+      case 'pending-approval': return <AlertCircle className="w-4 h-4" />;
       default: return <AlertCircle className="w-4 h-4" />;
     }
   };
@@ -358,12 +404,12 @@ export function ClientDashboard() {
                   <div className="mb-4">
                     <div className="flex justify-between text-sm text-gray-400 mb-2">
                       <span>Progress</span>
-                      <span>{project.progress}%</span>
+                      <span>{calculateProjectProgress(project)}%</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div 
                         className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${project.progress}%` }}
+                        style={{ width: `${calculateProjectProgress(project)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -386,14 +432,14 @@ export function ClientDashboard() {
                   
                   {/* Technologies */}
                   <div className="flex flex-wrap gap-1 mt-4">
-                    {project.technologies.slice(0, 3).map((tech: string, index: number) => (
+                    {(project.technologies || []).slice(0, 3).map((tech: string, index: number) => (
                       <Badge key={index} variant="secondary" className="text-xs bg-blue-500/20 text-blue-400 border-blue-500/50">
                         {tech}
                       </Badge>
                     ))}
-                    {project.technologies.length > 3 && (
+                    {(project.technologies || []).length > 3 && (
                       <Badge variant="secondary" className="text-xs bg-gray-500/20 text-gray-400">
-                        +{project.technologies.length - 3}
+                        +{(project.technologies || []).length - 3}
                       </Badge>
                     )}
                   </div>
@@ -453,18 +499,18 @@ export function ClientDashboard() {
               <div className="mb-8">
                 <div className="flex justify-between text-sm text-gray-400 mb-2">
                   <span>Overall Progress</span>
-                  <span>{selectedProject.progress}% Complete</span>
+                  <span>{calculateProjectProgress(selectedProject)}% Complete</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-3">
                   <div 
                     className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${selectedProject.progress}%` }}
+                    style={{ width: `${calculateProjectProgress(selectedProject)}%` }}
                   ></div>
                 </div>
               </div>
 
               {/* Project Info Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* Project Details */}
                 <Card className="bg-gray-800/50 border-gray-700/50 p-6">
                   <h3 className="text-lg font-semibold text-white mb-4">Project Details</h3>
@@ -489,7 +535,7 @@ export function ClientDashboard() {
                 </Card>
 
                 {/* Team Members */}
-                <Card className="bg-gray-800/50 border-gray-700/50 p-6">
+                {/* <Card className="bg-gray-800/50 border-gray-700/50 p-6">
                   <h3 className="text-lg font-semibold text-white mb-4">Team Members</h3>
                   <div className="space-y-3">
                     {selectedProject.teamMembers.map((member: TeamMember, index: number) => (
@@ -504,13 +550,13 @@ export function ClientDashboard() {
                       </div>
                     ))}
                   </div>
-                </Card>
+                </Card> */}
 
                 {/* Technologies */}
                 <Card className="bg-gray-800/50 border-gray-700/50 p-6">
                   <h3 className="text-lg font-semibold text-white mb-4">Technologies</h3>
                   <div className="flex flex-wrap gap-2">
-                    {selectedProject.technologies.map((tech, index) => (
+                    {(selectedProject.technologies || []).map((tech, index) => (
                       <Badge key={index} className="bg-blue-500/20 text-blue-400 border-blue-500/50">
                         {tech}
                       </Badge>
@@ -531,7 +577,7 @@ export function ClientDashboard() {
                       Swipe or click nodes to explore tasks and progress
                     </p>
                   </div>
-                  <CleanGraphRoadmap roadmapData={selectedProject.roadmap} />
+                  <CleanGraphRoadmap roadmapData={selectedProject.roadmap || []} />
                 </Card>
               </div>
 
@@ -580,12 +626,7 @@ export function ClientDashboard() {
                 </Button>
               </div>
 
-              <form className="space-y-6" onSubmit={(e) => {
-                e.preventDefault();
-                console.log('Form submitted:', newProjectForm);
-                setShowNewProjectModal(false);
-                setNewProjectForm({ name: "", description: "", timeline: "", budget: "", requirements: "" });
-              }}>
+              <form className="space-y-6" onSubmit={handleSubmitProjectRequest}>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Project Name *
@@ -656,21 +697,51 @@ export function ClientDashboard() {
                   />
                 </div>
 
+                {submitSuccess && (
+                  <div className="p-4 bg-emerald-900/40 border border-emerald-500/30 rounded-lg">
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="font-medium">Request Submitted Successfully!</span>
+                    </div>
+                    <p className="text-emerald-300 text-sm mt-1">
+                      Your project request has been sent for admin review. You'll see it in your dashboard with "Pending Approval" status.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex gap-3 pt-4 border-t border-gray-700/50">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setShowNewProjectModal(false)}
+                    onClick={() => {
+                      setShowNewProjectModal(false);
+                      setSubmitSuccess(false);
+                    }}
                     className="flex-1"
+                    disabled={isSubmittingProject}
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                    disabled={!newProjectForm.name || !newProjectForm.description}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+                    disabled={!newProjectForm.name || !newProjectForm.description || isSubmittingProject || submitSuccess}
                   >
-                    Submit Request
+                    {isSubmittingProject ? (
+                      <div className="flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Submitting...
+                      </div>
+                    ) : submitSuccess ? (
+                      'Submitted ✓'
+                    ) : (
+                      'Submit Request'
+                    )}
                   </Button>
                 </div>
               </form>

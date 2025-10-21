@@ -50,6 +50,115 @@ interface CleanGraphRoadmapProps {
   roadmapData?: RoadmapPhase[];
 }
 
+// Shortest Path Algorithm Implementation
+interface GraphEdge {
+  from: string;
+  to: string;
+  weight: number;
+}
+
+interface PathResult {
+  path: string[];
+  totalWeight: number;
+  criticalPath: boolean;
+}
+
+// Dijkstra's algorithm implementation
+function dijkstra(nodes: GraphNode[], startNodeId: string, endNodeId: string): PathResult {
+  const distances: { [key: string]: number } = {};
+  const previous: { [key: string]: string | null } = {};
+  const unvisited = new Set<string>();
+  
+  // Initialize distances
+  nodes.forEach(node => {
+    distances[node.id] = node.id === startNodeId ? 0 : Infinity;
+    previous[node.id] = null;
+    unvisited.add(node.id);
+  });
+  
+  while (unvisited.size > 0) {
+    // Find unvisited node with minimum distance
+    let currentNode = null;
+    let minDistance = Infinity;
+    
+    for (const nodeId of unvisited) {
+      if (distances[nodeId] < minDistance) {
+        minDistance = distances[nodeId];
+        currentNode = nodeId;
+      }
+    }
+    
+    if (!currentNode || distances[currentNode] === Infinity) break;
+    
+    unvisited.delete(currentNode);
+    
+    // Find current node data
+    const currentNodeData = nodes.find(n => n.id === currentNode);
+    if (!currentNodeData) continue;
+    
+    // Check all neighbors (dependencies and dependents)
+    nodes.forEach(neighbor => {
+      if (unvisited.has(neighbor.id)) {
+        // Check if there's a dependency relationship
+        const hasConnection = neighbor.dependencies?.includes(currentNode) || 
+                            currentNodeData.dependencies?.includes(neighbor.id);
+        
+        if (hasConnection) {
+          // Weight based on estimated hours and complexity
+          const weight = neighbor.estimatedHours + (neighbor.priority === 'critical' ? 0 : 
+                        neighbor.priority === 'high' ? 10 : 
+                        neighbor.priority === 'medium' ? 20 : 30);
+          
+          const newDistance = distances[currentNode] + weight;
+          
+          if (newDistance < distances[neighbor.id]) {
+            distances[neighbor.id] = newDistance;
+            previous[neighbor.id] = currentNode;
+          }
+        }
+      }
+    });
+  }
+  
+  // Reconstruct path
+  const path: string[] = [];
+  let current: string | null = endNodeId;
+  
+  while (current !== null) {
+    path.unshift(current);
+    current = previous[current];
+  }
+  
+  return {
+    path: path[0] === startNodeId ? path : [],
+    totalWeight: distances[endNodeId],
+    criticalPath: true
+  };
+}
+
+// Find critical path through all project phases
+function findCriticalPath(nodes: GraphNode[]): PathResult {
+  if (nodes.length === 0) return { path: [], totalWeight: 0, criticalPath: false };
+  
+  // Find start node (no dependencies) and end node (no dependents)
+  const startNodes = nodes.filter(node => !node.dependencies || node.dependencies.length === 0);
+  const endNodes = nodes.filter(node => 
+    !nodes.some(other => other.dependencies?.includes(node.id))
+  );
+  
+  if (startNodes.length === 0 || endNodes.length === 0) {
+    // Fallback: use first and last nodes
+    return {
+      path: nodes.map(n => n.id),
+      totalWeight: nodes.reduce((sum, n) => sum + n.estimatedHours, 0),
+      criticalPath: true
+    };
+  }
+  
+  // Find shortest path from first start to first end
+  return dijkstra(nodes, startNodes[0].id, endNodes[0].id);
+}
+
 export default function CleanGraphRoadmap({ className = '', roadmapData }: CleanGraphRoadmapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
@@ -59,6 +168,8 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
   const [firebaseNodes, setFirebaseNodes] = useState<Node[]>([]);
   const [hoveredNodeIndex, setHoveredNodeIndex] = useState<number | null>(null);
   const [clickedNodeIndex, setClickedNodeIndex] = useState<number | null>(null);
+  const [criticalPath, setCriticalPath] = useState<PathResult>({ path: [], totalWeight: 0, criticalPath: false });
+  const [showCriticalPath, setShowCriticalPath] = useState<boolean>(true);
   
 
   
@@ -168,6 +279,10 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
         };
       });
       setNodes(allNodes);
+      
+      // Calculate critical path
+      const pathResult = findCriticalPath(allNodes);
+      setCriticalPath(pathResult);
       
       // Set the current active node (in-progress or first node)
       const activeNodeIndex = allNodes.findIndex((node: any) => node.status === 'in-progress');
@@ -326,7 +441,7 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
     if (nodes.length === 0) return;
 
     const centerX = width / 2;
-    const centerY = height / 2 + 30; // Shift roadmap nodes down to avoid overlap with progress bar
+    const centerY = height / 2;
     
     // Remove roadmap title from top - will be added below status indicators
     
@@ -360,13 +475,17 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
       };
     });
 
-    // Draw connections between dependent nodes with improved styling
+    // Draw connections between dependent nodes with critical path highlighting
     nodePositions.forEach(({ node, x, y }) => {
       if (node.dependencies && node.dependencies.length > 0) {
         node.dependencies.forEach(depId => {
           const depPosition = nodePositions.find(pos => pos.node.id === depId);
           if (depPosition) {
-
+            // Check if this connection is part of the critical path
+            const isOnCriticalPath = showCriticalPath && criticalPath.path.length > 0 &&
+              criticalPath.path.includes(node.id) && criticalPath.path.includes(depId) &&
+              Math.abs(criticalPath.path.indexOf(node.id) - criticalPath.path.indexOf(depId)) === 1;
+            
             // Calculate connection points on circle edges instead of centers
             const dx = x - depPosition.x;
             const dy = y - depPosition.y;
@@ -381,23 +500,42 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
             const endX = x - (dx / distance) * nodeRadius;
             const endY = y - (dy / distance) * nodeRadius;
             
-            // Draw connection with enhanced styling
-            ctx.shadowColor = '#3b82f6';
-            // Simplified connection line
-            ctx.strokeStyle = 'rgba(99, 102, 241, 0.6)';
-            ctx.lineWidth = 2;
+            // Enhanced styling for critical path
+            if (isOnCriticalPath) {
+              ctx.shadowColor = '#ef4444';
+              ctx.shadowBlur = 12;
+              ctx.lineWidth = 5;
+            } else {
+              ctx.shadowColor = '#3b82f6';
+              ctx.shadowBlur = 6;
+              ctx.lineWidth = 3;
+            }
+            
+            // Draw main line with gradient
+            const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
+            if (isOnCriticalPath) {
+              gradient.addColorStop(0, 'rgba(239, 68, 68, 0.9)');
+              gradient.addColorStop(0.5, 'rgba(220, 38, 127, 0.8)');
+              gradient.addColorStop(1, 'rgba(239, 68, 68, 0.9)');
+            } else {
+              gradient.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
+              gradient.addColorStop(0.5, 'rgba(99, 102, 241, 0.6)');
+              gradient.addColorStop(1, 'rgba(139, 92, 246, 0.8)');
+            }
+            
+            ctx.strokeStyle = gradient;
             ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(startX, startY);
             ctx.lineTo(endX, endY);
             ctx.stroke();
             
-            // Simple arrow head
+            // Draw arrow head with enhanced styling
             const angle = Math.atan2(dy, dx);
-            const arrowLength = 8;
-            const arrowWidth = 4;
+            const arrowLength = isOnCriticalPath ? 15 : 12;
+            const arrowWidth = isOnCriticalPath ? 8 : 6;
             
-            ctx.fillStyle = 'rgba(99, 102, 241, 0.6)';
+            ctx.fillStyle = gradient;
             ctx.beginPath();
             ctx.moveTo(endX, endY);
             ctx.lineTo(
@@ -411,7 +549,25 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
             ctx.closePath();
             ctx.fill();
             
-            // Simplified - removed connection labels for cleaner look
+            // Add connection label for critical path
+            if (isOnCriticalPath) {
+              const midX = (startX + endX) / 2;
+              const midY = (startY + endY) / 2;
+              
+              ctx.shadowBlur = 0;
+              ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+              ctx.font = 'bold 10px system-ui';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              
+              // Add small background for text readability
+              const textWidth = ctx.measureText('CRITICAL').width;
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+              ctx.fillRect(midX - textWidth/2 - 3, midY - 8, textWidth + 6, 16);
+              
+              ctx.fillStyle = 'rgba(239, 68, 68, 1)';
+              ctx.fillText('CRITICAL', midX, midY);
+            }
           }
         });
       }
@@ -420,35 +576,71 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
     // Reset shadow
     ctx.shadowBlur = 0;
 
-    // Draw nodes with enhanced animations
+    // Draw nodes with enhanced animations and critical path highlighting
     nodePositions.forEach(({ node, x, y, index }) => {
 
       const isSelected = index === currentIndex;
       const isHovered = index === hoveredNodeIndex;
       const isClicked = index === clickedNodeIndex;
       const isCompleted = node.status === 'completed';
+      const isOnCriticalPath = showCriticalPath && criticalPath.path.includes(node.id);
       
       // Dynamic radius based on state
       let nodeRadius = 16; // base radius
       if (isSelected) nodeRadius = 28;
       else if (isClicked) nodeRadius = 32; // Larger when clicked
       else if (isHovered) nodeRadius = 22;
+      else if (isOnCriticalPath) nodeRadius = 20; // Slightly larger for critical path
       
-      // Animated pulse for selected node, gentle pulse for hover
+      // Animated pulse for selected node, gentle pulse for hover, strong pulse for critical path
       const time = Date.now() * 0.003;
       const pulse = isSelected ? 1 + Math.sin(time) * 0.1 : 
-                   isHovered ? 1 + Math.sin(time * 2) * 0.05 : 1;
+                   isHovered ? 1 + Math.sin(time * 2) * 0.05 : 
+                   isOnCriticalPath ? 1 + Math.sin(time * 1.5) * 0.08 : 1;
       const finalRadius = nodeRadius * pulse;
       
-      // Simplified selection indicator
-      if (isSelected) {
-        ctx.shadowColor = isCompleted ? '#10b981' : 
+      // Enhanced shadow/glow for critical path nodes
+      if (isSelected || isHovered || isOnCriticalPath) {
+        ctx.shadowColor = isOnCriticalPath ? '#ef4444' :
+                          isCompleted ? '#10b981' : 
                           node.status === 'in-progress' ? '#f59e0b' : '#6366f1';
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = isSelected ? 20 : isOnCriticalPath ? 15 : 10;
+      }
+      
+      // Special glow ring for critical path nodes
+      if (isOnCriticalPath) {
+        const criticalGradient = ctx.createRadialGradient(x, y, 0, x, y, 60);
+        criticalGradient.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
+        criticalGradient.addColorStop(1, 'rgba(239, 68, 68, 0)');
+        ctx.fillStyle = criticalGradient;
+        ctx.beginPath();
+        ctx.arc(x, y, 60, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Critical path indicator ring
+        const ringRadius = 45 + Math.sin(time * 2) * 5;
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(x, y, ringRadius, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset line dash
+      }
+      
+      // Outer glow ring for selected nodes
+      if (isSelected && !isOnCriticalPath) {
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 50);
+        gradient.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
+        gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, 50, 0, 2 * Math.PI);
+        ctx.fill();
       }
       
       // Subtle hover glow for hovered nodes
-      if (isHovered && !isSelected) {
+      if (isHovered && !isSelected && !isOnCriticalPath) {
         const hoverGradient = ctx.createRadialGradient(x, y, 0, x, y, 35);
         hoverGradient.addColorStop(0, 'rgba(99, 102, 241, 0.2)');
         hoverGradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
@@ -458,9 +650,13 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
         ctx.fill();
       }
       
-      // Node circle with gradient
+      // Node circle with gradient and critical path enhancement
       const nodeGradient = ctx.createRadialGradient(x-5, y-5, 0, x, y, finalRadius);
-      if (isCompleted) {
+      if (isOnCriticalPath) {
+        nodeGradient.addColorStop(0, '#fbbf24');
+        nodeGradient.addColorStop(0.5, '#f59e0b');
+        nodeGradient.addColorStop(1, '#d97706');
+      } else if (isCompleted) {
         nodeGradient.addColorStop(0, '#34d399');
         nodeGradient.addColorStop(1, '#059669');
       } else if (node.status === 'in-progress') {
@@ -476,9 +672,9 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
       ctx.arc(x, y, finalRadius, 0, 2 * Math.PI);
       ctx.fill();
       
-      // Inner border
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.lineWidth = 2;
+      // Enhanced border for critical path
+      ctx.strokeStyle = isOnCriticalPath ? 'rgba(239, 68, 68, 0.8)' : 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = isOnCriticalPath ? 3 : 2;
       ctx.stroke();
       
       // Reset shadow
@@ -487,31 +683,52 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
       // Selection ring animation
       if (isSelected) {
         const ringRadius = 40 + Math.sin(time * 2) * 3;
-        ctx.strokeStyle = 'rgba(99, 102, 241, 0.6)';
+        ctx.strokeStyle = isOnCriticalPath ? 'rgba(239, 68, 68, 0.8)' : 'rgba(99, 102, 241, 0.6)';
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(x, y, ringRadius, 0, 2 * Math.PI);
         ctx.stroke();
       }
 
-      // Completion indicator
+      // Completion indicator or critical path marker
       if (isCompleted) {
         ctx.fillStyle = 'white';
         ctx.font = 'bold 14px system-ui';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('✓', x, y);
+      } else if (isOnCriticalPath && !isCompleted) {
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚡', x, y);
       }
 
       // Node label (only for selected) with better positioning
       if (isSelected) {
-        ctx.fillStyle = '#f8fafc';
+        ctx.fillStyle = isOnCriticalPath ? '#fbbf24' : '#f8fafc';
         ctx.font = 'bold 16px system-ui';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         
-        // Simplified title text
+        // Add text shadow for better readability
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetY = 2;
+        
         ctx.fillText(node.title, x, y + 55);
+        
+        // Critical path indicator text
+        if (isOnCriticalPath) {
+          ctx.fillStyle = '#ef4444';
+          ctx.font = 'bold 12px system-ui';
+          ctx.fillText('CRITICAL PATH', x, y + 75);
+        }
+        
+        // Reset shadow
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
       }
     });
 
@@ -521,11 +738,11 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
       sum + (node.tasks?.filter((task: any) => task.completed).length || 0), 0);
     const overallProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
     
-    // Progress bar background - positioned at top of canvas
+    // Progress bar background - positioned at very top with padding
     const progressBarWidth = 280;
     const progressBarHeight = 6;
     const progressBarX = centerX - progressBarWidth / 2;
-    const progressBarY = 15; // Top of canvas with small padding
+    const progressBarY = 12; // Very top with small padding
     
     // Background
     ctx.fillStyle = 'rgba(75, 85, 99, 0.3)';
@@ -544,7 +761,16 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
       ctx.fill();
     }
     
-    // Simplified design - removed text clutter for cleaner look
+    // Progress text with smaller font and better positioning
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(99, 102, 241, 0.8)';
+    ctx.shadowBlur = 8;
+    ctx.fillText(`${Math.round(overallProgress)}% Complete (${completedTasks}/${totalTasks} tasks)`, centerX, 35);
+    
+    // Reset shadow
+    ctx.shadowBlur = 0;
 
   }, [nodes, currentIndex, hoveredNodeIndex, clickedNodeIndex]);
 
@@ -560,7 +786,7 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
     // Use the same positioning logic as the drawing function
     const { width, height } = rect;
     const centerX = width / 2;
-    const centerY = height / 2 + 30; // Same offset as drawing function
+    const centerY = height / 2;
     
     // Use the same natural horizontal flow layout as drawing
     const nodePositions = nodes.map((node, index) => {
@@ -620,7 +846,7 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
     
     const { width, height } = rect;
     const centerX = width / 2;
-    const centerY = height / 2 + 30; // Same offset as drawing function
+    const centerY = height / 2;
     
     // Use same natural horizontal flow positioning logic as click and draw
     const nodePositions = nodes.map((node, index) => {
@@ -694,39 +920,10 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
 
   return (
     <div className={`w-full h-full bg-gradient-to-br from-gray-900 via-gray-800 to-black rounded-lg overflow-hidden relative ${className}`}>
-      {/* Status Indicators - positioned above canvas */}
-      <div className="flex justify-center py-4">
-        <div className="flex items-center gap-6 text-sm text-gray-200 bg-gray-800/90 backdrop-blur-xl px-8 py-4 rounded-2xl border border-gray-600/40 shadow-2xl">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 bg-emerald-500 rounded-full shadow-emerald-500/30 shadow-lg"></div>
-            <span className="font-medium">Completed</span>
-            <span className="text-gray-400 bg-gray-700/50 px-2 py-1 rounded-full text-xs">
-              ({nodes.filter((n: GraphNode) => n.status === 'completed').length})
-            </span>
-          </div>
-          <div className="w-px h-5 bg-gray-600/50"></div>
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 bg-amber-500 rounded-full shadow-amber-500/30 shadow-lg"></div>
-            <span className="font-medium">In Progress</span>
-            <span className="text-gray-400 bg-gray-700/50 px-2 py-1 rounded-full text-xs">
-              ({nodes.filter((n: GraphNode) => n.status === 'in-progress').length})
-            </span>
-          </div>
-          <div className="w-px h-5 bg-gray-600/50"></div>
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 bg-indigo-500 rounded-full shadow-indigo-500/30 shadow-lg"></div>
-            <span className="font-medium">Upcoming</span>
-            <span className="text-gray-400 bg-gray-700/50 px-2 py-1 rounded-full text-xs">
-              ({nodes.filter((n: GraphNode) => ['planned', 'upcoming', 'not-started'].includes(n.status)).length})
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* Canvas */}
       <canvas
         ref={canvasRef}
-        className="w-full h-80 cursor-pointer transition-all duration-300 hover:opacity-95"
+        className="w-full h-72 cursor-pointer transition-all duration-300 hover:opacity-95"
         onClick={handleCanvasClick}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -879,12 +1076,183 @@ export default function CleanGraphRoadmap({ className = '', roadmapData }: Clean
         </div>
       )}
 
-      {/* Simplified Project Title */}
-      <div className="absolute top-30 left-1/2 transform -translate-x-1/2">
+      {/* Critical Path Analysis Panel */}
+      {criticalPath.path.length > 0 && (
+        <div className="absolute top-4 right-4">
+          <div className="bg-gray-800/95 backdrop-blur-xl border border-gray-600/50 rounded-xl p-4 shadow-2xl max-w-xs">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                <span className="text-red-400">⚡</span>
+                Critical Path Analysis
+              </h4>
+              <button 
+                onClick={() => setShowCriticalPath(!showCriticalPath)}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                  showCriticalPath 
+                    ? 'bg-red-500/20 text-red-300 border border-red-500/50' 
+                    : 'bg-gray-600/20 text-gray-400 border border-gray-600/50'
+                }`}
+              >
+                {showCriticalPath ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            
+            {showCriticalPath && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="text-center p-2 bg-red-900/30 rounded-lg border border-red-700/50">
+                    <div className="text-red-300 font-bold">{criticalPath.path.length}</div>
+                    <div className="text-gray-400">Phases</div>
+                  </div>
+                  <div className="text-center p-2 bg-amber-900/30 rounded-lg border border-amber-700/50">
+                    <div className="text-amber-300 font-bold">{Math.round(criticalPath.totalWeight)}h</div>
+                    <div className="text-gray-400">Total Time</div>
+                  </div>
+                </div>
+                
+                <div className="text-xs">
+                  <div className="text-gray-400 mb-2">Critical Path:</div>
+                  <div className="space-y-1">
+                    {criticalPath.path.map((nodeId, index) => {
+                      const node = nodes.find(n => n.id === nodeId);
+                      const isBottleneck = node && node.estimatedHours && node.estimatedHours > 40;
+                      return (
+                        <div key={nodeId} className={`flex items-center gap-2 text-xs p-1 rounded ${
+                          isBottleneck ? 'bg-orange-900/30 border border-orange-700/50' : ''
+                        }`}>
+                          <span className="text-red-400">{index + 1}.</span>
+                          <span className="text-white flex-1">{node?.title || nodeId}</span>
+                          <span className={`${isBottleneck ? 'text-orange-300 font-bold' : 'text-gray-400'}`}>
+                            {node?.estimatedHours || 0}h
+                          </span>
+                          {isBottleneck && <span className="text-orange-400 text-xs">🚧</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                {/* Bottleneck Analysis */}
+                {criticalPath.path.some(nodeId => {
+                  const node = nodes.find(n => n.id === nodeId);
+                  return node && node.estimatedHours && node.estimatedHours > 40;
+                }) && (
+                  <div className="text-xs bg-orange-900/20 border border-orange-700/50 rounded-lg p-2">
+                    <div className="text-orange-300 font-semibold mb-1">⚠️ Bottlenecks Detected</div>
+                    <div className="text-gray-400">
+                      High-effort phases identified. Consider breaking down or parallelizing.
+                    </div>
+                  </div>
+                )}
+                
+                <div className="text-xs text-gray-400 border-t border-gray-700/50 pt-2">
+                  Optimized path showing minimum completion time
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Optimization Insights Panel */}
+      <div className="absolute bottom-4 right-4">
+        <div className="bg-gray-800/95 backdrop-blur-xl border border-gray-600/50 rounded-xl p-4 shadow-2xl max-w-sm">
+          <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+            <span className="text-blue-400">📊</span>
+            Project Optimization
+          </h4>
+          
+          <div className="space-y-3 text-xs">
+            {/* Timeline Estimation */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="text-center p-2 bg-green-900/30 rounded-lg border border-green-700/50">
+                <div className="text-green-300 font-bold">
+                  {Math.round(criticalPath.totalWeight / 8)}
+                </div>
+                <div className="text-gray-400">Days</div>
+              </div>
+              <div className="text-center p-2 bg-blue-900/30 rounded-lg border border-blue-700/50">
+                <div className="text-blue-300 font-bold">
+                  {Math.round(criticalPath.totalWeight / 40)}
+                </div>
+                <div className="text-gray-400">Weeks</div>
+              </div>
+              <div className="text-center p-2 bg-purple-900/30 rounded-lg border border-purple-700/50">
+                <div className="text-purple-300 font-bold">
+                  {nodes.filter(n => criticalPath.path.includes(n.id)).length}
+                </div>
+                <div className="text-gray-400">Critical</div>
+              </div>
+            </div>
+            
+            {/* Optimization Suggestions */}
+            <div className="bg-indigo-900/20 border border-indigo-700/50 rounded-lg p-2">
+              <div className="text-indigo-300 font-semibold mb-1">💡 Optimization Tips</div>
+              <ul className="text-gray-400 space-y-1">
+                <li>• Parallelize non-critical paths</li>
+                <li>• Focus resources on critical phases</li>
+                <li>• Monitor bottleneck phases closely</li>
+                {criticalPath.totalWeight > 320 && (
+                  <li className="text-orange-300">• Consider breaking down large phases</li>
+                )}
+              </ul>
+            </div>
+            
+            {/* Risk Assessment */}
+            <div className="text-gray-400">
+              <div className="flex items-center justify-between">
+                <span>Project Risk:</span>
+                <span className={`font-semibold ${
+                  criticalPath.totalWeight > 400 ? 'text-red-400' :
+                  criticalPath.totalWeight > 200 ? 'text-yellow-400' : 'text-green-400'
+                }`}>
+                  {criticalPath.totalWeight > 400 ? 'High' :
+                   criticalPath.totalWeight > 200 ? 'Medium' : 'Low'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Centered Status Indicators - with proper spacing */}
+      <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2">
+        <div className="flex items-center gap-6 text-sm text-gray-200 bg-gray-800/90 backdrop-blur-xl px-8 py-4 rounded-2xl border border-gray-600/40 shadow-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 bg-emerald-500 rounded-full shadow-emerald-500/30 shadow-lg"></div>
+            <span className="font-medium">Completed</span>
+            <span className="text-gray-400 bg-gray-700/50 px-2 py-1 rounded-full text-xs">
+              ({nodes.filter((n: GraphNode) => n.status === 'completed').length})
+            </span>
+          </div>
+          <div className="w-px h-5 bg-gray-600/50"></div>
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 bg-amber-500 rounded-full shadow-amber-500/30 shadow-lg"></div>
+            <span className="font-medium">In Progress</span>
+            <span className="text-gray-400 bg-gray-700/50 px-2 py-1 rounded-full text-xs">
+              ({nodes.filter((n: GraphNode) => n.status === 'in-progress').length})
+            </span>
+          </div>
+          <div className="w-px h-5 bg-gray-600/50"></div>
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 bg-indigo-500 rounded-full shadow-indigo-500/30 shadow-lg"></div>
+            <span className="font-medium">Upcoming</span>
+            <span className="text-gray-400 bg-gray-700/50 px-2 py-1 rounded-full text-xs">
+              ({nodes.filter((n: GraphNode) => ['planned', 'upcoming', 'not-started'].includes(n.status)).length})
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Project Roadmap Title Below Status - with clear separation */}
+      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2">
         <div className="text-center">
-          <h3 className="text-sm font-medium text-white/70">
-            Project Roadmap
+          <h3 className="text-base font-semibold text-white/90 mb-1">
+            Project Roadmap Flow
           </h3>
+          <p className="text-xs text-gray-400">
+            Interactive timeline of project phases
+          </p>
         </div>
       </div>
     </div>
