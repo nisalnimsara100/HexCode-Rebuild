@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { 
   MapPin, 
-  Clock, 
   Users, 
   TrendingUp, 
   Heart, 
@@ -15,183 +14,97 @@ import {
   Zap, 
   Award,
   ArrowRight,
-  Briefcase,
   DollarSign,
-  Calendar,
-  Star,
   Globe,
-  Code,
-  Palette,
-  Target,
-  Monitor
+  Monitor,
+  Target
 } from "lucide-react"
 import { useEffect, useState } from "react";
 import { database } from "@/lib/firebase";
 import { ref, onValue } from "firebase/database";
 import { EnhancedJobApplicationForm } from "@/components/careers/enhanced-job-application-form";
+import { CareerCard, type Career } from "@/components/careers/career-card";
 
-type Career = {
-  id: number;
-  title: string;
-  department: string;
-  level: "Intern" | "Associate" | "Senior" | "Lead" | "Manager";
-  location: string;
-  type: string;
-  experience: string;
-  salary: string;
-  technologies: string[];
-  description: string;
-  posted: string;
-  requirements?: string[];
-};
-
-export default function CareersPage() {
-  const [careers, setCareers] = useState<Career[]>([]);
-  const [isApplicationFormOpen, setIsApplicationFormOpen] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<Career | null>(null);
-
-  useEffect(() => {
-    const careersRef = ref(database, "careers");
-    const unsubscribe = onValue(careersRef, (snapshot) => {
-      const data = snapshot.val();
-      setCareers(data ? Object.values(data) : []);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handleApplyClick = (job: Career) => {
-    setSelectedJob(job);
-    setIsApplicationFormOpen(true);
-  };
-
-  const handleCloseApplicationForm = () => {
-    setIsApplicationFormOpen(false);
-    setSelectedJob(null);
-  };
-
-  const companyValues = [
-    {
-      icon: <Zap className="w-6 h-6" />,
-      title: "Innovation First",
-      description: "We embrace cutting-edge technologies and encourage creative problem-solving.",
-    },
-    {
-      icon: <Users className="w-6 h-6" />,
-      title: "Team Collaboration",
-      description: "We believe in the power of diverse teams working together towards common goals.",
-    },
-    {
-      icon: <TrendingUp className="w-6 h-6" />,
-      title: "Continuous Growth",
-      description: "We invest in our people through learning opportunities and career development.",
-    },
-    {
-      icon: <Heart className="w-6 h-6" />,
-      title: "Work-Life Balance",
-      description: "We prioritize well-being with flexible schedules and a supportive environment.",
-    },
-  ]
-
-  const benefits = [
-    {
-      icon: <DollarSign className="w-5 h-5" />,
-      title: "Competitive Salary",
-      description: "Market-leading compensation packages",
-    },
-    {
-      icon: <Coffee className="w-5 h-5" />,
-      title: "Flexible Hours",
-      description: "Work when you're most productive",
-    },
-    {
-      icon: <Globe className="w-5 h-5" />,
-      title: "Remote Work",
-      description: "Hybrid or fully remote options",
-    },
-    {
-      icon: <Award className="w-5 h-5" />,
-      title: "Learning Budget",
-      description: "$2000 annual learning allowance",
-    },
-    {
-      icon: <Users className="w-5 h-5" />,
-      title: "Team Events",
-      description: "Regular team building activities",
-    },
-    {
-      icon: <Monitor className="w-5 h-5" />,
-      title: "Latest Tech",
-      description: "Top-tier equipment and tools",
-    },
-  ]
-
-  const getDepartmentIcon = (department: string) => {
-    switch (department) {
-      case "Engineering":
-        return <Code className="w-4 h-4" />
-      case "Design":
-        return <Palette className="w-4 h-4" />
-      case "Infrastructure":
-        return <Monitor className="w-4 h-4" />
-      case "Marketing":
-        return <Target className="w-4 h-4" />
-      case "Sales":
-        return <DollarSign className="w-4 h-4" />
-      case "HR":
-        return <Users className="w-4 h-4" />
-      case "IT":
-        return <Zap className="w-4 h-4" />
-      case "Leadership":
-        return <Star className="w-4 h-4" />
-      case "Data":
-        return <TrendingUp className="w-4 h-4" />
-      default:
-        return <Briefcase className="w-4 h-4" />
-    }
-  }
-
-  const getDepartmentColor = (department: string) => {
-    switch (department) {
-      case "Engineering":
-        return "text-blue-500 bg-blue-500/10 border-blue-500/20";
-      case "Design":
-        return "text-purple-500 bg-purple-500/10 border-purple-500/20";
-      case "Infrastructure":
-        return "text-orange-500 bg-orange-500/10 border-orange-500/20";
-      case "Marketing":
-        return "text-pink-500 bg-pink-500/10 border-pink-500/20";
-      case "Sales":
-        return "text-green-500 bg-green-500/10 border-green-500/20";
-      case "HR":
-        return "text-yellow-500 bg-yellow-500/10 border-yellow-500/20";
-      case "IT":
-        return "text-red-500 bg-red-500/10 border-red-500/20";
-      case "Leadership":
-        return "text-indigo-500 bg-indigo-500/10 border-indigo-500/20";
-      case "Data":
-        return "text-teal-500 bg-teal-500/10 border-teal-500/20";
-      default:
-        return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20";
-    }
-  }
-
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case "Intern":
-        return "text-emerald-600 bg-emerald-100 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-700";
-      case "Associate":
-        return "text-blue-600 bg-blue-100 border-blue-200 dark:text-blue-400 dark:bg-blue-900/30 dark:border-blue-700";
-      case "Senior":
-        return "text-purple-600 bg-purple-100 border-purple-200 dark:text-purple-400 dark:bg-purple-900/30 dark:border-purple-700";
-      case "Lead":
-        return "text-orange-600 bg-orange-100 border-orange-200 dark:text-orange-400 dark:bg-orange-900/30 dark:border-orange-700";
-      case "Manager":
-        return "text-red-600 bg-red-100 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-700";
-      default:
-        return "text-gray-600 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-900/30 dark:border-gray-700";
-    }
-  }
+  export default function CareersPage() {
+    const [careers, setCareers] = useState<Career[]>([]);
+    const [isApplicationFormOpen, setIsApplicationFormOpen] = useState(false);
+    const [selectedJob, setSelectedJob] = useState<Career | null>(null);
+  
+    useEffect(() => {
+      const careersRef = ref(database, "careers");
+      const unsubscribe = onValue(careersRef, (snapshot) => {
+        const data = snapshot.val();
+        setCareers(data ? Object.values(data) : []);
+      });
+  
+      return () => unsubscribe();
+    }, []);
+  
+    const handleApplyClick = (job: Career) => {
+      setSelectedJob(job);
+      setIsApplicationFormOpen(true);
+    };
+  
+    const handleCloseApplicationForm = () => {
+      setIsApplicationFormOpen(false);
+      setSelectedJob(null);
+    };
+  
+    const companyValues = [
+      {
+        icon: <Zap className="w-6 h-6" />,
+        title: "Innovation First",
+        description: "We embrace cutting-edge technologies and encourage creative problem-solving.",
+      },
+      {
+        icon: <Users className="w-6 h-6" />,
+        title: "Team Collaboration",
+        description: "We believe in the power of diverse teams working together towards common goals.",
+      },
+      {
+        icon: <TrendingUp className="w-6 h-6" />,
+        title: "Continuous Growth",
+        description: "We invest in our people through learning opportunities and career development.",
+      },
+      {
+        icon: <Heart className="w-6 h-6" />,
+        title: "Work-Life Balance",
+        description: "We prioritize well-being with flexible schedules and a supportive environment.",
+      },
+    ]
+  
+    const benefits = [
+      {
+        icon: <DollarSign className="w-5 h-5" />,
+        title: "Competitive Salary",
+        description: "Market-leading compensation packages",
+      },
+      {
+        icon: <Coffee className="w-5 h-5" />,
+        title: "Flexible Hours",
+        description: "Work when you're most productive",
+      },
+      {
+        icon: <Globe className="w-5 h-5" />,
+        title: "Remote Work",
+        description: "Hybrid or fully remote options",
+      },
+      {
+        icon: <Award className="w-5 h-5" />,
+        title: "Learning Budget",
+        description: "$2000 annual learning allowance",
+      },
+      {
+        icon: <Users className="w-5 h-5" />,
+        title: "Team Events",
+        description: "Regular team building activities",
+      },
+      {
+        icon: <Monitor className="w-5 h-5" />,
+        title: "Latest Tech",
+        description: "Top-tier equipment and tools",
+      },
+    ]
 
   return (
     <div className="min-h-screen bg-background">
@@ -302,149 +215,14 @@ export default function CareersPage() {
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-7xl mx-auto">
             {careers.map((position, index) => (
-              <Card 
+              <CareerCard 
                 key={position.id} 
-                className="relative overflow-hidden bg-gradient-to-br from-background via-emerald-500/5 to-background border border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-500 group cursor-pointer"
-                style={{
-                  animationDelay: `${index * 0.2}s`
-                }}
-              >
-                {/* Animated background elements */}
-                <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 animate-pulse"></div>
-                <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-br from-emerald-300/10 to-emerald-500/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                
-                {/* Floating orbs */}
-                <div className="absolute top-4 right-4 w-3 h-3 bg-emerald-400/60 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-                <div className="absolute top-8 right-8 w-2 h-2 bg-emerald-500/40 rounded-full animate-bounce" style={{ animationDelay: '0.5s' }}></div>
-                <div className="absolute top-12 right-12 w-1.5 h-1.5 bg-emerald-300/50 rounded-full animate-bounce" style={{ animationDelay: '1s' }}></div>
-
-                {/* Main content */}
-                <div className="relative p-8 space-y-6">
-                  {/* Header section with enhanced styling */}
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getDepartmentColor(position.department)} backdrop-blur-sm shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                            {getDepartmentIcon(position.department)}
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-bold bg-gradient-to-r from-foreground to-emerald-500 bg-clip-text text-transparent group-hover:from-emerald-500 group-hover:to-emerald-400 transition-all duration-300">
-                              {position.title}
-                            </h3>
-                            <div className="flex gap-2 mt-2">
-                              <Badge className={`${getDepartmentColor(position.department)} text-xs font-medium shadow-sm`}>
-                                <span>{position.department}</span>
-                              </Badge>
-                              <Badge className={`${getLevelColor(position.level)} text-xs font-medium shadow-sm border`}>
-                                <span>{position.level}</span>
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <p className="text-muted-foreground leading-relaxed mb-4 group-hover:text-muted-foreground/90 transition-colors">
-                          {position.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Enhanced technology tags */}
-                    <div className="flex flex-wrap gap-2">
-                      {position.technologies.map((tech, techIndex) => (
-                        <Badge 
-                          key={tech} 
-                          variant="secondary" 
-                          className="text-xs bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all duration-200 hover:scale-105 backdrop-blur-sm"
-                          style={{ 
-                            animationDelay: `${techIndex * 100}ms`,
-                            transform: 'translateY(0px)',
-                          }}
-                        >
-                          {tech}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Enhanced details grid with better visual hierarchy */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-emerald-500/5 rounded-lg p-3 border border-emerald-500/10 group-hover:border-emerald-500/20 transition-colors">
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                          <MapPin className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground font-medium">Location</p>
-                          <p className="font-semibold">{position.location}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-emerald-500/5 rounded-lg p-3 border border-emerald-500/10 group-hover:border-emerald-500/20 transition-colors">
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                          <Clock className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground font-medium">Type</p>
-                          <p className="font-semibold">{position.type}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-emerald-500/5 rounded-lg p-3 border border-emerald-500/10 group-hover:border-emerald-500/20 transition-colors">
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                          <Star className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground font-medium">Experience</p>
-                          <p className="font-semibold">{position.experience}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-emerald-500/5 rounded-lg p-3 border border-emerald-500/10 group-hover:border-emerald-500/20 transition-colors">
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                          <DollarSign className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground font-medium">Salary</p>
-                          <p className="font-semibold text-emerald-600">{position.salary}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Enhanced footer with better spacing and visual elements */}
-                  <div className="flex items-center justify-between pt-4 border-t border-emerald-500/10">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-full">
-                        <Calendar className="w-3 h-3 text-emerald-500" />
-                        <span>Posted {position.posted}</span>
-                      </div>
-                      {position.posted.includes('day') && (
-                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                      )}
-                    </div>
-                    
-                    <Button 
-                      className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300 group/btn hover:scale-105"
-                      onClick={() => handleApplyClick(position)}
-                    >
-                      Apply Now
-                      <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform duration-200" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Hover effect overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-emerald-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-              </Card>
+                career={position} 
+                onApply={handleApplyClick}
+                index={index}
+              />
             ))}
           </div>
 
