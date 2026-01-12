@@ -54,15 +54,15 @@ export function Footer() {
             <div className="space-y-3">
               <div className="flex items-center text-sm text-muted-foreground">
                 <Mail className="w-4 h-4 mr-3 text-emerald-500" />
-                hello@hexcode.dev
+                hello@hexcode.lk
               </div>
               <div className="flex items-center text-sm text-muted-foreground">
                 <Phone className="w-4 h-4 mr-3 text-emerald-500" />
-                +1 (555) 123-4567
+                +94 78 673 4140
               </div>
               <div className="flex items-center text-sm text-muted-foreground">
                 <MapPin className="w-4 h-4 mr-3 text-emerald-500" />
-                San Francisco, CA
+                Kurunegala, Sri Lanka
               </div>
             </div>
 
@@ -154,7 +154,7 @@ export function Footer() {
         <Separator className="my-8" />
 
         <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-          <p className="text-sm text-muted-foreground">© 2025 HexCode. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© 2026 HexCode. All rights reserved.</p>
           <div className="flex space-x-6">
             {footerLinks.legal.map((link) => (
               <Link
