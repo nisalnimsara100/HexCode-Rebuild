@@ -509,18 +509,27 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
       const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || "public_key";
 
       if (serviceId !== "service_id") {
+        const emailParams = {
+          to_email: "admin@hexcode.com", // Replace with dynamic if needed
+          candidate_name: `${formData.firstName} ${formData.lastName}`,
+          job_title: selectedJob.title,
+          cv_link: cvUrl,
+          candidate_email: formData.email,
+          phone: formData.phone,
+          linkedin: formData.linkedinUrl || "N/A",
+          portfolio: formData.portfolioUrl || "N/A",
+          current_role: formData.currentRole || "N/A",
+          years_experience: formData.yearsOfExperience || "0",
+          tech_skills: formData.technicalSkills.join(", ") || "N/A",
+          location: `${formData.city}, ${formData.country}`
+        };
+
+        console.log("Sending email with params:", emailParams); // Debug log
+
         await emailjs.send(
           serviceId,
           templateId,
-          {
-            to_email: "admin@hexcode.com", // Replace with dynamic if needed
-            candidate_name: `${formData.firstName} ${formData.lastName}`,
-            job_title: selectedJob.title,
-            cv_link: cvUrl,
-            candidate_email: formData.email,
-            phone: formData.phone,
-            linkedin: formData.linkedinUrl
-          },
+          emailParams,
           publicKey
         );
       } else {
