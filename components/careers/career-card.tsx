@@ -144,12 +144,29 @@ export function CareerCard({ career, onApply, className, index = 0 }: CareerCard
             </div>
           </div>
 
-          {career.posted.includes('day') && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-emerald-500/20 animate-pulse">
-              <Sparkles className="w-3 h-3" />
-              New
-            </div>
-          )}
+          {(() => {
+            const isReceny = (dateStr: string) => {
+              if (!dateStr) return false;
+              // Handle relative strings (legacy)
+              if (dateStr.toLowerCase().includes('day') ||
+                dateStr.toLowerCase().includes('hour') ||
+                dateStr.toLowerCase().includes('min')) return true;
+
+              // Handle ISO dates
+              const postedDate = new Date(dateStr);
+              if (isNaN(postedDate.getTime())) return false;
+
+              const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+              return (new Date().getTime() - postedDate.getTime()) < sevenDaysInMs;
+            };
+
+            return isReceny(career.posted) && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-emerald-500/20 animate-pulse">
+                <Sparkles className="w-3 h-3" />
+                New
+              </div>
+            );
+          })()}
         </div>
 
         {/* Description */}

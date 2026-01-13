@@ -9,13 +9,38 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { database } from '@/lib/firebase';
 import { ref, onValue, set } from 'firebase/database';
-import { 
+import {
   Plus,
   Edit3,
   Trash2,
   Loader2,
-  X
+  X,
+  Code,
+  Palette,
+  Monitor,
+  Target,
+  DollarSign,
+  Users,
+  Zap,
+  Star,
+  TrendingUp,
+  Briefcase
 } from 'lucide-react';
+
+const getDepartmentIcon = (department: string) => {
+  switch (department) {
+    case "Engineering": return <Code className="w-4 h-4" />
+    case "Design": return <Palette className="w-4 h-4" />
+    case "Infrastructure": return <Monitor className="w-4 h-4" />
+    case "Marketing": return <Target className="w-4 h-4" />
+    case "Sales": return <DollarSign className="w-4 h-4" />
+    case "HR": return <Users className="w-4 h-4" />
+    case "IT": return <Zap className="w-4 h-4" />
+    case "Leadership": return <Star className="w-4 h-4" />
+    case "Data": return <TrendingUp className="w-4 h-4" />
+    default: return <Briefcase className="w-4 h-4" />
+  }
+}
 
 export function CareersManagement() {
   const [careers, setCareers] = useState<any[]>([]);
@@ -24,7 +49,7 @@ export function CareersManagement() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedCareer, setSelectedCareer] = useState<any>(null);
-  
+
   const [newCareer, setNewCareer] = useState({
     title: '',
     department: '',
@@ -55,8 +80,8 @@ export function CareersManagement() {
     const unsubscribe = onValue(careersRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const careersArray = Object.keys(data).map((key) => ({ 
-          id: key, 
+        const careersArray = Object.keys(data).map((key) => ({
+          id: key,
           ...data[key],
           technologies: Array.isArray(data[key].technologies) ? data[key].technologies : [],
           requirements: Array.isArray(data[key].requirements) ? data[key].requirements : []
@@ -84,7 +109,7 @@ export function CareersManagement() {
       const finalCareerId = careerId || Date.now().toString();
       const careerRef = ref(database, `careers/${finalCareerId}`);
       await set(careerRef, sanitizedCareer);
-      
+
       return true;
     } catch (error) {
       console.error("Error saving career:", error);
@@ -102,7 +127,7 @@ export function CareersManagement() {
     }
 
     const success = await saveCareerToFirebase(newCareer);
-    
+
     if (success) {
       setIsAddModalOpen(false);
       setNewCareer({
@@ -125,7 +150,7 @@ export function CareersManagement() {
     if (!selectedCareer) return;
 
     const success = await saveCareerToFirebase(selectedCareer, selectedCareer.id);
-    
+
     if (success) {
       setIsEditModalOpen(false);
       setSelectedCareer(null);
@@ -184,7 +209,10 @@ export function CareersManagement() {
                 <div>
                   <CardTitle className="text-xl">{career.title}</CardTitle>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <Badge variant="secondary">{career.department}</Badge>
+                    <Badge variant="secondary" className="flex items-center gap-1.5">
+                      {getDepartmentIcon(career.department)}
+                      {career.department}
+                    </Badge>
                     <Badge variant="outline">{career.level}</Badge>
                     <Badge variant="outline">{career.type}</Badge>
                     {career.posted && new Date().getTime() - new Date(career.posted).getTime() < 7 * 24 * 60 * 60 * 1000 && (
@@ -219,7 +247,7 @@ export function CareersManagement() {
               <p className="text-sm text-muted-foreground line-clamp-3">
                 {career.description}
               </p>
-              
+
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground block text-xs uppercase tracking-wider">Location</span>
@@ -259,135 +287,142 @@ export function CareersManagement() {
             <DialogTitle>Add New Opportunity</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-             <div className="space-y-4">
+            <div className="space-y-4">
+              <div>
+                <Label>Job Title *</Label>
+                <Input
+                  value={newCareer.title}
+                  onChange={(e) => setNewCareer({ ...newCareer, title: e.target.value })}
+                  placeholder="e.g. Senior Frontend Developer"
+                />
+              </div>
+              <div>
+                <Label>Department</Label>
+                <Select
+                  value={newCareer.department}
+                  onValueChange={(val) => setNewCareer({ ...newCareer, department: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map(d => (
+                      <SelectItem key={d} value={d}>
+                        <div className="flex items-center gap-2">
+                          {getDepartmentIcon(d)}
+                          {d}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Job Title *</Label>
-                  <Input 
-                    value={newCareer.title} 
-                    onChange={(e) => setNewCareer({...newCareer, title: e.target.value})}
-                    placeholder="e.g. Senior Frontend Developer"
-                  />
-                </div>
-                <div>
-                  <Label>Department</Label>
-                   <Select 
-                    value={newCareer.department} 
-                    onValueChange={(val) => setNewCareer({...newCareer, department: val})}
+                  <Label>Level</Label>
+                  <Select
+                    value={newCareer.level}
+                    onValueChange={(val) => setNewCareer({ ...newCareer, level: val })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
+                      <SelectValue placeholder="Level" />
                     </SelectTrigger>
                     <SelectContent>
-                      {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                   <div>
-                      <Label>Level</Label>
-                      <Select 
-                        value={newCareer.level} 
-                        onValueChange={(val) => setNewCareer({...newCareer, level: val})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                   </div>
-                   <div>
-                      <Label>Type</Label>
-                      <Select 
-                        value={newCareer.type} 
-                        onValueChange={(val) => setNewCareer({...newCareer, type: val})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                   </div>
-                </div>
-                 <div>
-                  <Label>Salary Range</Label>
-                  <Input 
-                    value={newCareer.salary} 
-                    onChange={(e) => setNewCareer({...newCareer, salary: e.target.value})}
-                    placeholder="e.g. $80k - $120k"
-                  />
-                </div>
-             </div>
-             
-             <div className="space-y-4">
                 <div>
-                  <Label>Location</Label>
-                  <Input 
-                    value={newCareer.location} 
-                    onChange={(e) => setNewCareer({...newCareer, location: e.target.value})}
-                    placeholder="e.g. Remote / New York"
+                  <Label>Type</Label>
+                  <Select
+                    value={newCareer.type}
+                    onValueChange={(val) => setNewCareer({ ...newCareer, type: val })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label>Salary Range</Label>
+                <Input
+                  value={newCareer.salary}
+                  onChange={(e) => setNewCareer({ ...newCareer, salary: e.target.value })}
+                  placeholder="e.g. $80k - $120k"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label>Location</Label>
+                <Input
+                  value={newCareer.location}
+                  onChange={(e) => setNewCareer({ ...newCareer, location: e.target.value })}
+                  placeholder="e.g. Remote / New York"
+                />
+              </div>
+              <div>
+                <Label>Experience</Label>
+                <Input
+                  value={newCareer.experience}
+                  onChange={(e) => setNewCareer({ ...newCareer, experience: e.target.value })}
+                  placeholder="e.g. 3-5 years"
+                />
+              </div>
+              <div>
+                <Label>Description *</Label>
+                <Textarea
+                  value={newCareer.description}
+                  onChange={(e) => setNewCareer({ ...newCareer, description: e.target.value })}
+                  rows={4}
+                  placeholder="Job description..."
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 space-y-4">
+              <div>
+                <Label>Technologies (Comma separated or Add one by one)</Label>
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    value={newTech}
+                    onChange={(e) => setNewTech(e.target.value)}
+                    placeholder="Add technology tag..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newTech.trim()) {
+                        setNewCareer({ ...newCareer, technologies: [...newCareer.technologies, newTech.trim()] });
+                        setNewTech('');
+                      }
+                    }}
                   />
+                  <Button type="button" onClick={() => {
+                    if (newTech.trim()) {
+                      setNewCareer({ ...newCareer, technologies: [...newCareer.technologies, newTech.trim()] });
+                      setNewTech('');
+                    }
+                  }}>Add</Button>
                 </div>
-                 <div>
-                  <Label>Experience</Label>
-                  <Input 
-                    value={newCareer.experience} 
-                    onChange={(e) => setNewCareer({...newCareer, experience: e.target.value})}
-                    placeholder="e.g. 3-5 years"
-                  />
+                <div className="flex flex-wrap gap-2">
+                  {newCareer.technologies.map((tech, idx) => tech && (
+                    <Badge key={idx} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                      {tech}
+                      <X
+                        className="w-3 h-3 cursor-pointer hover:text-red-500"
+                        onClick={() => setNewCareer({
+                          ...newCareer,
+                          technologies: newCareer.technologies.filter((_, i) => i !== idx)
+                        })}
+                      />
+                    </Badge>
+                  ))}
                 </div>
-                <div>
-                  <Label>Description *</Label>
-                  <Textarea 
-                    value={newCareer.description} 
-                    onChange={(e) => setNewCareer({...newCareer, description: e.target.value})}
-                    rows={4}
-                    placeholder="Job description..."
-                  />
-                </div>
-             </div>
-             
-             <div className="md:col-span-2 space-y-4">
-                <div>
-                  <Label>Technologies (Comma separated or Add one by one)</Label>
-                  <div className="flex gap-2 mb-2">
-                     <Input 
-                        value={newTech}
-                        onChange={(e) => setNewTech(e.target.value)}
-                        placeholder="Add technology tag..."
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && newTech.trim()) {
-                             setNewCareer({...newCareer, technologies: [...newCareer.technologies, newTech.trim()]});
-                             setNewTech('');
-                          }
-                        }}
-                     />
-                     <Button type="button" onClick={() => {
-                        if (newTech.trim()) {
-                           setNewCareer({...newCareer, technologies: [...newCareer.technologies, newTech.trim()]});
-                           setNewTech('');
-                        }
-                     }}>Add</Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {newCareer.technologies.map((tech, idx) => tech && (
-                      <Badge key={idx} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
-                        {tech}
-                        <X 
-                          className="w-3 h-3 cursor-pointer hover:text-red-500" 
-                          onClick={() => setNewCareer({
-                            ...newCareer, 
-                            technologies: newCareer.technologies.filter((_, i) => i !== idx)
-                          })}
-                        />
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-             </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
@@ -398,131 +433,138 @@ export function CareersManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogHeader>
             <DialogTitle>Edit Opportunity</DialogTitle>
           </DialogHeader>
           {selectedCareer && (
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-             <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+              <div className="space-y-4">
                 <div>
                   <Label>Job Title *</Label>
-                  <Input 
-                    value={selectedCareer.title} 
-                    onChange={(e) => setSelectedCareer({...selectedCareer, title: e.target.value})}
+                  <Input
+                    value={selectedCareer.title}
+                    onChange={(e) => setSelectedCareer({ ...selectedCareer, title: e.target.value })}
                   />
                 </div>
                 <div>
                   <Label>Department</Label>
-                   <Select 
-                    value={selectedCareer.department} 
-                    onValueChange={(val) => setSelectedCareer({...selectedCareer, department: val})}
+                  <Select
+                    value={selectedCareer.department}
+                    onValueChange={(val) => setSelectedCareer({ ...selectedCareer, department: val })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                     <SelectContent>
-                      {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      {departments.map(d => (
+                        <SelectItem key={d} value={d}>
+                          <div className="flex items-center gap-2">
+                            {getDepartmentIcon(d)}
+                            {d}
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                   <div>
-                      <Label>Level</Label>
-                      <Select 
-                        value={selectedCareer.level} 
-                        onValueChange={(val) => setSelectedCareer({...selectedCareer, level: val})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                   </div>
-                   <div>
-                      <Label>Type</Label>
-                      <Select 
-                        value={selectedCareer.type} 
-                        onValueChange={(val) => setSelectedCareer({...selectedCareer, type: val})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                   </div>
+                  <div>
+                    <Label>Level</Label>
+                    <Select
+                      value={selectedCareer.level}
+                      onValueChange={(val) => setSelectedCareer({ ...selectedCareer, level: val })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Type</Label>
+                    <Select
+                      value={selectedCareer.type}
+                      onValueChange={(val) => setSelectedCareer({ ...selectedCareer, type: val })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                 <div>
+                <div>
                   <Label>Salary Range</Label>
-                  <Input 
-                    value={selectedCareer.salary} 
-                    onChange={(e) => setSelectedCareer({...selectedCareer, salary: e.target.value})}
+                  <Input
+                    value={selectedCareer.salary}
+                    onChange={(e) => setSelectedCareer({ ...selectedCareer, salary: e.target.value })}
                   />
                 </div>
-             </div>
-             
-             <div className="space-y-4">
+              </div>
+
+              <div className="space-y-4">
                 <div>
                   <Label>Location</Label>
-                  <Input 
-                    value={selectedCareer.location} 
-                    onChange={(e) => setSelectedCareer({...selectedCareer, location: e.target.value})}
+                  <Input
+                    value={selectedCareer.location}
+                    onChange={(e) => setSelectedCareer({ ...selectedCareer, location: e.target.value })}
                   />
                 </div>
-                 <div>
+                <div>
                   <Label>Experience</Label>
-                  <Input 
-                    value={selectedCareer.experience} 
-                    onChange={(e) => setSelectedCareer({...selectedCareer, experience: e.target.value})}
+                  <Input
+                    value={selectedCareer.experience}
+                    onChange={(e) => setSelectedCareer({ ...selectedCareer, experience: e.target.value })}
                   />
                 </div>
                 <div>
                   <Label>Description *</Label>
-                  <Textarea 
-                    value={selectedCareer.description} 
-                    onChange={(e) => setSelectedCareer({...selectedCareer, description: e.target.value})}
+                  <Textarea
+                    value={selectedCareer.description}
+                    onChange={(e) => setSelectedCareer({ ...selectedCareer, description: e.target.value })}
                     rows={4}
                   />
                 </div>
-             </div>
-             
-             <div className="md:col-span-2 space-y-4">
+              </div>
+
+              <div className="md:col-span-2 space-y-4">
                 <div>
                   <Label>Technologies</Label>
                   <div className="flex gap-2 mb-2">
-                     <Input 
-                        value={newTech}
-                        onChange={(e) => setNewTech(e.target.value)}
-                        placeholder="Add technology tag..."
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && newTech.trim()) {
-                             setSelectedCareer({...selectedCareer, technologies: [...(selectedCareer.technologies || []), newTech.trim()]});
-                             setNewTech('');
-                          }
-                        }}
-                     />
-                     <Button type="button" onClick={() => {
-                        if (newTech.trim()) {
-                           setSelectedCareer({...selectedCareer, technologies: [...(selectedCareer.technologies || []), newTech.trim()]});
-                           setNewTech('');
+                    <Input
+                      value={newTech}
+                      onChange={(e) => setNewTech(e.target.value)}
+                      placeholder="Add technology tag..."
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newTech.trim()) {
+                          setSelectedCareer({ ...selectedCareer, technologies: [...(selectedCareer.technologies || []), newTech.trim()] });
+                          setNewTech('');
                         }
-                     }}>Add</Button>
+                      }}
+                    />
+                    <Button type="button" onClick={() => {
+                      if (newTech.trim()) {
+                        setSelectedCareer({ ...selectedCareer, technologies: [...(selectedCareer.technologies || []), newTech.trim()] });
+                        setNewTech('');
+                      }
+                    }}>Add</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {selectedCareer.technologies && selectedCareer.technologies.map((tech: string, idx: number) => tech && (
                       <Badge key={idx} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
                         {tech}
-                        <X 
-                          className="w-3 h-3 cursor-pointer hover:text-red-500" 
+                        <X
+                          className="w-3 h-3 cursor-pointer hover:text-red-500"
                           onClick={() => setSelectedCareer({
-                            ...selectedCareer, 
+                            ...selectedCareer,
                             technologies: selectedCareer.technologies.filter((_: any, i: number) => i !== idx)
                           })}
                         />
@@ -530,8 +572,8 @@ export function CareersManagement() {
                     ))}
                   </div>
                 </div>
-             </div>
-          </div>
+              </div>
+            </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
