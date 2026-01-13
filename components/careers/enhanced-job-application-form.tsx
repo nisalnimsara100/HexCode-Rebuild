@@ -558,19 +558,57 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
       const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || "public_key";
 
       if (serviceId !== "service_id") {
+        // Format complex arrays into readable strings
+        const educationString = formData.education.map(edu =>
+          `${edu.degree} in ${edu.fieldOfStudy} at ${edu.institution} (${edu.graduationYear})`
+        ).join("\n") || "N/A";
+
+        const workString = formData.workExperience.map(work =>
+          `${work.position} at ${work.company} (${work.startDate} - ${work.endDate})\n${work.description}`
+        ).join("\n\n") || "N/A";
+
+        const referenceString = formData.references.map(ref =>
+          `${ref.name} (${ref.position} at ${ref.company}) - ${ref.email} / ${ref.phone}`
+        ).join("\n") || "N/A";
+
         const emailParams = {
-          to_email: "admin@hexcode.com", // Replace with dynamic if needed
-          candidate_name: `${formData.firstName} ${formData.lastName}`,
+          // Job Info
           job_title: selectedJob.title,
-          cv_link: cvUrl,
+          job_department: selectedJob.department,
+
+          // Personal Info
+          candidate_name: `${formData.firstName} ${formData.lastName}`,
           candidate_email: formData.email,
           phone: formData.phone,
-          linkedin: formData.linkedinUrl || "N/A",
-          portfolio: formData.portfolioUrl || "N/A",
+          address: formData.address,
+          location: `${formData.city}, ${formData.country}`,
+          dob: formData.dateOfBirth,
+
+          // Professional Summary
           current_role: formData.currentRole || "N/A",
           years_experience: formData.yearsOfExperience || "0",
+          expected_salary: formData.expectedSalary || "N/A",
+          availability_date: formData.availabilityDate || "N/A",
+
+          // Skills
           tech_skills: formData.technicalSkills.join(", ") || "N/A",
-          location: `${formData.city}, ${formData.country}`
+          soft_skills: formData.softSkills.join(", ") || "N/A",
+          languages: formData.languages.join(", ") || "N/A",
+          certifications: formData.certifications.join(", ") || "N/A",
+
+          // Long Form Data
+          education_details: educationString,
+          work_history: workString,
+          references_list: referenceString,
+          cover_letter: formData.coverLetter || "N/A",
+          additional_notes: formData.additionalNotes || "N/A",
+
+          // Links
+          linkedin: formData.linkedinUrl || "N/A",
+          portfolio: formData.portfolioUrl || "N/A",
+          github: formData.githubUrl || "N/A",
+          website: formData.websiteUrl || "N/A",
+          cv_link: cvUrl
         };
 
         console.log("Sending email with params:", emailParams); // Debug log
