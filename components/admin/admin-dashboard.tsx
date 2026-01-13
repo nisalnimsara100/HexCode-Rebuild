@@ -7,6 +7,7 @@ import { AdminSidebar } from "./admin-sidebar"
 import { AdminHeader } from "./admin-header"
 import { ClientProjectsManagement } from "./client-projects-management"
 import { WebsiteOverview, ServicesManagement, PortfolioManagement, WebsiteStats, ContentManagement, WebsiteSettings, PricePackagesManagement } from "./website-components-fixed"
+import { CareersManagement } from "./careers-management"
 import { fetchPendingApprovalProjects, FirebaseClientProject, approveProject, rejectProject } from "@/lib/client-projects-firebase"
 import {
   BarChart3,
@@ -41,7 +42,7 @@ import {
   Briefcase,
   Package,
   DollarSign
-} from "lucide-react" 
+} from "lucide-react"
 
 // Staff Management Components
 function StaffOverviewDashboard() {
@@ -237,56 +238,56 @@ function SecurityManagementPanel() {
 
 function StaffTicketManagement() {
   const [tickets] = useState([
-    { 
-      id: 1, 
-      title: "Fix responsive design issues on mobile", 
+    {
+      id: 1,
+      title: "Fix responsive design issues on mobile",
       description: "Mobile layout breaks on devices smaller than 768px",
-      assignee: "John Smith", 
+      assignee: "John Smith",
       assigneeEmail: "john@hexcode.com",
-      status: "open", 
-      priority: "high", 
+      status: "open",
+      priority: "high",
       created: "2025-10-01",
       dueDate: "2025-10-05",
       estimatedHours: 8,
       category: "Frontend",
       project: "E-commerce Platform"
     },
-    { 
-      id: 2, 
-      title: "Update API documentation", 
+    {
+      id: 2,
+      title: "Update API documentation",
       description: "Update REST API docs with new endpoints",
-      assignee: "Sarah Johnson", 
+      assignee: "Sarah Johnson",
       assigneeEmail: "sarah@hexcode.com",
-      status: "in-progress", 
-      priority: "medium", 
+      status: "in-progress",
+      priority: "medium",
       created: "2025-09-30",
       dueDate: "2025-10-03",
       estimatedHours: 4,
       category: "Documentation",
       project: "Internal Tools"
     },
-    { 
-      id: 3, 
-      title: "Database performance optimization", 
+    {
+      id: 3,
+      title: "Database performance optimization",
       description: "Optimize slow queries in user management module",
-      assignee: "Mike Davis", 
+      assignee: "Mike Davis",
       assigneeEmail: "mike@hexcode.com",
-      status: "review", 
-      priority: "high", 
+      status: "review",
+      priority: "high",
       created: "2025-09-29",
       dueDate: "2025-10-02",
       estimatedHours: 12,
       category: "Backend",
       project: "User Management"
     },
-    { 
-      id: 4, 
-      title: "Implement dark mode toggle", 
+    {
+      id: 4,
+      title: "Implement dark mode toggle",
       description: "Add dark/light mode switch in user preferences",
-      assignee: "Emily Chen", 
+      assignee: "Emily Chen",
       assigneeEmail: "emily@hexcode.com",
-      status: "closed", 
-      priority: "low", 
+      status: "closed",
+      priority: "low",
       created: "2025-09-28",
       dueDate: "2025-10-01",
       estimatedHours: 6,
@@ -353,7 +354,7 @@ function StaffTicketManagement() {
             </button>
           </div>
         </div>
-        
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-gray-800 p-4 rounded-lg">
@@ -470,11 +471,10 @@ function StaffTicketManagement() {
                 </div>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2">
-                <div 
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    staff.workload >= 80 ? 'bg-red-500' : 
+                <div
+                  className={`h-2 rounded-full transition-all duration-300 ${staff.workload >= 80 ? 'bg-red-500' :
                     staff.workload >= 60 ? 'bg-yellow-500' : 'bg-green-500'
-                  }`}
+                    }`}
                   style={{ width: `${staff.workload}%` }}
                 ></div>
               </div>
@@ -544,11 +544,10 @@ export function AdminDashboard() {
                 setActiveSection("staff");
                 setActiveTab("staff-overview");
               }}
-              className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors ${
-                activeSection === "staff"
-                  ? 'bg-orange-500 text-white'
-                  : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
-              }`}
+              className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors ${activeSection === "staff"
+                ? 'bg-orange-500 text-white'
+                : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
+                }`}
             >
               <Users className="w-4 h-4 inline mr-2" />
               Staff Management
@@ -558,11 +557,10 @@ export function AdminDashboard() {
                 setActiveSection("projects");
                 setActiveTab("projects-overview");
               }}
-              className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors ${
-                activeSection === "projects"
-                  ? 'bg-orange-500 text-white'
-                  : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
-              }`}
+              className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors ${activeSection === "projects"
+                ? 'bg-orange-500 text-white'
+                : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
+                }`}
             >
               <Briefcase className="w-4 h-4 inline mr-2" />
               Projects Management
@@ -572,11 +570,10 @@ export function AdminDashboard() {
                 setActiveSection("website");
                 setActiveTab("website-overview");
               }}
-              className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors ${
-                activeSection === "website"
-                  ? 'bg-orange-500 text-white'
-                  : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
-              }`}
+              className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors ${activeSection === "website"
+                ? 'bg-orange-500 text-white'
+                : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
+                }`}
             >
               <Globe className="w-4 h-4 inline mr-2" />
               Website Management
@@ -609,6 +606,7 @@ export function AdminDashboard() {
               { id: 'services', label: 'Services Management', icon: <Package className="w-4 h-4" /> },
               { id: 'packages', label: 'Price Packages', icon: <DollarSign className="w-4 h-4" /> },
               { id: 'portfolio', label: 'Portfolio Management', icon: <Briefcase className="w-4 h-4" /> },
+              { id: 'careers', label: 'Careers Management', icon: <Users className="w-4 h-4" /> },
               { id: 'analytics', label: 'Website Analytics', icon: <BarChart3 className="w-4 h-4" /> },
               { id: 'content', label: 'Content Management', icon: <FileText className="w-4 h-4" /> },
               { id: 'web-settings', label: 'Website Settings', icon: <Settings className="w-4 h-4" /> }
@@ -616,11 +614,10 @@ export function AdminDashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-orange-500 text-orange-500'
-                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                }`}
+                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
+                  ? 'border-orange-500 text-orange-500'
+                  : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                  }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -665,6 +662,7 @@ export function AdminDashboard() {
             {activeTab === "services" && <ServicesManagement />}
             {activeTab === "packages" && <PricePackagesManagement />}
             {activeTab === "portfolio" && <PortfolioManagement />}
+            {activeTab === "careers" && <CareersManagement />}
             {activeTab === "analytics" && <WebsiteStats />}
             {activeTab === "content" && <ContentManagement />}
             {activeTab === "web-settings" && <WebsiteSettings />}
@@ -818,7 +816,7 @@ function TaskAssignmentPanel() {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                   <div>
                     <span className="text-xs text-gray-400">Assigned To</span>
@@ -832,11 +830,10 @@ function TaskAssignmentPanel() {
                     <span className="text-xs text-gray-400">Progress</span>
                     <div className="flex items-center space-x-2">
                       <div className="flex-1 bg-gray-600 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            assignment.progress >= 100 ? 'bg-green-500' : 
+                        <div
+                          className={`h-2 rounded-full transition-all duration-300 ${assignment.progress >= 100 ? 'bg-green-500' :
                             assignment.progress >= 50 ? 'bg-blue-500' : 'bg-yellow-500'
-                          }`}
+                            }`}
                           style={{ width: `${assignment.progress}%` }}
                         ></div>
                       </div>
@@ -844,9 +841,9 @@ function TaskAssignmentPanel() {
                     </div>
                   </div>
                 </div>
-                
+
                 <p className="text-sm text-gray-300 mb-3">{assignment.description}</p>
-                
+
                 <div className="flex justify-between items-center">
                   <div className="flex space-x-2">
                     <button className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Update Progress</button>
@@ -1050,12 +1047,11 @@ function ProjectsOverviewDashboard() {
           ].map((activity) => (
             <div key={activity.id} className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
               <div className="flex items-center space-x-4">
-                <div className={`w-3 h-3 rounded-full ${
-                  activity.status === 'approved' ? 'bg-green-500' :
+                <div className={`w-3 h-3 rounded-full ${activity.status === 'approved' ? 'bg-green-500' :
                   activity.status === 'pending' ? 'bg-yellow-500' :
-                  activity.status === 'completed' ? 'bg-blue-500' :
-                  'bg-purple-500'
-                }`}></div>
+                    activity.status === 'completed' ? 'bg-blue-500' :
+                      'bg-purple-500'
+                  }`}></div>
                 <div>
                   <p className="text-white font-medium">{activity.message}</p>
                   <p className="text-gray-400 text-sm">{activity.client}</p>
@@ -1097,16 +1093,16 @@ function ProjectRequestsManagement() {
     try {
       setProcessingId(projectId);
       await approveProject(projectId);
-      
+
       // Remove the approved project from the requests list
-      setRequests(prevRequests => 
+      setRequests(prevRequests =>
         prevRequests.filter(request => request.id !== projectId)
       );
-      
+
       // Show success message
       setSuccessMessage('Project approved successfully and moved to client projects!');
       setTimeout(() => setSuccessMessage(null), 3000);
-      
+
     } catch (error) {
       console.error('Error approving project:', error);
       // You can add error handling here (show error toast)
@@ -1120,16 +1116,16 @@ function ProjectRequestsManagement() {
     try {
       setProcessingId(projectId);
       await rejectProject(projectId);
-      
+
       // Remove the rejected project from the requests list
-      setRequests(prevRequests => 
+      setRequests(prevRequests =>
         prevRequests.filter(request => request.id !== projectId)
       );
-      
+
       // Show success message
       setSuccessMessage('Project rejected and removed from system.');
       setTimeout(() => setSuccessMessage(null), 3000);
-      
+
     } catch (error) {
       console.error('Error rejecting project:', error);
       // You can add error handling here
@@ -1178,7 +1174,7 @@ function ProjectRequestsManagement() {
             <p className="text-green-400 font-medium">{successMessage}</p>
           </div>
         )}
-        
+
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-2xl font-bold text-white">Project Requests Management</h2>
@@ -1202,78 +1198,78 @@ function ProjectRequestsManagement() {
           <div className="grid grid-cols-1 gap-6">
             {requests.map((request) => (
               <div key={request.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700 hover:border-blue-500/50 transition-all">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-xl font-semibold text-white">{request.name || 'Untitled Project'}</h3>
-                    <span className={`px-3 py-1 rounded-full text-sm border ${getStatusColor(request.status || 'pending-approval')}`}>
-                      {(request.status || 'pending-approval').replace("-", " ")}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-sm border ${getPriorityColor('medium')}`}>
-                      medium
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-400 mb-3">
-                    <span>Client: {request.email || 'Not provided'}</span>
-                    <span>•</span>
-                    <span>Requested: {request.id ? new Date(parseInt(request.id)).toLocaleDateString() : 'Unknown'}</span>
-                    <span>•</span>
-                    <span>Budget: ${request.budget ? parseInt(request.budget.toString()).toLocaleString() : 'Not specified'}</span>
-                  </div>
-                </div>
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={() => handleApproveProject(request.id)}
-                    disabled={processingId === request.id}
-                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm transition-colors"
-                  >
-                    {processingId === request.id ? 'Approving...' : 'Approve'}
-                  </button>
-                  <button className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm">
-                    Review
-                  </button>
-                  <button 
-                    onClick={() => handleRejectProject(request.id)}
-                    disabled={processingId === request.id}
-                    className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm transition-colors"
-                  >
-                    {processingId === request.id ? 'Rejecting...' : 'Reject'}
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-gray-300 mb-4">{request.description}</p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="bg-gray-700 p-4 rounded-lg">
-                  <h4 className="text-white font-semibold mb-2">Requirements</h4>
-                  <p className="text-gray-300 text-sm">{request.description || 'No requirements specified'}</p>
-                </div>
-                <div className="bg-gray-700 p-4 rounded-lg">
-                  <h4 className="text-white font-semibold mb-2">Project Timeline</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Expected Start:</span>
-                      <span className="text-white">{'To be determined'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Duration:</span>
-                      <span className="text-white">{'To be estimated'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Urgency:</span>
-                      <span className="text-yellow-400">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="text-xl font-semibold text-white">{request.name || 'Untitled Project'}</h3>
+                      <span className={`px-3 py-1 rounded-full text-sm border ${getStatusColor(request.status || 'pending-approval')}`}>
+                        {(request.status || 'pending-approval').replace("-", " ")}
+                      </span>
+                      <span className={`px-3 py-1 rounded-full text-sm border ${getPriorityColor('medium')}`}>
                         medium
                       </span>
                     </div>
+                    <div className="flex items-center space-x-4 text-sm text-gray-400 mb-3">
+                      <span>Client: {request.email || 'Not provided'}</span>
+                      <span>•</span>
+                      <span>Requested: {request.id ? new Date(parseInt(request.id)).toLocaleDateString() : 'Unknown'}</span>
+                      <span>•</span>
+                      <span>Budget: ${request.budget ? parseInt(request.budget.toString()).toLocaleString() : 'Not specified'}</span>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleApproveProject(request.id)}
+                      disabled={processingId === request.id}
+                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                    >
+                      {processingId === request.id ? 'Approving...' : 'Approve'}
+                    </button>
+                    <button className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm">
+                      Review
+                    </button>
+                    <button
+                      onClick={() => handleRejectProject(request.id)}
+                      disabled={processingId === request.id}
+                      className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                    >
+                      {processingId === request.id ? 'Rejecting...' : 'Reject'}
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-gray-700">
-                <div className="text-sm text-gray-400">
-                  Contact: {request.email || 'Not provided'}
+                <p className="text-gray-300 mb-4">{request.description}</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="bg-gray-700 p-4 rounded-lg">
+                    <h4 className="text-white font-semibold mb-2">Requirements</h4>
+                    <p className="text-gray-300 text-sm">{request.description || 'No requirements specified'}</p>
+                  </div>
+                  <div className="bg-gray-700 p-4 rounded-lg">
+                    <h4 className="text-white font-semibold mb-2">Project Timeline</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Expected Start:</span>
+                        <span className="text-white">{'To be determined'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Duration:</span>
+                        <span className="text-white">{'To be estimated'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Urgency:</span>
+                        <span className="text-yellow-400">
+                          medium
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-gray-700">
+                  <div className="text-sm text-gray-400">
+                    Contact: {request.email || 'Not provided'}
+                  </div>
                 </div>
                 <div className="flex space-x-3">
                   <button className="text-blue-400 hover:text-blue-300 text-sm">

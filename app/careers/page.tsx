@@ -5,13 +5,13 @@ import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { 
-  MapPin, 
-  Users, 
-  TrendingUp, 
-  Heart, 
-  Coffee, 
-  Zap, 
+import {
+  MapPin,
+  Users,
+  TrendingUp,
+  Heart,
+  Coffee,
+  Zap,
   Award,
   ArrowRight,
   DollarSign,
@@ -25,86 +25,94 @@ import { ref, onValue } from "firebase/database";
 import { EnhancedJobApplicationForm } from "@/components/careers/enhanced-job-application-form";
 import { CareerCard, type Career } from "@/components/careers/career-card";
 
-  export default function CareersPage() {
-    const [careers, setCareers] = useState<Career[]>([]);
-    const [isApplicationFormOpen, setIsApplicationFormOpen] = useState(false);
-    const [selectedJob, setSelectedJob] = useState<Career | null>(null);
-  
-    useEffect(() => {
-      const careersRef = ref(database, "careers");
-      const unsubscribe = onValue(careersRef, (snapshot) => {
-        const data = snapshot.val();
-        setCareers(data ? Object.values(data) : []);
-      });
-  
-      return () => unsubscribe();
-    }, []);
-  
-    const handleApplyClick = (job: Career) => {
-      setSelectedJob(job);
-      setIsApplicationFormOpen(true);
-    };
-  
-    const handleCloseApplicationForm = () => {
-      setIsApplicationFormOpen(false);
-      setSelectedJob(null);
-    };
-  
-    const companyValues = [
-      {
-        icon: <Zap className="w-6 h-6" />,
-        title: "Innovation First",
-        description: "We embrace cutting-edge technologies and encourage creative problem-solving.",
-      },
-      {
-        icon: <Users className="w-6 h-6" />,
-        title: "Team Collaboration",
-        description: "We believe in the power of diverse teams working together towards common goals.",
-      },
-      {
-        icon: <TrendingUp className="w-6 h-6" />,
-        title: "Continuous Growth",
-        description: "We invest in our people through learning opportunities and career development.",
-      },
-      {
-        icon: <Heart className="w-6 h-6" />,
-        title: "Work-Life Balance",
-        description: "We prioritize well-being with flexible schedules and a supportive environment.",
-      },
-    ]
-  
-    const benefits = [
-      {
-        icon: <DollarSign className="w-5 h-5" />,
-        title: "Competitive Salary",
-        description: "Market-leading compensation packages",
-      },
-      {
-        icon: <Coffee className="w-5 h-5" />,
-        title: "Flexible Hours",
-        description: "Work when you're most productive",
-      },
-      {
-        icon: <Globe className="w-5 h-5" />,
-        title: "Remote Work",
-        description: "Hybrid or fully remote options",
-      },
-      {
-        icon: <Award className="w-5 h-5" />,
-        title: "Learning Budget",
-        description: "$2000 annual learning allowance",
-      },
-      {
-        icon: <Users className="w-5 h-5" />,
-        title: "Team Events",
-        description: "Regular team building activities",
-      },
-      {
-        icon: <Monitor className="w-5 h-5" />,
-        title: "Latest Tech",
-        description: "Top-tier equipment and tools",
-      },
-    ]
+export default function CareersPage() {
+  const [careers, setCareers] = useState<Career[]>([]);
+  const [isApplicationFormOpen, setIsApplicationFormOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<Career | null>(null);
+
+  useEffect(() => {
+    const careersRef = ref(database, "careers");
+    const unsubscribe = onValue(careersRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const careersArray = Object.entries(data).map(([key, value]) => ({
+          ...(value as any),
+          id: key
+        })) as Career[];
+        setCareers(careersArray);
+      } else {
+        setCareers([]);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleApplyClick = (job: Career) => {
+    setSelectedJob(job);
+    setIsApplicationFormOpen(true);
+  };
+
+  const handleCloseApplicationForm = () => {
+    setIsApplicationFormOpen(false);
+    setSelectedJob(null);
+  };
+
+  const companyValues = [
+    {
+      icon: <Zap className="w-6 h-6" />,
+      title: "Innovation First",
+      description: "We embrace cutting-edge technologies and encourage creative problem-solving.",
+    },
+    {
+      icon: <Users className="w-6 h-6" />,
+      title: "Team Collaboration",
+      description: "We believe in the power of diverse teams working together towards common goals.",
+    },
+    {
+      icon: <TrendingUp className="w-6 h-6" />,
+      title: "Continuous Growth",
+      description: "We invest in our people through learning opportunities and career development.",
+    },
+    {
+      icon: <Heart className="w-6 h-6" />,
+      title: "Work-Life Balance",
+      description: "We prioritize well-being with flexible schedules and a supportive environment.",
+    },
+  ]
+
+  const benefits = [
+    {
+      icon: <DollarSign className="w-5 h-5" />,
+      title: "Competitive Salary",
+      description: "Market-leading compensation packages",
+    },
+    {
+      icon: <Coffee className="w-5 h-5" />,
+      title: "Flexible Hours",
+      description: "Work when you're most productive",
+    },
+    {
+      icon: <Globe className="w-5 h-5" />,
+      title: "Remote Work",
+      description: "Hybrid or fully remote options",
+    },
+    {
+      icon: <Award className="w-5 h-5" />,
+      title: "Learning Budget",
+      description: "$2000 annual learning allowance",
+    },
+    {
+      icon: <Users className="w-5 h-5" />,
+      title: "Team Events",
+      description: "Regular team building activities",
+    },
+    {
+      icon: <Monitor className="w-5 h-5" />,
+      title: "Latest Tech",
+      description: "Top-tier equipment and tools",
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-background">
@@ -120,7 +128,7 @@ import { CareerCard, type Career } from "@/components/careers/career-card";
             Build Your Career at <span className="text-emerald-500">HexCode</span>
           </h1>
           <p className="text-xl text-muted-foreground text-pretty max-w-3xl mx-auto mb-8">
-            Join a team of passionate developers, designers, and innovators creating cutting-edge solutions 
+            Join a team of passionate developers, designers, and innovators creating cutting-edge solutions
             for businesses worldwide. Grow your skills, work on exciting projects, and make an impact.
           </p>
           <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
@@ -217,9 +225,9 @@ import { CareerCard, type Career } from "@/components/careers/career-card";
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-7xl mx-auto">
             {careers.map((position, index) => (
-              <CareerCard 
-                key={position.id} 
-                career={position} 
+              <CareerCard
+                key={position.id}
+                career={position}
                 onApply={handleApplyClick}
                 index={index}
               />
@@ -231,7 +239,7 @@ import { CareerCard, type Career } from "@/components/careers/career-card";
             {/* Animated background elements */}
             <div className="absolute -top-6 -left-6 w-32 h-32 bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 rounded-full blur-2xl animate-pulse"></div>
             <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-br from-emerald-300/15 to-emerald-500/15 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-            
+
             {/* Floating particles */}
             <div className="absolute top-8 left-1/4 w-2 h-2 bg-emerald-400/60 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
             <div className="absolute top-12 right-1/3 w-1.5 h-1.5 bg-emerald-500/40 rounded-full animate-bounce" style={{ animationDelay: '0.7s' }}></div>
@@ -251,7 +259,7 @@ import { CareerCard, type Career } from "@/components/careers/career-card";
                   Don't See The Perfect Role?
                 </h3>
                 <p className="text-muted-foreground max-w-xl mx-auto leading-relaxed">
-                  We're always on the lookout for exceptional talent! Even if there's no current opening that matches your skills, 
+                  We're always on the lookout for exceptional talent! Even if there's no current opening that matches your skills,
                   we'd love to hear from you. Send us your resume and let's explore future possibilities together.
                 </p>
               </div>
@@ -279,7 +287,7 @@ import { CareerCard, type Career } from "@/components/careers/career-card";
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button 
+                <Button
                   className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300 group/btn px-8 py-3"
                   onClick={() => window.open("mailto:careers@hexcode.lk?subject=General Application", "_blank")}
                 >
@@ -287,8 +295,8 @@ import { CareerCard, type Career } from "@/components/careers/career-card";
                   Send General Application
                   <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10 bg-transparent backdrop-blur-sm px-8 py-3"
                   onClick={() => window.open("https://linkedin.com/company/hexcode", "_blank")}
                 >
@@ -312,20 +320,20 @@ import { CareerCard, type Career } from "@/components/careers/career-card";
               Ready to Start Your Journey?
             </h2>
             <p className="text-emerald-100 text-lg mb-8">
-              Join our team of innovators and help us build the future of technology. 
+              Join our team of innovators and help us build the future of technology.
               We can't wait to see what we'll accomplish together.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-white text-emerald-600 hover:bg-gray-50"
                 onClick={() => window.open("mailto:careers@hexcode.lk", "_blank")}
               >
                 Get in Touch
               </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
+              <Button
+                size="lg"
+                variant="outline"
                 className="border-white text-white hover:bg-white/10 bg-transparent"
               >
                 Learn More About Us
