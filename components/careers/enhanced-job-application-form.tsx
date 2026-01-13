@@ -139,11 +139,7 @@ const DEGREE_PROGRAMS = [
   "Other"
 ]
 
-import { type Career } from "@/components/careers/career-card"
-// ... (keep structure but without local Career) -> Actually I will just delete the local definition and add import at top.
 
-// Wait, replace_file_content replaces a block.
-// I should add import at top and remove the local definition.
 
 
 type Education = {
