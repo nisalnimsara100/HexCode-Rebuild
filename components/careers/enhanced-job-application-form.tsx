@@ -39,6 +39,10 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { CVParser, ParsedCVData } from "@/lib/cvParser"
 import { type Career } from "@/components/careers/career-card"
+import { database } from "@/lib/firebase"
+import { ref, push, set } from "firebase/database"
+import emailjs from '@emailjs/browser'
+
 
 // Sri Lankan Universities Data
 const SRI_LANKAN_UNIVERSITIES = [
@@ -449,19 +453,98 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
     try {
       if (!uploadedCV) {
         addToast("CV Required", "Please upload your CV to submit the application.", "error")
+        setIsSubmitting(false) // Early exit needs this reset or rely on finally if I throw
         return
       }
 
-      // Simulate submission
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // 1. Upload CV to Cloudinary
+      // NOTE: You must configure these environment variables
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "your_cloud_name";
+      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "careers_upload";
+
+      if (cloudName === "your_cloud_name") {
+        console.warn("Cloudinary not configured. Please set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET");
+      }
+
+      const cvFormData = new FormData();
+      cvFormData.append("file", uploadedCV);
+      cvFormData.append("upload_preset", uploadPreset);
+
+      const cloudinaryRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
+        method: "POST",
+        body: cvFormData
+      });
+
+      if (!cloudinaryRes.ok) {
+        const err = await cloudinaryRes.json();
+        console.error("Cloudinary Error:", err);
+        throw new Error("Failed to upload CV. Please ensure Cloudinary is configured.");
+      }
+
+      const cloudinaryData = await cloudinaryRes.json();
+      const cvUrl = cloudinaryData.secure_url;
+
+      // 2. Save Application to Firebase
+      const applicationRef = ref(database, 'applications');
+      const newApplication = {
+        jobId: selectedJob.id.toString(), // Ensure string ID
+        jobTitle: selectedJob.title,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        country: formData.country,
+        dateOfBirth: formData.dateOfBirth,
+        hasWorkExperience: formData.hasWorkExperience,
+        yearsOfExperience: formData.yearsOfExperience,
+        currentRole: formData.currentRole,
+        education: formData.education,
+        workExperience: formData.workExperience,
+        technicalSkills: formData.technicalSkills,
+        softSkills: formData.softSkills,
+        linkedinUrl: formData.linkedinUrl,
+        portfolioUrl: formData.portfolioUrl,
+        cvUrl: cvUrl,
+        appliedAt: new Date().toISOString(),
+        status: 'pending'
+      };
+
+      await push(applicationRef, newApplication);
+
+      // 3. Send Email Notification via EmailJS
+      const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || "service_id";
+      const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || "template_id";
+      const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || "public_key";
+
+      if (serviceId !== "service_id") {
+        await emailjs.send(
+          serviceId,
+          templateId,
+          {
+            to_email: "admin@hexcode.com", // Replace with dynamic if needed
+            candidate_name: `${formData.firstName} ${formData.lastName}`,
+            job_title: selectedJob.title,
+            cv_link: cvUrl,
+            candidate_email: formData.email,
+            phone: formData.phone,
+            linkedin: formData.linkedinUrl
+          },
+          publicKey
+        );
+      } else {
+        console.warn("EmailJS not configured. Email not sent.");
+      }
 
       addToast("Application Submitted", "Your application has been submitted successfully! We'll be in touch soon.", "success")
 
       onClose()
-      // Reset form would go here
-    } catch (error) {
+      // Reset form could go here
+    } catch (error: any) {
       console.error("Application submission error:", error)
-      addToast("Submission Failed", "Failed to submit application. Please try again.", "error")
+      const errorMessage = error?.message || "Failed to submit application. Please try again.";
+      addToast("Submission Failed", errorMessage, "error")
     } finally {
       setIsSubmitting(false)
     }
