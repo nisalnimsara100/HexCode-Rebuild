@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -280,6 +280,55 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
     howDidYouHear: "",
     additionalNotes: "",
   })
+
+  // Helper to get initial state
+  const getInitialFormData = (job: Career | null): ApplicationFormData => ({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    country: "",
+    dateOfBirth: "",
+    hasWorkExperience: job?.level !== "Intern",
+    yearsOfExperience: 0,
+    currentRole: "",
+    expectedSalary: "",
+    availabilityDate: "",
+    education: [{
+      institution: "",
+      customInstitution: "",
+      degree: "",
+      customDegree: "",
+      fieldOfStudy: "",
+      graduationYear: new Date().getFullYear(),
+      gpa: ""
+    }],
+    workExperience: [],
+    technicalSkills: [],
+    softSkills: [],
+    languages: ["English"],
+    certifications: [],
+    coverLetter: "",
+    portfolioUrl: "",
+    linkedinUrl: "",
+    githubUrl: "",
+    websiteUrl: "",
+    references: [],
+    howDidYouHear: "",
+    additionalNotes: "",
+  })
+
+  // Reset form when selectedJob changes
+  useEffect(() => {
+    if (isOpen && selectedJob) {
+      setFormData(getInitialFormData(selectedJob))
+      setUploadedCV(null)
+      setCurrentStep(1)
+      setIsSubmitting(false)
+    }
+  }, [selectedJob, isOpen])
 
   const [uploadedCV, setUploadedCV] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
