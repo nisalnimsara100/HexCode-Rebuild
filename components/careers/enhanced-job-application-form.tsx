@@ -457,32 +457,22 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
         return
       }
 
-      // 1. Upload CV to Cloudinary
-      // NOTE: You must configure these environment variables
-      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "your_cloud_name";
-      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "careers_upload";
-
-      if (cloudName === "your_cloud_name") {
-        console.warn("Cloudinary not configured. Please set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET");
-      }
-
+      // 1. Upload CV Locally (to /api/upload)
       const cvFormData = new FormData();
       cvFormData.append("file", uploadedCV);
-      cvFormData.append("upload_preset", uploadPreset);
 
-      const cloudinaryRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
+      const uploadRes = await fetch('/api/upload', {
         method: "POST",
         body: cvFormData
       });
 
-      if (!cloudinaryRes.ok) {
-        const err = await cloudinaryRes.json();
-        console.error("Cloudinary Error:", err);
-        throw new Error("Failed to upload CV. Please ensure Cloudinary is configured.");
+      if (!uploadRes.ok) {
+        throw new Error("Failed to upload CV.");
       }
 
-      const cloudinaryData = await cloudinaryRes.json();
-      const cvUrl = cloudinaryData.secure_url;
+      const uploadData = await uploadRes.json();
+      // Construct absolute URL
+      const cvUrl = `${window.location.origin}${uploadData.path}`;
 
       // 2. Save Application to Firebase
       const applicationRef = ref(database, 'applications');

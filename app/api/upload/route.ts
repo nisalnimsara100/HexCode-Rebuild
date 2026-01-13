@@ -1,42 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
-import path from 'path';
+import { NextRequest, NextResponse } from "next/server";
+import path from "path";
+import { writeFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const data = await request.formData();
-    const file: File | null = data.get('file') as unknown as File;
-    const fileName: string | null = data.get('fileName') as string;
-    const folder: string | null = data.get('folder') as string;
+    const formData = await req.formData();
+    const file = formData.get("file") as File;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file received.' }, { status: 400 });
+      return NextResponse.json({ error: "No file received." }, { status: 400 });
     }
 
-    if (!fileName || !folder) {
-      return NextResponse.json({ error: 'Missing fileName or folder.' }, { status: 400 });
+    const buffer = Buffer.from(await file.arrayBuffer());
+    
+    // Create unique filename
+    const filename = Date.now() + "-" + file.name.replaceAll(" ", "_");
+    
+    // Define upload directory (public/uploads)
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    
+    // Ensure directory exists
+    if (!existsSync(uploadDir)) {
+      await mkdir(uploadDir, { recursive: true });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Define the path to save the file
-    const uploadDir = path.join(process.cwd(), 'public', 'images', folder);
-    const filePath = path.join(uploadDir, fileName);
-
-    // Write the file to the filesystem
+    // Write file
+    const filePath = path.join(uploadDir, filename);
     await writeFile(filePath, buffer);
 
-    // Return the public path to the file
-    const publicPath = `/images/${folder}/${fileName}`;
-
+    // Return public URL
     return NextResponse.json({ 
-      message: 'File uploaded successfully',
-      path: publicPath
+      success: true, 
+      path: `/uploads/${filename}` 
     });
 
   } catch (error) {
-    console.error('Error uploading file:', error);
-    return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 });
+    console.error("Upload Error:", error);
+    return NextResponse.json({ error: "Upload failed." }, { status: 500 });
   }
 }
