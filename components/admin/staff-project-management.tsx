@@ -47,8 +47,19 @@ import {
   Briefcase,
   Target,
   Trash2,
-  Edit2
+  Edit2,
+  X
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // --- Types ---
 interface TeamMember {
@@ -89,6 +100,8 @@ export function StaffProjectManagement() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<StaffProject | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [viewProject, setViewProject] = useState<StaffProject | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<Partial<StaffProject>>({
@@ -209,13 +222,19 @@ export function StaffProjectManagement() {
     }
   };
 
-  const handleDeleteProject = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this project?")) return;
+  const handleDeleteProject = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await remove(ref(database, `staffdashboard/projects/${id}`));
-      toast({ title: "Deleted", description: "Project removed" });
+      await remove(ref(database, `staffdashboard/projects/${deleteId}`));
+      toast({ title: "Deleted", description: "Project removed successfully" });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to delete", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to delete project", variant: "destructive" });
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -340,8 +359,11 @@ export function StaffProjectManagement() {
             </CardContent>
 
             <CardFooter className="pt-2 border-t border-gray-800 flex gap-2">
-              <Button className="flex-1 bg-transparent border border-gray-700 hover:bg-gray-800 text-gray-300">
-                <Target className="w-4 h-4 mr-2" /> View Tasks
+              <Button
+                className="flex-1 bg-transparent border border-gray-700 hover:bg-gray-800 text-gray-300"
+                onClick={() => setViewProject(project)}
+              >
+                <Target className="w-4 h-4 mr-2" /> View Details
               </Button>
               <Button
                 variant="ghost"
@@ -458,15 +480,15 @@ export function StaffProjectManagement() {
                       <div
                         key={user.uid}
                         className={`flex items-center justify-between p-3 rounded cursor-pointer transition-colors border ${formData.team?.includes(user.uid)
-                            ? 'bg-orange-600/20 border-orange-500/50'
-                            : 'bg-gray-800/50 border-gray-700 hover:bg-gray-700'
+                          ? 'bg-orange-600/20 border-orange-500/50'
+                          : 'bg-gray-800/50 border-gray-700 hover:bg-gray-700'
                           }`}
                         onClick={() => toggleTeamMember(user.uid)}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${formData.team?.includes(user.uid)
-                              ? 'bg-orange-500 border-orange-500'
-                              : 'border-gray-500'
+                            ? 'bg-orange-500 border-orange-500'
+                            : 'border-gray-500'
                             }`}>
                             {formData.team?.includes(user.uid) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                           </div>
@@ -510,6 +532,107 @@ export function StaffProjectManagement() {
               Save Project
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Alert */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent className="bg-gray-900 border-gray-800 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              This action cannot be undone. This will permanently delete the project from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-gray-700 text-white hover:bg-gray-800 hover:text-white">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 text-white border-0">Delete Project</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* View Project Details Modal */}
+      <Dialog open={!!viewProject} onOpenChange={(open) => !open && setViewProject(null)}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center justify-between pr-8">
+              {viewProject?.title}
+              <div className="flex gap-2 text-sm font-normal">
+                <Badge variant="outline" className={`${viewProject && getStatusColor(viewProject.status)} border capitalize px-2.5 py-0.5`}>
+                  {viewProject?.status}
+                </Badge>
+                <Badge className={`${viewProject && getPriorityColor(viewProject.priority)} capitalize px-2.5 py-0.5 border-0`}>
+                  {viewProject?.priority}
+                </Badge>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-6 py-4">
+            {/* Main Description */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Description</h4>
+              <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700/50 text-gray-300 leading-relaxed whitespace-pre-wrap">
+                {viewProject?.description || "No description provided."}
+              </div>
+            </div>
+
+            {/* Key Metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-3 bg-gray-800/30 rounded border border-gray-700/30">
+                <p className="text-xs text-gray-500 mb-1">Client</p>
+                <p className="font-medium text-white truncate" title={viewProject?.clientName}>{viewProject?.clientName || "Internal"}</p>
+              </div>
+              <div className="p-3 bg-gray-800/30 rounded border border-gray-700/30">
+                <p className="text-xs text-gray-500 mb-1">Budget</p>
+                <p className="font-medium text-green-400">{viewProject?.budget || "N/A"}</p>
+              </div>
+              <div className="p-3 bg-gray-800/30 rounded border border-gray-700/30">
+                <p className="text-xs text-gray-500 mb-1">Start Date</p>
+                <p className="font-medium text-white">{viewProject?.startDate || "TBD"}</p>
+              </div>
+              <div className="p-3 bg-gray-800/30 rounded border border-gray-700/30">
+                <p className="text-xs text-gray-500 mb-1">End Date</p>
+                <p className="font-medium text-white">{viewProject?.endDate || "TBD"}</p>
+              </div>
+            </div>
+
+            {/* Progress */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Completion</span>
+                <span className="text-white font-medium">{viewProject?.progress || 0}%</span>
+              </div>
+              <Progress value={viewProject?.progress} className="h-2 bg-gray-700" indicatorClassName="bg-orange-500" />
+            </div>
+
+            {/* Assigned Team */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <Users className="w-4 h-4" /> Assigned Team ({viewProject?.team?.length || 0})
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto">
+                {viewProject?.team && viewProject.team.map(uid => {
+                  const user = staffList.find(u => u.uid === uid);
+                  return (
+                    <div key={uid} className="flex items-center gap-3 p-2 bg-gray-800 rounded border border-gray-700">
+                      <Avatar className="h-8 w-8 border border-gray-600">
+                        <AvatarImage src={user?.avatar} />
+                        <AvatarFallback className="bg-gray-700 text-xs">{user?.name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div className="overflow-hidden">
+                        <p className="text-sm font-medium text-white truncate">{user?.name || "Unknown User"}</p>
+                        <p className="text-xs text-gray-500 truncate">{user?.role || "Staff"}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+                {(!viewProject?.team || viewProject.team.length === 0) && (
+                  <p className="text-gray-500 text-sm italic col-span-2">No team members assigned yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
