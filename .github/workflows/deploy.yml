@@ -21,7 +21,7 @@ jobs:
       - name: 📦 Install Dependencies
         run: |
           rm -f pnpm-lock.yaml
-          npm install --no-optional --legacy-peer-deps
+          npm install --legacy-peer-deps
 
       - name: 🔨 Build Next.js
         # Ensure your next.config.js has output: 'export' enabled
