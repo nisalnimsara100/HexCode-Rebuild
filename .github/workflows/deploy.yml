@@ -44,7 +44,7 @@ jobs:
           set net:max-retries 2;
           set net:timeout 20;
           set net:reconnect-interval-base 5;
-          open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
+          open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} ${{ secrets.FTP_SERVER }};
           lcd ./out;
           cd /public_html;
           
