@@ -48,6 +48,6 @@ jobs:
           lcd ./out;
           cd /public_html;
           
-          mirror -R --verbose --parallel=10 --delete --ignore-time --exclude-glob .git* --exclude-glob .htaccess --exclude-glob error_log* --exclude-glob .logs;
+          mirror -R --verbose --parallel=10 --ignore-time --exclude-glob .git* --exclude-glob .htaccess --exclude-glob error_log* --exclude-glob .logs;
           quit;
           "
