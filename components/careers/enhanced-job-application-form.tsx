@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { CVParser, ParsedCVData } from "@/lib/cvParser"
+import { uploadFile } from "@/lib/imageUpload"
 import { type Career } from "@/components/careers/career-card"
 import { database } from "@/lib/firebase"
 import { ref, push, set } from "firebase/database"
@@ -506,22 +507,8 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
         return
       }
 
-      // 1. Upload CV Locally (to /api/upload)
-      const cvFormData = new FormData();
-      cvFormData.append("file", uploadedCV);
-
-      const uploadRes = await fetch('/api/upload', {
-        method: "POST",
-        body: cvFormData
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error("Failed to upload CV.");
-      }
-
-      const uploadData = await uploadRes.json();
-      // Construct absolute URL
-      const cvUrl = `${window.location.origin}${uploadData.path}`;
+      // 1. Upload CV to Firebase Storage
+      const cvUrl = await uploadFile(uploadedCV, 'cvs');
 
       // 2. Save Application to Firebase
       const applicationRef = ref(database, 'applications');

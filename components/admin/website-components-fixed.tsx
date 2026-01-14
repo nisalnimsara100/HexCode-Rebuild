@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { database } from '@/lib/firebase';
 import { ref, onValue, set, get } from 'firebase/database';
-import { uploadProfileImage, createImagePreview, validateImageFile } from '@/lib/imageUpload';
+import { uploadProfileImage, createImagePreview, validateImageFile, uploadFile } from '@/lib/imageUpload';
 import { 
   Globe, 
   Smartphone, 
@@ -1639,30 +1639,8 @@ export function PortfolioManagement() {
     
     try {
       for (const file of imageFiles) {
-        // Create a unique filename for each image
-        const timestamp = Date.now() + Math.random();
-        const fileExtension = file.name.split('.').pop();
-        const fileName = `project_${timestamp}.${fileExtension}`;
-        
-        // Create form data for this file
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('fileName', fileName);
-        formData.append('folder', 'projects');
-        
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Upload failed');
-        }
-
-        const result = await response.json();
-        // The API returns /images/projects/filename.jpg, but we want to store /projects/filename.jpg
-        uploadedUrls.push(result.path.replace('/images/projects/', '/projects/'));
+        const url = await uploadFile(file, 'projects');
+        uploadedUrls.push(url);
       }
 
       return uploadedUrls;
