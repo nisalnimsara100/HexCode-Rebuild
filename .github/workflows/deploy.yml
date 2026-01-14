@@ -46,8 +46,8 @@ jobs:
           set net:reconnect-interval-base 5;
           open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} ${{ secrets.FTP_SERVER }};
           lcd ./out;
-          cd /public_html;
+          # cd /public_html; # Removed as user appears to be chrooted
           
-          mirror -R --verbose --parallel=10 --ignore-time --exclude-glob .git* --exclude-glob .htaccess --exclude-glob error_log* --exclude-glob .logs;
+          mirror -R --verbose --parallel=10 --delete --ignore-time --exclude-glob .git* --exclude-glob .htaccess --exclude-glob error_log* --exclude-glob .logs --exclude-glob git_* --exclude-glob uploads* --exclude-glob projects*;
           quit;
           "
