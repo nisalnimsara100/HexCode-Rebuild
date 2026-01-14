@@ -33,7 +33,7 @@ const getNavigationByRole = (role: string, pathname: string) => {
       ...baseNavigation,
       { name: "My Projects", href: "/staff/projects", icon: FolderOpen, current: pathname === "/staff/projects" },
       { name: "My Tickets", href: "/staff/tickets", icon: Ticket, current: pathname === "/staff/tickets" },
-      { name: "My Assignments", href: "/staff/assignments", icon: ClipboardList, current: pathname === "/staff/assignments" },
+      // { name: "My Assignments", href: "/staff/assignments", icon: ClipboardList, current: pathname === "/staff/assignments" },
       { name: "Settings", href: "/staff/settings", icon: Settings, current: pathname === "/staff/settings" },
     ];
   }
@@ -45,7 +45,7 @@ const getNavigationByRole = (role: string, pathname: string) => {
     { name: "Projects", href: "/staff/projects", icon: FolderOpen, current: pathname === "/staff/projects" },
     { name: "Tickets", href: "/staff/tickets", icon: Ticket, current: pathname === "/staff/tickets" },
     { name: "Teams", href: "/staff/teams", icon: UserCheck, current: pathname === "/staff/teams" },
-    { name: "Assignments", href: "/staff/assignments", icon: ClipboardList, current: pathname === "/staff/assignments" },
+    // { name: "Assignments", href: "/staff/assignments", icon: ClipboardList, current: pathname === "/staff/assignments" },
     { name: "Reports", href: "/staff/reports", icon: BarChart3, current: pathname === "/staff/reports" },
     { name: "Settings", href: "/staff/settings", icon: Settings, current: pathname === "/staff/settings" },
   ];
@@ -64,13 +64,13 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
   const pathname = usePathname();
   const { userProfile } = useAuth();
   const [localCollapsed, setLocalCollapsed] = useState(false);
-  
 
-  
+
+
   // Try to use context, fallback to local state
   let collapsed = localCollapsed;
   let toggleCollapsed = () => setLocalCollapsed(!localCollapsed);
-  
+
   try {
     const sidebarContext = useSidebar();
     collapsed = sidebarContext.collapsed;
@@ -78,7 +78,7 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
   } catch (error) {
     // Context not available, use local state
   }
-  
+
   const navigation = getNavigationByRole(userProfile?.role || "employee", pathname);
 
   return (
@@ -144,8 +144,8 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                               <Link
                                 href={item.href}
                                 className={classNames(
-                                  (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) || 
-                                  (item.name !== "Dashboard" && pathname === item.href)
+                                  (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) ||
+                                    (item.name !== "Dashboard" && pathname === item.href)
                                     ? "bg-orange-700 text-white"
                                     : "text-gray-300 hover:text-white hover:bg-gray-800",
                                   "group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
@@ -153,8 +153,8 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                               >
                                 <item.icon
                                   className={classNames(
-                                    (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) || 
-                                    (item.name !== "Dashboard" && pathname === item.href)
+                                    (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) ||
+                                      (item.name !== "Dashboard" && pathname === item.href)
                                       ? "text-white"
                                       : "text-gray-400 group-hover:text-white",
                                     "h-6 w-6 shrink-0"
@@ -178,7 +178,7 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
 
       {/* Static sidebar for desktop */}
       <div className={`hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ${collapsed ? 'lg:w-20' : 'lg:w-72'}`}>
-        <div className={`flex grow flex-col gap-y-5 overflow-y-auto bg-black pb-4 transition-all duration-300 ${collapsed ? 'px-3' : 'px-6'} border-r border-orange-500`}> 
+        <div className={`flex grow flex-col gap-y-5 overflow-y-auto bg-black pb-4 transition-all duration-300 ${collapsed ? 'px-3' : 'px-6'} border-r border-orange-500`}>
           <div className="flex h-16 shrink-0 items-center justify-between">
             <div className="flex items-center">
               <CircleUser className="h-8 w-8 text-orange-500" />
@@ -210,8 +210,8 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                       <Link
                         href={item.href}
                         className={classNames(
-                          (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) || 
-                          (item.name !== "Dashboard" && pathname === item.href)
+                          (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) ||
+                            (item.name !== "Dashboard" && pathname === item.href)
                             ? "bg-orange-700 text-white"
                             : "text-gray-300 hover:text-white hover:bg-gray-800",
                           "group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold",
@@ -221,8 +221,8 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                       >
                         <item.icon
                           className={classNames(
-                            (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) || 
-                            (item.name !== "Dashboard" && pathname === item.href)
+                            (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) ||
+                              (item.name !== "Dashboard" && pathname === item.href)
                               ? "text-white"
                               : "text-gray-400 group-hover:text-white",
                             "h-6 w-6 shrink-0"

@@ -31,7 +31,7 @@ export default function UnifiedLoginPage() {
       if (profile?.role === "admin") {
         router.push("/admin");
         return;
-      } else if (profile?.role === "employee" || profile?.role === "manager") {
+      } else if (profile?.role === "employee" || profile?.role === "manager" || profile?.role === "staff") {
         router.push("/staff/dashboard");
         return;
       } else {

@@ -8,6 +8,11 @@ import { AdminHeader } from "./admin-header"
 import { ClientProjectsManagement } from "./client-projects-management"
 import { WebsiteOverview, ServicesManagement, PortfolioManagement, WebsiteStats, ContentManagement, WebsiteSettings, PricePackagesManagement } from "./website-components-fixed"
 import { CareersManagement } from "./careers-management"
+import { StaffProjectManagement } from "./staff-project-management"
+import { StaffTicketManagement } from "./staff-ticket-management"
+import { TeamManagement } from "./team-management"
+import { StaffReportsPanel } from "./staff-reports-panel"
+import { StaffSettingsPanel } from "./staff-settings-panel"
 import { fetchPendingApprovalProjects, FirebaseClientProject, approveProject, rejectProject } from "@/lib/client-projects-firebase"
 import {
   BarChart3,
@@ -236,260 +241,6 @@ function SecurityManagementPanel() {
   )
 }
 
-function StaffTicketManagement() {
-  const [tickets] = useState([
-    {
-      id: 1,
-      title: "Fix responsive design issues on mobile",
-      description: "Mobile layout breaks on devices smaller than 768px",
-      assignee: "John Smith",
-      assigneeEmail: "john@hexcode.com",
-      status: "open",
-      priority: "high",
-      created: "2025-10-01",
-      dueDate: "2025-10-05",
-      estimatedHours: 8,
-      category: "Frontend",
-      project: "E-commerce Platform"
-    },
-    {
-      id: 2,
-      title: "Update API documentation",
-      description: "Update REST API docs with new endpoints",
-      assignee: "Sarah Johnson",
-      assigneeEmail: "sarah@hexcode.com",
-      status: "in-progress",
-      priority: "medium",
-      created: "2025-09-30",
-      dueDate: "2025-10-03",
-      estimatedHours: 4,
-      category: "Documentation",
-      project: "Internal Tools"
-    },
-    {
-      id: 3,
-      title: "Database performance optimization",
-      description: "Optimize slow queries in user management module",
-      assignee: "Mike Davis",
-      assigneeEmail: "mike@hexcode.com",
-      status: "review",
-      priority: "high",
-      created: "2025-09-29",
-      dueDate: "2025-10-02",
-      estimatedHours: 12,
-      category: "Backend",
-      project: "User Management"
-    },
-    {
-      id: 4,
-      title: "Implement dark mode toggle",
-      description: "Add dark/light mode switch in user preferences",
-      assignee: "Emily Chen",
-      assigneeEmail: "emily@hexcode.com",
-      status: "closed",
-      priority: "low",
-      created: "2025-09-28",
-      dueDate: "2025-10-01",
-      estimatedHours: 6,
-      category: "UI/UX",
-      project: "Dashboard Redesign"
-    },
-  ])
-
-  const [availableStaff] = useState([
-    { name: "John Smith", email: "john@hexcode.com", department: "Frontend", workload: 75 },
-    { name: "Sarah Johnson", email: "sarah@hexcode.com", department: "Documentation", workload: 60 },
-    { name: "Mike Davis", email: "mike@hexcode.com", department: "Backend", workload: 90 },
-    { name: "Emily Chen", email: "emily@hexcode.com", department: "UI/UX", workload: 45 },
-    { name: "Alex Rodriguez", email: "alex@hexcode.com", department: "DevOps", workload: 30 },
-  ])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open': return 'bg-orange-500'
-      case 'in-progress': return 'bg-blue-500'
-      case 'review': return 'bg-yellow-500'
-      case 'closed': return 'bg-green-500'
-      default: return 'bg-gray-500'
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'critical': return 'text-red-600 bg-red-100'
-      case 'high': return 'text-red-400 bg-red-900/20'
-      case 'medium': return 'text-yellow-400 bg-yellow-900/20'
-      case 'low': return 'text-green-400 bg-green-900/20'
-      default: return 'text-gray-400 bg-gray-900/20'
-    }
-  }
-
-  const getWorkloadColor = (workload: number) => {
-    if (workload >= 80) return 'text-red-400'
-    if (workload >= 60) return 'text-yellow-400'
-    return 'text-green-400'
-  }
-
-  const isOverdue = (dueDate: string) => {
-    return new Date(dueDate) < new Date()
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-gray-900 p-6 rounded-xl">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Staff Ticket Management</h2>
-            <p className="text-gray-400">Assign and track tickets across your team</p>
-          </div>
-          <div className="flex space-x-3">
-            <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4" />
-              <span>Create Ticket</span>
-            </button>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
-              <Users className="w-4 h-4" />
-              <span>Bulk Assign</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-gray-800 p-4 rounded-lg">
-            <h3 className="text-orange-400 font-semibold">Open</h3>
-            <p className="text-2xl font-bold text-white">{tickets.filter(t => t.status === 'open').length}</p>
-            <p className="text-gray-400 text-xs">Need assignment</p>
-          </div>
-          <div className="bg-gray-800 p-4 rounded-lg">
-            <h3 className="text-blue-400 font-semibold">In Progress</h3>
-            <p className="text-2xl font-bold text-white">{tickets.filter(t => t.status === 'in-progress').length}</p>
-            <p className="text-gray-400 text-xs">Active work</p>
-          </div>
-          <div className="bg-gray-800 p-4 rounded-lg">
-            <h3 className="text-yellow-400 font-semibold">In Review</h3>
-            <p className="text-2xl font-bold text-white">{tickets.filter(t => t.status === 'review').length}</p>
-            <p className="text-gray-400 text-xs">Pending approval</p>
-          </div>
-          <div className="bg-gray-800 p-4 rounded-lg">
-            <h3 className="text-green-400 font-semibold">Completed</h3>
-            <p className="text-2xl font-bold text-white">{tickets.filter(t => t.status === 'closed').length}</p>
-            <p className="text-gray-400 text-xs">This month</p>
-          </div>
-          <div className="bg-gray-800 p-4 rounded-lg">
-            <h3 className="text-red-400 font-semibold">Overdue</h3>
-            <p className="text-2xl font-bold text-white">{tickets.filter(t => isOverdue(t.dueDate) && t.status !== 'closed').length}</p>
-            <p className="text-gray-400 text-xs">Need attention</p>
-          </div>
-        </div>
-
-        {/* Tickets Table */}
-        <div className="bg-gray-800 rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Ticket Details</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Assigned To</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Priority</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Due Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {tickets.map((ticket) => (
-                  <tr key={ticket.id} className="hover:bg-gray-700/50">
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-white">{ticket.title}</div>
-                        <div className="text-xs text-gray-400">#{ticket.id} • {ticket.project}</div>
-                        <div className="text-xs text-gray-500">{ticket.category} • {ticket.estimatedHours}h estimated</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                          {ticket.assignee.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div>
-                          <div className="text-sm text-white">{ticket.assignee}</div>
-                          <div className="text-xs text-gray-400">{ticket.assigneeEmail}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(ticket.status)} text-white`}>
-                        {ticket.status.replace('-', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(ticket.priority)}`}>
-                        {ticket.priority.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-white">{ticket.dueDate}</div>
-                      {isOverdue(ticket.dueDate) && ticket.status !== 'closed' && (
-                        <div className="text-xs text-red-400">Overdue</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex space-x-2">
-                        <button className="text-blue-400 hover:text-blue-300 text-xs bg-blue-900/20 px-2 py-1 rounded">Edit</button>
-                        <button className="text-green-400 hover:text-green-300 text-xs bg-green-900/20 px-2 py-1 rounded">Reassign</button>
-                        <button className="text-yellow-400 hover:text-yellow-300 text-xs bg-yellow-900/20 px-2 py-1 rounded">Update</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* Staff Workload Overview */}
-      <div className="bg-gray-900 p-6 rounded-xl">
-        <h3 className="text-xl font-bold text-white mb-4">Staff Workload Overview</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {availableStaff.map((staff, index) => (
-            <div key={index} className="bg-gray-800 p-4 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                    {staff.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-white">{staff.name}</div>
-                    <div className="text-xs text-gray-400">{staff.department}</div>
-                  </div>
-                </div>
-                <div className={`text-sm font-medium ${getWorkloadColor(staff.workload)}`}>
-                  {staff.workload}%
-                </div>
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full transition-all duration-300 ${staff.workload >= 80 ? 'bg-red-500' :
-                    staff.workload >= 60 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}
-                  style={{ width: `${staff.workload}%` }}
-                ></div>
-              </div>
-              <div className="flex justify-between items-center mt-2">
-                <span className="text-xs text-gray-400">Workload</span>
-                <button className="text-xs text-orange-400 hover:text-orange-300">Assign Task</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export function AdminDashboard() {
   const { userProfile, logout } = useAuth();
   const router = useRouter();
@@ -636,7 +387,7 @@ export function AdminDashboard() {
             {activeTab === "tickets" && <StaffTicketManagement />}
             {activeTab === "assignments" && <TaskAssignmentPanel />}
             {activeTab === "staff-projects" && <StaffProjectManagement />}
-            {activeTab === "team" && <TeamManagementPanel />}
+            {activeTab === "team" && <TeamManagement />}
             {activeTab === "reports" && <StaffReportsPanel />}
             {activeTab === "settings" && <StaffSettingsPanel />}
           </>
@@ -888,63 +639,7 @@ function TaskAssignmentPanel() {
   )
 }
 
-function StaffProjectManagement() {
-  const [projects] = useState([
-    {
-      id: 1,
-      name: "E-commerce Platform Redesign",
-      status: "active",
-      progress: 75,
-      priority: "high",
-      deadline: "2025-10-30",
-      budget: "$50,000",
-      teamSize: 6,
-      lead: "John Smith"
-    }
-  ])
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-gray-900 p-6 rounded-xl">
-        <h2 className="text-2xl font-bold text-white">Staff Project Management</h2>
-        <p className="text-gray-400">Oversee and coordinate all team projects</p>
-      </div>
-    </div>
-  )
-}
-
-function TeamManagementPanel() {
-  return (
-    <div className="space-y-6">
-      <div className="bg-gray-900 p-6 rounded-xl">
-        <h2 className="text-2xl font-bold text-white">Team Management Panel</h2>
-        <p className="text-gray-400">Coming soon - comprehensive team management features</p>
-      </div>
-    </div>
-  )
-}
-
-function StaffReportsPanel() {
-  return (
-    <div className="space-y-6">
-      <div className="bg-gray-900 p-6 rounded-xl">
-        <h2 className="text-2xl font-bold text-white">Staff Reports Panel</h2>
-        <p className="text-gray-400">Coming soon - detailed staff performance reports</p>
-      </div>
-    </div>
-  )
-}
-
-function StaffSettingsPanel() {
-  return (
-    <div className="space-y-6">
-      <div className="bg-gray-900 p-6 rounded-xl">
-        <h2 className="text-2xl font-bold text-white">Staff Settings Panel</h2>
-        <p className="text-gray-400">Coming soon - staff-related configuration settings</p>
-      </div>
-    </div>
-  )
-}
 
 // Projects Management Components
 
@@ -1305,7 +1000,6 @@ function ProjectApprovalsManagement() {
     </div>
   )
 }
-
 
 function ClientDashboardControl() {
   return (

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Eye, EyeOff, Lock, Mail, Shield, User, Building, Phone } from "lucide-react"
+import { Eye, EyeOff, Lock, Mail, Shield, User, Building, Phone, Calendar, Image as ImageIcon } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -29,7 +29,9 @@ export function AdminRegister() {
     phone: "",
     department: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    dateOfBirth: "",
+    profilePicture: ""
   })
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,7 +46,7 @@ export function AdminRegister() {
     e.preventDefault()
     setError("")
     setSuccess("")
-    
+
     // Basic validation
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match!")
@@ -57,23 +59,26 @@ export function AdminRegister() {
     }
 
     setIsLoading(true)
-    
+
     try {
       // Create user profile for admin
       const profile = {
         name: `${formData.firstName} ${formData.lastName}`,
         role: 'admin' as const,
         department: formData.department || 'Management',
-        employeeId: `ADM-${Date.now().toString().slice(-6)}` // Generate admin ID
+        employeeId: `ADM-${Date.now().toString().slice(-6)}`,
+        dateOfBirth: formData.dateOfBirth,
+        profilePicture: formData.profilePicture,
+        phone: formData.phone
       }
-      
+
       await signUp(formData.email, formData.password, profile)
-      
+
       setSuccess("Registration successful! Redirecting to login...")
       setTimeout(() => {
         router.push("/admin/login")
       }, 2000)
-      
+
     } catch (error) {
       setError("Registration failed. Please try again.")
     } finally {
@@ -119,29 +124,29 @@ export function AdminRegister() {
                 {error}
               </div>
             )}
-            
+
             {/* Success Message */}
             {success && (
               <div className="bg-green-900/20 border border-green-500/50 text-green-400 p-3 rounded-lg text-sm">
                 {success}
               </div>
             )}
-            
+
             {/* Name Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input 
-                    id="firstName" 
+                  <Input
+                    id="firstName"
                     name="firstName"
-                    type="text" 
-                    placeholder="John" 
-                    className="pl-10" 
+                    type="text"
+                    placeholder="John"
+                    className="pl-10"
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -149,15 +154,15 @@ export function AdminRegister() {
                 <Label htmlFor="lastName">Last Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input 
-                    id="lastName" 
+                  <Input
+                    id="lastName"
                     name="lastName"
-                    type="text" 
-                    placeholder="Doe" 
-                    className="pl-10" 
+                    type="text"
+                    placeholder="Doe"
+                    className="pl-10"
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -168,15 +173,15 @@ export function AdminRegister() {
               <Label htmlFor="email">Email Address</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  id="email" 
+                <Input
+                  id="email"
                   name="email"
-                  type="email" 
-                  placeholder="admin@hexcode.dev" 
-                  className="pl-10" 
+                  type="email"
+                  placeholder="admin@hexcode.dev"
+                  className="pl-10"
                   value={formData.email}
                   onChange={handleInputChange}
-                  required 
+                  required
                 />
               </div>
             </div>
@@ -186,15 +191,15 @@ export function AdminRegister() {
               <Label htmlFor="phone">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  id="phone" 
+                <Input
+                  id="phone"
                   name="phone"
-                  type="tel" 
-                  placeholder="+1 (555) 123-4567" 
-                  className="pl-10" 
+                  type="tel"
+                  placeholder="+1 (555) 123-4567"
+                  className="pl-10"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  required 
+                  required
                 />
               </div>
             </div>
@@ -204,15 +209,49 @@ export function AdminRegister() {
               <Label htmlFor="department">Department</Label>
               <div className="relative">
                 <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  id="department" 
+                <Input
+                  id="department"
                   name="department"
-                  type="text" 
-                  placeholder="Management" 
-                  className="pl-10" 
+                  type="text"
+                  placeholder="Management"
+                  className="pl-10"
                   value={formData.department}
                   onChange={handleInputChange}
-                  required 
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Date of Birth */}
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="dateOfBirth"
+                  name="dateOfBirth"
+                  type="date"
+                  className="pl-10"
+                  value={formData.dateOfBirth}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Profile Picture URL */}
+            <div className="space-y-2">
+              <Label htmlFor="profilePicture">Profile Picture URL</Label>
+              <div className="relative">
+                <ImageIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="profilePicture"
+                  name="profilePicture"
+                  type="url"
+                  placeholder="https://example.com/avatar.jpg"
+                  className="pl-10"
+                  value={formData.profilePicture}
+                  onChange={handleInputChange}
                 />
               </div>
             </div>

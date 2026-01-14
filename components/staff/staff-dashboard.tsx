@@ -88,12 +88,12 @@ export default function EmployeeView() {
           }))
           .filter((ticket: TicketItem) => {
             // Check if ticket has assignedTo and assignedTo has id
-            return ticket.assignedTo && 
-                   ticket.assignedTo.id && 
-                   ticket.assignedTo.id === userProfile.uid;
+            return ticket.assignedTo &&
+              ticket.assignedTo.id &&
+              ticket.assignedTo.id === userProfile.uid;
           })
           .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-        
+
         setTickets(ticketsList);
       } else {
         // Add sample data when Firebase is empty
@@ -142,6 +142,32 @@ export default function EmployeeView() {
         setTickets(sampleTickets);
       }
       setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userProfile?.uid]);
+
+  // Fetch Projects assigned to current user
+  const [projects, setProjects] = useState<any[]>([]);
+  useEffect(() => {
+    if (!userProfile?.uid) return;
+
+    const projectsRef = ref(database, 'staffdashboard/projects');
+    const unsubscribe = onValue(projectsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const projectList = Object.entries(data)
+          .map(([id, val]: [string, any]) => ({
+            id,
+            ...val,
+            team: val.team || []
+          }))
+          .filter(project => project.team && project.team.includes(userProfile.uid));
+
+        setProjects(projectList);
+      } else {
+        setProjects([]);
+      }
     });
 
     return () => unsubscribe();
@@ -224,7 +250,7 @@ export default function EmployeeView() {
   return (
     <div className="min-h-screen bg-black p-4 sm:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        
+
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center space-x-4 mb-6">
@@ -243,7 +269,7 @@ export default function EmployeeView() {
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center justify-center space-x-4 text-sm text-gray-400">
             <div className="flex items-center space-x-2">
               <Clock className="h-4 w-4" />
@@ -259,6 +285,50 @@ export default function EmployeeView() {
 
         {/* Section Separator */}
         <div className="border-t border-orange-500/20"></div>
+
+        {/* Active Projects Section */}
+        {projects.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-white flex items-center">
+              <Activity className="w-5 h-5 mr-2 text-orange-500" />
+              Your Active Projects
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {projects.map(project => (
+                <Card key={project.id} className="bg-gray-900 border-gray-800 p-4 hover:border-orange-500/30 transition-all">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-white text-lg">{project.title}</h3>
+                    <Badge variant="outline" className="border-gray-600 text-gray-400 capitalize">
+                      {project.status}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-400 mb-4 line-clamp-2">{project.description}</p>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Progress</span>
+                      <span>{project.progress}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-orange-500" style={{ width: `${project.progress}%` }}></div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <div className="flex items-center">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {project.endDate || 'No deadline'}
+                    </div>
+                    {project.tasks && (
+                      <span>{Object.values(project.tasks).length} Tasks</span>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <div className="border-t border-orange-500/20 my-6"></div>
+          </div>
+        )}
 
         {/* Tasks Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -314,7 +384,7 @@ export default function EmployeeView() {
               <Card key={ticket.id} className="bg-gray-900 border-gray-700 hover:bg-gray-800 transition-all duration-200">
                 <div className="p-4 sm:p-6">
                   <div className="space-y-4">
-                    
+
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -345,7 +415,7 @@ export default function EmployeeView() {
 
                     {/* Countdown Timer - Prominent Display */}
                     <div className="mb-4">
-                      <CountdownTimer 
+                      <CountdownTimer
                         dueDate={ticket.dueDate}
                         priority={ticket.priority}
                         size="lg"
@@ -360,23 +430,23 @@ export default function EmployeeView() {
                           <User className="h-4 w-4 mr-2" />
                           Admin Notes
                         </h4>
-                        
+
                         {ticket.adminNotes && (
                           <div className="text-sm text-gray-400 mb-2">
                             <strong>Note:</strong> {ticket.adminNotes}
                           </div>
                         )}
-                        
+
                         {ticket.extraTimeReason && (
                           <div className="text-sm text-green-400 mb-2">
                             <strong>Extra Time Added:</strong> {ticket.extraTimeAdded} hours - {ticket.extraTimeReason}
                           </div>
                         )}
-                        
+
                         {ticket.ruralSituations?.map((situation, index) => (
                           <div key={index} className="text-sm text-yellow-400 mb-1 flex items-center">
                             {situation.type === 'electricity' ? <WifiOff className="h-3 w-3 mr-2" /> : <Wifi className="h-3 w-3 mr-2" />}
-                            <strong>{situation.type}:</strong> {situation.description} 
+                            <strong>{situation.type}:</strong> {situation.description}
                             <span className="text-gray-400 ml-2">
                               (+{situation.timeExtension}h on {new Date(situation.timestamp).toLocaleDateString()})
                             </span>

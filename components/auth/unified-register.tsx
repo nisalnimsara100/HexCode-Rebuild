@@ -9,22 +9,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Eye, 
-  EyeOff, 
-  Lock, 
-  Mail, 
-  Shield, 
-  User, 
-  Building, 
-  Phone, 
+import {
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  Shield,
+  User,
+  Building,
+  Phone,
   Users,
   Building2,
   AlertCircle,
   UserPlus,
-  ArrowLeft
+  ArrowLeft,
+  Calendar,
+  Camera,
+  Upload
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function UnifiedRegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -35,17 +39,20 @@ export default function UnifiedRegisterPage() {
   // Admin registration removed - only employees can register through this form
   const { signUp } = useAuth();
   const router = useRouter();
-  
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
     department: "",
-    employeeId: "",
+    dateOfBirth: "",
     password: "",
     confirmPassword: ""
   });
+
+  const [profilePic, setProfilePic] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -55,11 +62,19 @@ export default function UnifiedRegisterPage() {
     }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setProfilePic(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
-    
+
     // Basic validation
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match!");
@@ -71,26 +86,51 @@ export default function UnifiedRegisterPage() {
       return;
     }
 
+    if (!formData.dateOfBirth) {
+      setError("Date of birth is required!");
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
+      let profilePictureUrl = "";
+
+      // Upload profile picture if selected
+      if (profilePic) {
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", profilePic);
+
+        const uploadRes = await fetch("/api/upload/staff-pic", {
+          method: "POST",
+          body: uploadFormData,
+        });
+
+        if (!uploadRes.ok) throw new Error("Failed to upload profile picture");
+
+        const data = await uploadRes.json();
+        profilePictureUrl = data.path;
+      }
+
       // Create employee user profile
       const profile = {
         name: `${formData.firstName} ${formData.lastName}`,
-        role: 'employee' as const,
         department: formData.department || 'General',
-        employeeId: formData.employeeId || `EMP-${Date.now().toString().slice(-6)}`
+        dateOfBirth: formData.dateOfBirth,
+        profilePicture: profilePictureUrl,
+        // Role is forced to 'staff' in auth-context
       };
-      
+
       await signUp(formData.email, formData.password, profile);
-      
-      setSuccess("Registration successful! You can now sign in as an employee.");
+
+      setSuccess("Registration successful! You can now sign in as a staff member.");
       setTimeout(() => {
         router.push("/login");
       }, 2000);
-      
-    } catch (error) {
-      setError("Registration failed. Please try again.");
+
+    } catch (error: any) {
+      console.error(error);
+      setError(error.message || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -116,17 +156,15 @@ export default function UnifiedRegisterPage() {
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">
             Join HexCode
           </h1>
-          <p className="text-slate-400 text-lg">Create your employee account</p>
+          <p className="text-slate-400 text-lg">Create your staff account</p>
         </div>
 
         {/* Registration Card */}
         <Card className="bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl p-8">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">Employee Registration</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">Staff Registration</h2>
             <p className="text-slate-300">Register for staff portal access</p>
           </div>
-
-
 
           {/* Status Messages */}
           {error && (
@@ -145,21 +183,47 @@ export default function UnifiedRegisterPage() {
 
           {/* Registration Form */}
           <form onSubmit={handleRegister} className="space-y-4">
+
+            {/* Profile Picture Upload */}
+            <div className="flex justify-center mb-6">
+              <div className="relative group cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="profile-pic-upload"
+                />
+                <Label htmlFor="profile-pic-upload" className="cursor-pointer block">
+                  <div className={`w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center overflow-hidden transition-all duration-300 ${previewUrl ? 'border-orange-500' : 'border-slate-500 hover:border-orange-400'}`}>
+                    {previewUrl ? (
+                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera className="w-8 h-8 text-slate-400 group-hover:text-orange-400 transition-colors" />
+                    )}
+                  </div>
+                  <div className="absolute bottom-0 right-0 bg-orange-500 p-1.5 rounded-full text-white shadow-lg">
+                    <Upload className="w-3 h-3" />
+                  </div>
+                </Label>
+              </div>
+            </div>
+
             {/* Name Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName" className="text-sm font-medium text-slate-300">First Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                  <Input 
-                    id="firstName" 
+                  <Input
+                    id="firstName"
                     name="firstName"
-                    type="text" 
-                    placeholder="John" 
-                    className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl" 
+                    type="text"
+                    placeholder="John"
+                    className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl"
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -167,15 +231,15 @@ export default function UnifiedRegisterPage() {
                 <Label htmlFor="lastName" className="text-sm font-medium text-slate-300">Last Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                  <Input 
-                    id="lastName" 
+                  <Input
+                    id="lastName"
                     name="lastName"
-                    type="text" 
-                    placeholder="Doe" 
-                    className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl" 
+                    type="text"
+                    placeholder="Doe"
+                    className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl"
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -186,15 +250,15 @@ export default function UnifiedRegisterPage() {
               <Label htmlFor="email" className="text-sm font-medium text-slate-300">Email Address</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                <Input 
-                  id="email" 
+                <Input
+                  id="email"
                   name="email"
-                  type="email" 
-                  placeholder="employee@hexcode.dev"
-                  className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl" 
+                  type="email"
+                  placeholder="staff@hexcode.dev"
+                  className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl"
                   value={formData.email}
                   onChange={handleInputChange}
-                  required 
+                  required
                 />
               </div>
             </div>
@@ -205,15 +269,15 @@ export default function UnifiedRegisterPage() {
                 <Label htmlFor="phone" className="text-sm font-medium text-slate-300">Phone</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                  <Input 
-                    id="phone" 
+                  <Input
+                    id="phone"
                     name="phone"
-                    type="tel" 
-                    placeholder="+1 (555) 123-4567" 
-                    className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl" 
+                    type="tel"
+                    placeholder="+1 (555) 123-4567"
+                    className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -221,33 +285,33 @@ export default function UnifiedRegisterPage() {
                 <Label htmlFor="department" className="text-sm font-medium text-slate-300">Department</Label>
                 <div className="relative">
                   <Building className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                  <Input 
-                    id="department" 
+                  <Input
+                    id="department"
                     name="department"
-                    type="text" 
-                    placeholder="Department" 
-                    className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl" 
+                    type="text"
+                    placeholder="Department"
+                    className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl"
                     value={formData.department}
                     onChange={handleInputChange}
-                    required 
+                    required
                   />
                 </div>
               </div>
             </div>
 
-            {/* Employee ID (optional) */}
+            {/* Date of Birth and Password */}
             <div className="space-y-2">
-              <Label htmlFor="employeeId" className="text-sm font-medium text-slate-300">Employee ID (Optional)</Label>
+              <Label htmlFor="dateOfBirth" className="text-sm font-medium text-slate-300">Date of Birth</Label>
               <div className="relative">
-                <Building className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                <Input 
-                  id="employeeId" 
-                  name="employeeId"
-                  type="text" 
-                  placeholder="EMP-123456"
-                  className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl" 
-                  value={formData.employeeId}
+                <Calendar className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                <Input
+                  id="dateOfBirth"
+                  name="dateOfBirth"
+                  type="date"
+                  className="pl-10 h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl [color-scheme:dark]"
+                  value={formData.dateOfBirth}
                   onChange={handleInputChange}
+                  required
                 />
               </div>
             </div>
@@ -330,7 +394,7 @@ export default function UnifiedRegisterPage() {
               ) : (
                 <div className="flex items-center justify-center space-x-2">
                   <UserPlus className="h-4 w-4" />
-                  <span>Create Employee Account</span>
+                  <span>Create Staff Account</span>
                 </div>
               )}
             </Button>
@@ -352,7 +416,7 @@ export default function UnifiedRegisterPage() {
           {/* Security Notice */}
           <div className="mt-4 text-center">
             <p className="text-xs text-slate-500">
-              Employee accounts will be activated after admin approval.
+              Staff accounts will be activated after admin approval.
             </p>
           </div>
         </Card>

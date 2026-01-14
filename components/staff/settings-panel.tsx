@@ -13,11 +13,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { db, auth } from "@/lib/firebase";
-import { 
-  doc, 
-  updateDoc, 
-  onSnapshot, 
+import { firestore as db, auth } from "@/lib/firebase";
+import {
+  doc,
+  updateDoc,
+  onSnapshot,
   collection,
   addDoc,
   deleteDoc,
@@ -182,6 +182,18 @@ export function SettingsPanel() {
     { id: "5", name: "Alex Rodriguez" },
   ];
 
+  const tabs = [
+    { id: 'profile', label: 'My Profile', icon: User },
+    // { id: 'notifications', label: 'Notifications', icon: Bell },
+    // { id: 'security', label: 'Security', icon: Shield },
+    // { id: 'preferences', label: 'Preferences', icon: Globe },
+    // { id: 'appearance', label: 'Appearance', icon: Palette },
+    // { id: 'system', label: 'System Settings', icon: Settings },
+    // { id: 'departments', label: 'Departments', icon: Building },
+    // { id: 'roles', label: 'Roles & Permissions', icon: Key },
+    // { id: 'database', label: 'Database', icon: Database },
+  ];
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -189,7 +201,7 @@ export function SettingsPanel() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      
+
       // In real implementation, fetch from Firebase
       // const userSettingsRef = doc(db, "userSettings", auth.currentUser?.uid || "current-user");
       // const systemSettingsRef = doc(db, "systemSettings", "default");
@@ -198,7 +210,7 @@ export function SettingsPanel() {
 
       // Mock data for now
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      
+
       const mockUserSettings: UserSettings = {
         id: "current-user",
         theme: "dark",
@@ -344,13 +356,13 @@ export function SettingsPanel() {
 
   const saveUserSettings = async () => {
     if (!userSettings) return;
-    
+
     try {
       setSaving(true);
-      
+
       // In real implementation, save to Firebase
       // await updateDoc(doc(db, "userSettings", userSettings.id), userSettings);
-      
+
       // Mock save
       await new Promise((resolve) => setTimeout(resolve, 500));
       console.log("User settings saved:", userSettings);
@@ -363,13 +375,13 @@ export function SettingsPanel() {
 
   const saveSystemSettings = async () => {
     if (!systemSettings) return;
-    
+
     try {
       setSaving(true);
-      
+
       // In real implementation, save to Firebase
       // await updateDoc(doc(db, "systemSettings", "default"), systemSettings);
-      
+
       // Mock save
       await new Promise((resolve) => setTimeout(resolve, 500));
       console.log("System settings saved:", systemSettings);
@@ -431,7 +443,7 @@ export function SettingsPanel() {
       try {
         // In real implementation, delete from Firebase
         // await deleteDoc(doc(db, "departments", id));
-        
+
         setDepartments(departments.filter(d => d.id !== id));
       } catch (error) {
         console.error("Error deleting department:", error);
@@ -444,7 +456,7 @@ export function SettingsPanel() {
       try {
         // In real implementation, delete from Firebase
         // await deleteDoc(doc(db, "roles", id));
-        
+
         setRoles(roles.filter(r => r.id !== id));
       } catch (error) {
         console.error("Error deleting role:", error);
@@ -478,31 +490,13 @@ export function SettingsPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="grid w-full grid-cols-6 bg-gray-800 border-gray-700">
-          <TabsTrigger value="profile" className="data-[state=active]:bg-emerald-600">
-            <User className="h-4 w-4 mr-2" />
-            Profile
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="data-[state=active]:bg-emerald-600">
-            <Bell className="h-4 w-4 mr-2" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="system" className="data-[state=active]:bg-emerald-600">
-            <Settings className="h-4 w-4 mr-2" />
-            System
-          </TabsTrigger>
-          <TabsTrigger value="security" className="data-[state=active]:bg-emerald-600">
-            <Shield className="h-4 w-4 mr-2" />
-            Security
-          </TabsTrigger>
-          <TabsTrigger value="departments" className="data-[state=active]:bg-emerald-600">
-            <Building className="h-4 w-4 mr-2" />
-            Departments
-          </TabsTrigger>
-          <TabsTrigger value="roles" className="data-[state=active]:bg-emerald-600">
-            <Users className="h-4 w-4 mr-2" />
-            Roles
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-1 bg-gray-800 border-gray-700">
+          {tabs.map(tab => (
+            <TabsTrigger key={tab.id} value={tab.id} className="data-[state=active]:bg-emerald-600">
+              <tab.icon className="h-4 w-4 mr-2" />
+              {tab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         {/* Profile Settings */}
@@ -510,7 +504,7 @@ export function SettingsPanel() {
           <Card className="bg-gray-800 border-gray-700">
             <div className="p-6">
               <h3 className="text-lg font-medium text-white mb-4">Profile Settings</h3>
-              
+
               {userSettings && (
                 <div className="space-y-6">
                   <div className="flex items-center space-x-4">
@@ -532,7 +526,7 @@ export function SettingsPanel() {
                       <Label htmlFor="theme">Theme</Label>
                       <Select
                         value={userSettings.theme}
-                        onValueChange={(value) => 
+                        onValueChange={(value) =>
                           setUserSettings({ ...userSettings, theme: value as UserSettings["theme"] })
                         }
                       >
@@ -566,7 +560,7 @@ export function SettingsPanel() {
                       <Label htmlFor="language">Language</Label>
                       <Select
                         value={userSettings.language}
-                        onValueChange={(value) => 
+                        onValueChange={(value) =>
                           setUserSettings({ ...userSettings, language: value })
                         }
                       >
@@ -587,7 +581,7 @@ export function SettingsPanel() {
                       <Label htmlFor="timezone">Timezone</Label>
                       <Select
                         value={userSettings.timezone}
-                        onValueChange={(value) => 
+                        onValueChange={(value) =>
                           setUserSettings({ ...userSettings, timezone: value })
                         }
                       >
@@ -608,7 +602,7 @@ export function SettingsPanel() {
                       <Label htmlFor="timeFormat">Time Format</Label>
                       <Select
                         value={userSettings.timeFormat}
-                        onValueChange={(value) => 
+                        onValueChange={(value) =>
                           setUserSettings({ ...userSettings, timeFormat: value as "12h" | "24h" })
                         }
                       >
@@ -626,7 +620,7 @@ export function SettingsPanel() {
                       <Label htmlFor="profileVisibility">Profile Visibility</Label>
                       <Select
                         value={userSettings.profileVisibility}
-                        onValueChange={(value) => 
+                        onValueChange={(value) =>
                           setUserSettings({ ...userSettings, profileVisibility: value as UserSettings["profileVisibility"] })
                         }
                       >
@@ -658,8 +652,8 @@ export function SettingsPanel() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button 
-                      onClick={saveUserSettings} 
+                    <Button
+                      onClick={saveUserSettings}
                       disabled={saving}
                       className="bg-emerald-600 hover:bg-emerald-700"
                     >
@@ -678,7 +672,7 @@ export function SettingsPanel() {
           <Card className="bg-gray-800 border-gray-700">
             <div className="p-6">
               <h3 className="text-lg font-medium text-white mb-4">Notification Preferences</h3>
-              
+
               {userSettings && (
                 <div className="space-y-6">
                   <div className="space-y-4">
@@ -748,8 +742,8 @@ export function SettingsPanel() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button 
-                      onClick={saveUserSettings} 
+                    <Button
+                      onClick={saveUserSettings}
                       disabled={saving}
                       className="bg-emerald-600 hover:bg-emerald-700"
                     >
@@ -768,7 +762,7 @@ export function SettingsPanel() {
           <Card className="bg-gray-800 border-gray-700">
             <div className="p-6">
               <h3 className="text-lg font-medium text-white mb-4">Company Information</h3>
-              
+
               {systemSettings && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-6">
@@ -777,7 +771,7 @@ export function SettingsPanel() {
                       <Input
                         id="companyName"
                         value={systemSettings.companyName}
-                        onChange={(e) => 
+                        onChange={(e) =>
                           setSystemSettings({ ...systemSettings, companyName: e.target.value })
                         }
                         className="bg-gray-700 border-gray-600 text-white"
@@ -790,7 +784,7 @@ export function SettingsPanel() {
                         id="companyEmail"
                         type="email"
                         value={systemSettings.companyEmail}
-                        onChange={(e) => 
+                        onChange={(e) =>
                           setSystemSettings({ ...systemSettings, companyEmail: e.target.value })
                         }
                         className="bg-gray-700 border-gray-600 text-white"
@@ -802,7 +796,7 @@ export function SettingsPanel() {
                       <Input
                         id="companyPhone"
                         value={systemSettings.companyPhone}
-                        onChange={(e) => 
+                        onChange={(e) =>
                           setSystemSettings({ ...systemSettings, companyPhone: e.target.value })
                         }
                         className="bg-gray-700 border-gray-600 text-white"
@@ -815,7 +809,7 @@ export function SettingsPanel() {
                     <Textarea
                       id="companyAddress"
                       value={systemSettings.companyAddress}
-                      onChange={(e) => 
+                      onChange={(e) =>
                         setSystemSettings({ ...systemSettings, companyAddress: e.target.value })
                       }
                       className="bg-gray-700 border-gray-600 text-white"
@@ -848,8 +842,8 @@ export function SettingsPanel() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button 
-                      onClick={saveSystemSettings} 
+                    <Button
+                      onClick={saveSystemSettings}
                       disabled={saving}
                       className="bg-emerald-600 hover:bg-emerald-700"
                     >
@@ -868,7 +862,7 @@ export function SettingsPanel() {
           <Card className="bg-gray-800 border-gray-700">
             <div className="p-6">
               <h3 className="text-lg font-medium text-white mb-4">Security Settings</h3>
-              
+
               {systemSettings && (
                 <div className="space-y-6">
                   <div>
@@ -880,7 +874,7 @@ export function SettingsPanel() {
                           id="minLength"
                           type="number"
                           value={systemSettings.security.passwordPolicy.minLength}
-                          onChange={(e) => 
+                          onChange={(e) =>
                             setSystemSettings({
                               ...systemSettings,
                               security: {
@@ -902,7 +896,7 @@ export function SettingsPanel() {
                           id="sessionTimeout"
                           type="number"
                           value={systemSettings.security.sessionTimeout}
-                          onChange={(e) => 
+                          onChange={(e) =>
                             setSystemSettings({
                               ...systemSettings,
                               security: {
@@ -915,7 +909,7 @@ export function SettingsPanel() {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="mt-4 space-y-3">
                       {Object.entries(systemSettings.security.passwordPolicy)
                         .filter(([key]) => key !== 'minLength')
@@ -963,8 +957,8 @@ export function SettingsPanel() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button 
-                      onClick={saveSystemSettings} 
+                    <Button
+                      onClick={saveSystemSettings}
                       disabled={saving}
                       className="bg-emerald-600 hover:bg-emerald-700"
                     >
@@ -1007,9 +1001,9 @@ export function SettingsPanel() {
                       <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
                         <Edit3 className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => deleteDepartment(dept.id)}
                         className="text-red-400 hover:text-red-300"
                       >
@@ -1017,7 +1011,7 @@ export function SettingsPanel() {
                       </Button>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Manager:</span>
@@ -1069,9 +1063,9 @@ export function SettingsPanel() {
                         <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
                           <Edit3 className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => deleteRole(role.id)}
                           className="text-red-400 hover:text-red-300"
                         >
@@ -1080,7 +1074,7 @@ export function SettingsPanel() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div>
                     <h5 className="text-sm font-medium text-gray-400 mb-2">Permissions:</h5>
                     <div className="flex flex-wrap gap-1">
