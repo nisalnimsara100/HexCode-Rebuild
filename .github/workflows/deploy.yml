@@ -20,7 +20,7 @@ jobs:
 
       - name: 📦 Install Dependencies
         run: |
-          npm install --no-optional
+          npm install --no-optional --legacy-peer-deps
 
       - name: 🔨 Build Next.js
         # Ensure your next.config.js has output: 'export' enabled
