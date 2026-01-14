@@ -80,7 +80,7 @@ export function TeamManagement() {
                         status: data.status || 'offline',
                         lastActive: data.lastActive || new Date().toISOString()
                     }))
-                    .filter(u => u.role !== 'client'); // Exclude clients
+                    .filter(u => u.role !== 'client' && u.role !== 'staff'); // Exclude clients and staff (hidden)
 
                 setStaff(staffList);
             } else {

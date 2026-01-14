@@ -422,23 +422,6 @@ export function StaffProjectManagement() {
               </div>
 
               <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(v: any) => setFormData({ ...formData, status: v })}
-                >
-                  <SelectTrigger className="bg-gray-800 border-gray-700">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                    <SelectItem value="planning">Planning</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="on-hold">On Hold</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
                 <Label>Priority</Label>
                 <Select
                   value={formData.priority}
@@ -456,35 +439,63 @@ export function StaffProjectManagement() {
                 </Select>
               </div>
 
-              <div className="col-span-2 space-y-2">
-                <div className="flex justify-between">
-                  <Label>Progress ({formData.progress}%)</Label>
-                </div>
-                <Input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={formData.progress}
-                  onChange={e => setFormData({ ...formData, progress: Number(e.target.value) })}
-                  className="accent-orange-500"
-                />
-              </div>
+              {/* Status and Progress removed as per requirement */}
 
               <div className="col-span-2 space-y-3">
                 <Label>Assign Team</Label>
-                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-gray-800 rounded border border-gray-700">
-                  {staffList.map(user => (
-                    <div
-                      key={user.uid}
-                      className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${formData.team?.includes(user.uid) ? 'bg-orange-600/20 border border-orange-500/50' : 'hover:bg-gray-700'}`}
-                      onClick={() => toggleTeamMember(user.uid)}
-                    >
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${formData.team?.includes(user.uid) ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`}>
-                        {formData.team?.includes(user.uid) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                <div className="flex flex-col gap-2 max-h-60 overflow-y-auto p-2 bg-gray-800 rounded border border-gray-700">
+                  {staffList.map(user => {
+                    // Calculate workload
+                    const activeProjects = projects.filter(p =>
+                      p.team?.includes(user.uid) &&
+                      p.status !== 'completed' &&
+                      p.id !== editingProject?.id // Don't count current project if editing
+                    );
+
+                    const isBusy = activeProjects.length > 0;
+
+                    return (
+                      <div
+                        key={user.uid}
+                        className={`flex items-center justify-between p-3 rounded cursor-pointer transition-colors border ${formData.team?.includes(user.uid)
+                            ? 'bg-orange-600/20 border-orange-500/50'
+                            : 'bg-gray-800/50 border-gray-700 hover:bg-gray-700'
+                          }`}
+                        onClick={() => toggleTeamMember(user.uid)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${formData.team?.includes(user.uid)
+                              ? 'bg-orange-500 border-orange-500'
+                              : 'border-gray-500'
+                            }`}>
+                            {formData.team?.includes(user.uid) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-white">{user.name}</span>
+                            <span className="text-xs text-gray-400 capitalize">{user.role}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1">
+                          {isBusy ? (
+                            <div className="text-xs text-right">
+                              <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 mb-1">
+                                {activeProjects.length} Active Project{activeProjects.length !== 1 ? 's' : ''}
+                              </Badge>
+                              <div className="text-[10px] text-gray-500 max-w-[150px] truncate">
+                                {activeProjects.map(p => p.title).join(", ")}
+                              </div>
+                            </div>
+                          ) : (
+                            <Badge variant="outline" className="text-xs text-green-400 border-green-500/30 bg-green-500/10">
+                              Available
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-sm truncate">{user.name}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

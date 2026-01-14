@@ -118,9 +118,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       throw new Error("User profile not found");
     } catch (error: any) {
+      // Re-throw if it's already an Error with a custom message (like "User profile not found")
+      if (error instanceof Error && error.message === "User profile not found") {
+        throw error;
+      }
+
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         throw new Error("Invalid email or password");
       }
+      console.error("Sign in error:", error);
       throw new Error("Invalid credentials");
     }
   };
