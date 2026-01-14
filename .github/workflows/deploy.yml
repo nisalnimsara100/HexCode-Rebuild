@@ -20,6 +20,7 @@ jobs:
 
       - name: 📦 Install Dependencies
         run: |
+          rm -f pnpm-lock.yaml
           npm install --no-optional --legacy-peer-deps
 
       - name: 🔨 Build Next.js
