@@ -29,6 +29,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -668,22 +674,62 @@ export function StaffTaskAssignments() {
                                     {/* STAFF */}
                                     <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Staff Members</p>
                                     <div className="grid grid-cols-2 gap-2">
-                                        {staffList.map(u => (
-                                            <div
-                                                key={u.uid}
-                                                className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors select-none ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600/20 border border-orange-600/50' : 'hover:bg-gray-700'
-                                                    }`}
-                                                onClick={() => toggleStaffSelection(u.uid)}
-                                            >
-                                                <div className={`shrink-0 w-3 h-3 rounded-full border ${formData.assignedTo.includes(u.uid) ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`} />
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden shrink-0">
-                                                        {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px]">{u.name.charAt(0)}</div>}
+                                        {staffList.map(u => {
+                                            // Calculate Active Tasks for this user
+                                            const activeUserTasks = tasks.filter(t =>
+                                                t.assignedTo.includes(u.uid) &&
+                                                (t.status === 'pending' || t.status === 'in-progress' || t.status === 'overdue')
+                                            );
+                                            const isBusy = activeUserTasks.length > 0;
+
+                                            return (
+                                                <div
+                                                    key={u.uid}
+                                                    className={`flex items-center justify-between p-1.5 rounded cursor-pointer transition-colors border select-none ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600/20 border-orange-600/50' : 'bg-gray-800/50 border-transparent hover:bg-gray-700'
+                                                        }`}
+                                                    onClick={() => toggleStaffSelection(u.uid)}
+                                                >
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div className={`shrink-0 w-3 h-3 rounded-full border ${formData.assignedTo.includes(u.uid) ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`} />
+                                                        <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden shrink-0">
+                                                            {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px]">{u.name.charAt(0)}</div>}
+                                                        </div>
+                                                        <span className="text-sm text-gray-300 truncate">{u.name}</span>
                                                     </div>
-                                                    <span className="text-sm text-gray-300 truncate">{u.name}</span>
+
+                                                    {/* Workload Indicator */}
+                                                    <div onClick={(e) => e.stopPropagation()}>
+                                                        {isBusy && (
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <div className="cursor-pointer">
+                                                                        <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30 transition-colors">
+                                                                            {activeUserTasks.length} Task{activeUserTasks.length !== 1 ? 's' : ''}
+                                                                        </Badge>
+                                                                    </div>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent side="left" className="w-64 bg-gray-900 border-gray-700 text-white p-3 shadow-xl z-[9999]">
+                                                                    <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">Current Active Tasks</h4>
+                                                                    <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                                                                        {activeUserTasks.map(t => (
+                                                                            <div key={t.id} className="space-y-1">
+                                                                                <div className="flex justify-between items-start">
+                                                                                    <span className="text-xs font-medium text-white line-clamp-1">{t.title}</span>
+                                                                                    <Badge variant="outline" className={`text-[9px] px-1 py-0 h-3 ${getStatusColor(t.status)}`}>
+                                                                                        {t.status}
+                                                                                    </Badge>
+                                                                                </div>
+                                                                                <Progress value={t.progress} className="h-1 bg-gray-800" indicatorClassName="bg-blue-500" />
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             </div>
@@ -808,22 +854,62 @@ export function StaffTaskAssignments() {
                                     {/* STAFF */}
                                     <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Staff Members</p>
                                     <div className="grid grid-cols-2 gap-2">
-                                        {staffList.map(u => (
-                                            <div
-                                                key={u.uid}
-                                                className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors select-none ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600/20 border border-orange-600/50' : 'hover:bg-gray-700'
-                                                    }`}
-                                                onClick={() => toggleStaffSelection(u.uid)}
-                                            >
-                                                <div className={`shrink-0 w-3 h-3 rounded-full border ${formData.assignedTo.includes(u.uid) ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`} />
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden shrink-0">
-                                                        {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px]">{u.name.charAt(0)}</div>}
+                                        {staffList.map(u => {
+                                            // Calculate Active Tasks for this user
+                                            const activeUserTasks = tasks.filter(t =>
+                                                t.assignedTo.includes(u.uid) &&
+                                                (t.status === 'pending' || t.status === 'in-progress' || t.status === 'overdue')
+                                            );
+                                            const isBusy = activeUserTasks.length > 0;
+
+                                            return (
+                                                <div
+                                                    key={u.uid}
+                                                    className={`flex items-center justify-between p-1.5 rounded cursor-pointer transition-colors border select-none ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600/20 border-orange-600/50' : 'bg-gray-800/50 border-transparent hover:bg-gray-700'
+                                                        }`}
+                                                    onClick={() => toggleStaffSelection(u.uid)}
+                                                >
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div className={`shrink-0 w-3 h-3 rounded-full border ${formData.assignedTo.includes(u.uid) ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`} />
+                                                        <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden shrink-0">
+                                                            {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px]">{u.name.charAt(0)}</div>}
+                                                        </div>
+                                                        <span className="text-sm text-gray-300 truncate">{u.name}</span>
                                                     </div>
-                                                    <span className="text-sm text-gray-300 truncate">{u.name}</span>
+
+                                                    {/* Workload Indicator */}
+                                                    <div onClick={(e) => e.stopPropagation()}>
+                                                        {isBusy && (
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <div className="cursor-pointer">
+                                                                        <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30 transition-colors">
+                                                                            {activeUserTasks.length} Task{activeUserTasks.length !== 1 ? 's' : ''}
+                                                                        </Badge>
+                                                                    </div>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent side="left" className="w-64 bg-gray-900 border-gray-700 text-white p-3 shadow-xl z-[9999]">
+                                                                    <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">Current Active Tasks</h4>
+                                                                    <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                                                                        {activeUserTasks.map(t => (
+                                                                            <div key={t.id} className="space-y-1">
+                                                                                <div className="flex justify-between items-start">
+                                                                                    <span className="text-xs font-medium text-white line-clamp-1">{t.title}</span>
+                                                                                    <Badge variant="outline" className={`text-[9px] px-1 py-0 h-3 ${getStatusColor(t.status)}`}>
+                                                                                        {t.status}
+                                                                                    </Badge>
+                                                                                </div>
+                                                                                <Progress value={t.progress} className="h-1 bg-gray-800" indicatorClassName="bg-blue-500" />
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             </div>

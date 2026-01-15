@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Progress } from "@/components/ui/progress"
 import { CountdownTimer } from "@/components/ui/countdown-timer"
 import { CheckCircle, Clock, AlertCircle, Plus, Search, Filter, MoreVertical, Edit2, Trash2, User, Calendar as CalendarIcon, PlayCircle, Eye, Activity, Pencil, Users } from "lucide-react"
@@ -486,22 +487,64 @@ export function StaffTicketManagement() {
 
                                     {/* STAFF SECTION */}
                                     <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Staff Members</p>
-                                    {staffList.map(u => (
-                                        <div key={u.uid} className="flex items-center space-x-2 py-1 hover:bg-gray-700/50 rounded px-1 cursor-pointer" onClick={() => toggleStaffSelection(u.uid)}>
-                                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600 border-orange-600' : 'border-gray-500'}`}>
-                                                {formData.assignedTo.includes(u.uid) && <CheckCircle className="w-3 h-3 text-white" />}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center text-[10px]">
-                                                    {u.profilePicture ? <img src={u.profilePicture} className="w-full h-full" /> : u.name?.charAt(0)}
+                                    {staffList.map(u => {
+                                        // Calculate Active Tickets for this user
+                                        const activeUserTickets = tickets.filter(t =>
+                                            (Array.isArray(t.assignedTo) && t.assignedTo.includes(u.uid)) &&
+                                            (t.status !== 'closed' && t.status !== 'completed')
+                                        );
+                                        const isBusy = activeUserTickets.length > 0;
+
+                                        return (
+                                            <div key={u.uid} className="flex items-center justify-between space-x-2 py-1 hover:bg-gray-700/50 rounded px-1 cursor-pointer border border-transparent" onClick={() => toggleStaffSelection(u.uid)}>
+                                                <div className="flex items-center space-x-2">
+                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600 border-orange-600' : 'border-gray-500'}`}>
+                                                        {formData.assignedTo.includes(u.uid) && <CheckCircle className="w-3 h-3 text-white" />}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center text-[10px]">
+                                                            {u.profilePicture ? <img src={u.profilePicture} className="w-full h-full" /> : u.name?.charAt(0)}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-medium text-gray-200">{u.name}</span>
+                                                            <span className="text-[10px] text-gray-400">{u.role || 'Staff'}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-medium text-gray-200">{u.name}</span>
-                                                    <span className="text-[10px] text-gray-400">{u.role || 'Staff'}</span>
+
+                                                {/* Workload Indicator */}
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                    {isBusy && (
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <div className="cursor-pointer">
+                                                                    <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30 transition-colors">
+                                                                        {activeUserTickets.length} Ticket{activeUserTickets.length !== 1 ? 's' : ''}
+                                                                    </Badge>
+                                                                </div>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent side="left" className="w-64 bg-gray-900 border-gray-700 text-white p-3 shadow-xl z-[9999]">
+                                                                <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">Current Active Tickets</h4>
+                                                                <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                                                                    {activeUserTickets.map(t => (
+                                                                        <div key={t.id} className="space-y-1">
+                                                                            <div className="flex justify-between items-start">
+                                                                                <span className="text-xs font-medium text-white line-clamp-1">{t.title}</span>
+                                                                                <Badge variant="outline" className={`text-[9px] px-1 py-0 h-3 ${getStatusColor(t.status)}`}>
+                                                                                    {t.status}
+                                                                                </Badge>
+                                                                            </div>
+                                                                            <Progress value={Math.min(((t.timeSpent || 0) / parseFloat(t.estimatedHours || '1')) * 100, 100)} className="h-1 bg-gray-800" indicatorClassName="bg-blue-500" />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    )}
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                             </div>
                             <div className="space-y-2">

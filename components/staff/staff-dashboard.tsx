@@ -8,7 +8,7 @@ import { CountdownTimer } from "@/components/ui/countdown-timer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { database } from "@/lib/firebase";
-import { ref, onValue } from "firebase/database";
+import { ref, onValue, get } from "firebase/database";
 import { useAuth } from "@/components/auth/auth-context";
 import {
   Calendar,
@@ -45,6 +45,7 @@ export default function EmployeeView() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [userTimeSettings, setUserTimeSettings] = useState({ timezone: 'America/New_York', timeFormat: '12h' });
 
   // Projects Map for displaying project names
   const [projectsMap, setProjectsMap] = useState<Record<string, string>>({});
@@ -57,6 +58,26 @@ export default function EmployeeView() {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch User Time Settings
+  useEffect(() => {
+    if (!userProfile?.uid) return;
+    const fetchTimeSettings = async () => {
+      try {
+        const snapshot = await get(ref(database, `users/${userProfile.uid}`));
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setUserTimeSettings({
+            timezone: data.timezone || 'America/New_York',
+            timeFormat: data.timeFormat || '12h'
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching time settings:", error);
+      }
+    };
+    fetchTimeSettings();
+  }, [userProfile]);
 
   // Fetch Projects (for naming) & Tasks
   useEffect(() => {
@@ -223,12 +244,28 @@ export default function EmployeeView() {
           <div className="flex items-center justify-center space-x-4 text-sm text-gray-400">
             <div className="flex items-center space-x-2">
               <Clock className="h-4 w-4" />
-              <span>{currentTime.toLocaleTimeString()}</span>
+              <span>
+                {new Intl.DateTimeFormat('en-US', {
+                  hour: 'numeric',
+                  minute: 'numeric',
+                  second: 'numeric',
+                  hour12: userTimeSettings.timeFormat === '12h',
+                  timeZone: userTimeSettings.timezone
+                }).format(currentTime)}
+              </span>
             </div>
             <Separator orientation="vertical" className="h-4" />
             <div className="flex items-center space-x-2">
               <Calendar className="h-4 w-4" />
-              <span>{currentTime.toLocaleDateString()}</span>
+              <span>
+                {new Intl.DateTimeFormat('en-US', {
+                  weekday: 'short',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  timeZone: userTimeSettings.timezone
+                }).format(currentTime)}
+              </span>
             </div>
           </div>
         </div>

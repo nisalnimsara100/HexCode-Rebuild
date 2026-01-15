@@ -8,7 +8,7 @@ import {
   onAuthStateChanged,
   signOut,
 } from "firebase/auth";
-import { ref, get, set } from "firebase/database";
+import { ref, get, set, onValue } from "firebase/database";
 import { auth, database } from "@/lib/firebase";
 
 interface UserProfile {
@@ -43,39 +43,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let dbUnsubscribe: (() => void) | undefined;
+
+    const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Cleanup previous db listener if any
+      if (dbUnsubscribe) {
+        dbUnsubscribe();
+        dbUnsubscribe = undefined;
+      }
+
       if (user) {
-        // First try to get user profile by UID
-        let userRef = ref(database, `users/${user.uid}`);
-        let snapshot = await get(userRef);
+        // Logic to determine which path to listen to, mirroring the previous get logic
+        const uidPath = `users/${user.uid}`;
+        const adminPath = `users/admin`;
 
-        if (snapshot.exists()) {
-          setUserProfile(snapshot.val());
-          return;
-        }
+        // We need to check existence first to know which one to listen to, 
+        // similar to the original logic: "First try... If not found..."
+        // However, for a cleaner realtime setup, we can default to UID, 
+        // and if it's the specific admin email and UID path is empty, try admin path.
 
-        // If not found by UID, check if it's the admin user with static key
-        if (user.email === "admin@hexcode.lk") {
-          userRef = ref(database, `users/admin`);
-          snapshot = await get(userRef);
+        try {
+          const uidRef = ref(database, uidPath);
+          const snapshot = await get(uidRef);
 
           if (snapshot.exists()) {
-            const profile = {
-              ...snapshot.val(),
-              uid: user.uid // Use the actual Firebase Auth UID
-            };
-            setUserProfile(profile);
-            return;
+            // Listen to users/{uid}
+            dbUnsubscribe = onValue(uidRef, (snap) => {
+              setUserProfile(snap.exists() ? snap.val() : null);
+            });
+          } else if (user.email === "admin@hexcode.lk") {
+            // Listen to users/admin
+            const adminRef = ref(database, adminPath);
+            dbUnsubscribe = onValue(adminRef, (snap) => {
+              if (snap.exists()) {
+                setUserProfile({ ...snap.val(), uid: user.uid });
+              } else {
+                setUserProfile(null);
+              }
+            });
+          } else {
+            // Even if it doesn't exist yet, we might want to listen to UID path 
+            // in case it gets created (e.g. registration flow).
+            // But the original logic set null if not found.
+            // Let's listen to UID path by default if not admin fallback.
+            dbUnsubscribe = onValue(uidRef, (snap) => {
+              setUserProfile(snap.exists() ? snap.val() : null);
+            });
           }
+        } catch (error) {
+          console.error("Error setting up user listener:", error);
+          setUserProfile(null);
         }
-
-        setUserProfile(null);
       } else {
         setUserProfile(null);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      authUnsubscribe();
+      if (dbUnsubscribe) dbUnsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string): Promise<UserProfile> => {
