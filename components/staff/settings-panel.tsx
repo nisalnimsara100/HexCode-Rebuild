@@ -55,6 +55,8 @@ import {
 } from "lucide-react";
 
 interface UserSettings {
+  name: any;
+  avatarUrl: string;
   id: string;
   theme: "light" | "dark" | "system";
   notifications: {
@@ -225,6 +227,8 @@ export function SettingsPanel() {
         dateFormat: "MM/dd/yyyy",
         timeFormat: "12h",
         profileVisibility: "team",
+        name: undefined,
+        avatarUrl: ""
       };
 
       const mockSystemSettings: SystemSettings = {
@@ -500,172 +504,217 @@ export function SettingsPanel() {
         </TabsList>
 
         {/* Profile Settings */}
-        <TabsContent value="profile" className="space-y-6">
-          <Card className="bg-gray-800 border-gray-700">
-            <div className="p-6">
-              <h3 className="text-lg font-medium text-white mb-4">Profile Settings</h3>
+<TabsContent value="profile" className="space-y-6">
+  <Card className="bg-gray-800 border-gray-700">
+    <div className="p-6">
+      <h3 className="text-lg font-medium text-white mb-4">Profile Settings</h3>
 
-              {userSettings && (
-                <div className="space-y-6">
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-20 w-20">
-                      <AvatarImage src="/placeholder-user.jpg" />
-                      <AvatarFallback className="text-lg">U</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700">
-                        <Upload className="h-4 w-4 mr-2" />
-                        Change Photo
-                      </Button>
-                      <p className="text-sm text-gray-400 mt-1">JPG, PNG up to 5MB</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="theme">Theme</Label>
-                      <Select
-                        value={userSettings.theme}
-                        onValueChange={(value) =>
-                          setUserSettings({ ...userSettings, theme: value as UserSettings["theme"] })
-                        }
-                      >
-                        <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="light">
-                            <div className="flex items-center">
-                              <Sun className="h-4 w-4 mr-2" />
-                              Light
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="dark">
-                            <div className="flex items-center">
-                              <Moon className="h-4 w-4 mr-2" />
-                              Dark
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="system">
-                            <div className="flex items-center">
-                              <Monitor className="h-4 w-4 mr-2" />
-                              System
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="language">Language</Label>
-                      <Select
-                        value={userSettings.language}
-                        onValueChange={(value) =>
-                          setUserSettings({ ...userSettings, language: value })
-                        }
-                      >
-                        <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {languages.map((lang) => (
-                            <SelectItem key={lang.code} value={lang.code}>
-                              {lang.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="timezone">Timezone</Label>
-                      <Select
-                        value={userSettings.timezone}
-                        onValueChange={(value) =>
-                          setUserSettings({ ...userSettings, timezone: value })
-                        }
-                      >
-                        <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {timezones.map((tz) => (
-                            <SelectItem key={tz} value={tz}>
-                              {tz}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="timeFormat">Time Format</Label>
-                      <Select
-                        value={userSettings.timeFormat}
-                        onValueChange={(value) =>
-                          setUserSettings({ ...userSettings, timeFormat: value as "12h" | "24h" })
-                        }
-                      >
-                        <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="12h">12 Hour (AM/PM)</SelectItem>
-                          <SelectItem value="24h">24 Hour</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="profileVisibility">Profile Visibility</Label>
-                      <Select
-                        value={userSettings.profileVisibility}
-                        onValueChange={(value) =>
-                          setUserSettings({ ...userSettings, profileVisibility: value as UserSettings["profileVisibility"] })
-                        }
-                      >
-                        <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="public">
-                            <div className="flex items-center">
-                              <Globe className="h-4 w-4 mr-2" />
-                              Public
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="team">
-                            <div className="flex items-center">
-                              <Users className="h-4 w-4 mr-2" />
-                              Team Only
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="private">
-                            <div className="flex items-center">
-                              <Eye className="h-4 w-4 mr-2" />
-                              Private
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={saveUserSettings}
-                      disabled={saving}
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {saving ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </div>
-                </div>
-              )}
+      {userSettings && (
+        <div className="space-y-6">
+          {/* Photo Upload Section */}
+          <div className="flex items-center space-x-4">
+            <Avatar className="h-20 w-20">
+              {/* The src now points to userSettings.avatarUrl which we update on change */}
+              <AvatarImage src={userSettings.avatarUrl || "/placeholder-user.jpg"} className="object-cover" />
+              <AvatarFallback className="text-lg">
+                {userSettings.name?.charAt(0) || "U"}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div>
+              {/* Hidden File Input */}
+              <input
+                type="file"
+                id="avatar-upload"
+                className="hidden"
+                accept="image/png, image/jpeg"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Create a local URL for the preview
+                    const previewUrl = URL.createObjectURL(file);
+                    setUserSettings({ ...userSettings, avatarUrl: previewUrl });
+                    
+                    // Optional: If you need to store the actual file object for the final save:
+                    // setSelectedFile(file); 
+                  }
+                }}
+              />
+              
+              {/* Button triggers the hidden input */}
+              <Button 
+                variant="outline" 
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                onClick={() => document.getElementById('avatar-upload')?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Change Photo
+              </Button>
+              <p className="text-sm text-gray-400 mt-1">JPG, PNG up to 5MB</p>
             </div>
-          </Card>
-        </TabsContent>
+          </div>
+
+          {/* Name Input */}
+          <div className="space-y-2">
+            <Label htmlFor="name">Full Name</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="Enter your name"
+              value={userSettings.name || ""}
+              onChange={(e) =>
+                setUserSettings({ ...userSettings, name: e.target.value })
+              }
+              className="bg-gray-700 border-gray-600 text-white"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="theme">Theme</Label>
+              <Select
+                value={userSettings.theme}
+                onValueChange={(value) =>
+                  setUserSettings({ ...userSettings, theme: value as UserSettings["theme"] })
+                }
+              >
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light">
+                    <div className="flex items-center">
+                      <Sun className="h-4 w-4 mr-2" />
+                      Light
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="dark">
+                    <div className="flex items-center">
+                      <Moon className="h-4 w-4 mr-2" />
+                      Dark
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="system">
+                    <div className="flex items-center">
+                      <Monitor className="h-4 w-4 mr-2" />
+                      System
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="language">Language</Label>
+              <Select
+                value={userSettings.language}
+                onValueChange={(value) =>
+                  setUserSettings({ ...userSettings, language: value })
+                }
+              >
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {languages.map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="timezone">Timezone</Label>
+              <Select
+                value={userSettings.timezone}
+                onValueChange={(value) =>
+                  setUserSettings({ ...userSettings, timezone: value })
+                }
+              >
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {timezones.map((tz) => (
+                    <SelectItem key={tz} value={tz}>
+                      {tz}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="timeFormat">Time Format</Label>
+              <Select
+                value={userSettings.timeFormat}
+                onValueChange={(value) =>
+                  setUserSettings({ ...userSettings, timeFormat: value as "12h" | "24h" })
+                }
+              >
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="12h">12 Hour (AM/PM)</SelectItem>
+                  <SelectItem value="24h">24 Hour</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="profileVisibility">Profile Visibility</Label>
+              <Select
+                value={userSettings.profileVisibility}
+                onValueChange={(value) =>
+                  setUserSettings({ ...userSettings, profileVisibility: value as UserSettings["profileVisibility"] })
+                }
+              >
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">
+                    <div className="flex items-center">
+                      <Globe className="h-4 w-4 mr-2" />
+                      Public
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="team">
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 mr-2" />
+                      Team Only
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="private">
+                    <div className="flex items-center">
+                      <Eye className="h-4 w-4 mr-2" />
+                      Private
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Action Button */}
+          <div className="flex justify-end">
+            <Button
+              onClick={saveUserSettings}
+              disabled={saving}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  </Card>
+</TabsContent>
 
         {/* Notifications Settings */}
         <TabsContent value="notifications" className="space-y-6">
