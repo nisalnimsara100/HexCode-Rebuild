@@ -379,7 +379,7 @@ export function ProjectManagement() {
                     <DollarSign className="h-3.5 w-3.5" />
                     Budget
                   </span>
-                  <span className="text-gray-300 font-medium">${Number(project.budget).toLocaleString()}</span>
+                  <span className="text-gray-300 font-medium">LKR {String(project.budget).replace(/[^0-9,.]/g, '')}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 flex items-center gap-2">
@@ -515,7 +515,7 @@ export function ProjectManagement() {
               </div>
               <div className="p-3 bg-gray-800 rounded border border-gray-700">
                 <span className="text-xs text-gray-500 block mb-1">Budget</span>
-                <span className="text-green-400 font-mono">${Number(viewProject?.budget).toLocaleString()}</span>
+                <span className="text-green-400 font-mono">LKR {String(viewProject?.budget).replace(/[^0-9,.]/g, '')}</span>
               </div>
               <div className="p-3 bg-gray-800 rounded border border-gray-700">
                 <span className="text-xs text-gray-500 block mb-1">Client</span>
