@@ -14,8 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { CountdownTimer } from "@/components/ui/countdown-timer"
-import { CheckCircle, Clock, AlertCircle, Plus, Search, Filter, MoreVertical, Edit2, Trash2, User, Calendar as CalendarIcon, PlayCircle, Eye, Activity, Pencil } from "lucide-react"
+import { CheckCircle, Clock, AlertCircle, Plus, Search, Filter, MoreVertical, Edit2, Trash2, User, Calendar as CalendarIcon, PlayCircle, Eye, Activity, Pencil, Users } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
 interface Ticket {
     id: string
@@ -50,15 +51,17 @@ export function StaffTicketManagement() {
     const { userProfile: currentUser } = useAuth()
     const [tickets, setTickets] = useState<Ticket[]>([])
     const [staffList, setStaffList] = useState<TeamMember[]>([])
-    const [teams, setTeams] = useState<Team[]>([]) // Added Teams state
+    const [teams, setTeams] = useState<Team[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
-    const [priorityFilter, setPriorityFilter] = useState("all") // Added priority filter state
+    const [priorityFilter, setPriorityFilter] = useState("all")
 
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingTicket, setEditingTicket] = useState<Ticket | null>(null)
+    const [ticketToDelete, setTicketToDelete] = useState<string | null>(null) // State for delete confirmation
+
     const [formData, setFormData] = useState({
         title: "",
         description: "",
@@ -231,13 +234,19 @@ export function StaffTicketManagement() {
         }
     }
 
-    const deleteTicket = async (id: string) => {
-        if (!confirm("Delete this ticket?")) return
+    const deleteTicket = (id: string) => {
+        setTicketToDelete(id)
+    }
+
+    const confirmDelete = async () => {
+        if (!ticketToDelete) return
         try {
-            await remove(ref(database, `staffdashboard/tickets/${id}`))
-            toast({ title: "Deleted", description: "Ticket removed" })
+            await remove(ref(database, `staffdashboard/tickets/${ticketToDelete}`))
+            toast({ title: "Deleted", description: "Ticket deleted." })
         } catch (error) {
-            toast({ title: "Error", description: "Failed to delete", variant: "destructive" })
+            toast({ title: "Error", description: "Failed to delete ticket", variant: "destructive" })
+        } finally {
+            setTicketToDelete(null)
         }
     }
 
@@ -381,25 +390,54 @@ export function StaffTicketManagement() {
 
                             {/* Assignee Footer */}
                             <div className="flex items-center space-x-2 pt-2">
-                                {(Array.isArray(ticket.assignedTo) ? ticket.assignedTo : []).slice(0, 1).map((uid) => {
-                                    const member = staffList.find(s => s.uid === uid)
+                                {(() => {
+                                    // Check if assignedTo strictly matches a team
+                                    const assignedSet = new Set(ticket.assignedTo || []);
+                                    const matchedTeam = teams.find(t =>
+                                        t.members.length > 0 &&
+                                        t.members.length === assignedSet.size &&
+                                        t.members.every(m => assignedSet.has(m))
+                                    );
+
+                                    if (matchedTeam) {
+                                        return (
+                                            <div className="flex items-center space-x-2">
+                                                <div className="w-8 h-8 rounded-full bg-orange-600/20 text-orange-500 border border-orange-600/50 flex items-center justify-center">
+                                                    <Users className="w-4 h-4" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-medium text-white">{matchedTeam.name}</span>
+                                                    <span className="text-[10px] text-gray-500">Team</span>
+                                                </div>
+                                            </div>
+                                        )
+                                    }
+
+                                    // Fallback to individual members
                                     return (
-                                        <div key={uid} className="flex items-center space-x-2 flex-1">
-                                            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white overflow-hidden border border-gray-600">
-                                                {member?.profilePicture ? <img src={member.profilePicture} className="w-full h-full object-cover" /> : member?.name?.charAt(0)}
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-medium text-white">{member?.name || 'Unknown'}</span>
-                                                <span className="text-[10px] text-gray-500">{member?.role || 'Staff'}</span>
-                                            </div>
-                                        </div>
+                                        <>
+                                            {(Array.isArray(ticket.assignedTo) ? ticket.assignedTo : []).slice(0, 1).map((uid) => {
+                                                const member = staffList.find(s => s.uid === uid)
+                                                return (
+                                                    <div key={uid} className="flex items-center space-x-2 flex-1">
+                                                        <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white overflow-hidden border border-gray-600">
+                                                            {member?.profilePicture ? <img src={member.profilePicture} className="w-full h-full object-cover" /> : member?.name?.charAt(0)}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-medium text-white">{member?.name || 'Unknown'}</span>
+                                                            <span className="text-[10px] text-gray-500">{member?.role || 'Staff'}</span>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                            {(Array.isArray(ticket.assignedTo) && ticket.assignedTo.length > 1) && (
+                                                <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-[10px] text-gray-400 border border-gray-700 font-medium">
+                                                    +{ticket.assignedTo.length - 1}
+                                                </div>
+                                            )}
+                                        </>
                                     )
-                                })}
-                                {(Array.isArray(ticket.assignedTo) && ticket.assignedTo.length > 1) && (
-                                    <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-[10px] text-gray-400 border border-gray-700 font-medium">
-                                        +{ticket.assignedTo.length - 1}
-                                    </div>
-                                )}
+                                })()}
                             </div>
                         </div>
                     </Card>
@@ -504,6 +542,21 @@ export function StaffTicketManagement() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!ticketToDelete} onOpenChange={(open) => !open && setTicketToDelete(null)}>
+                <AlertDialogContent className="bg-gray-900 border-gray-800 text-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-400">
+                            This action cannot be undone. This will permanently delete the ticket.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 text-white border-none">Delete Ticket</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

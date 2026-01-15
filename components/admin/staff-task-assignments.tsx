@@ -20,6 +20,7 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import {
     Select,
     SelectContent,
@@ -100,6 +101,7 @@ export function StaffTaskAssignments() {
     const [selectedTask, setSelectedTask] = useState<Task | null>(null)
     const [selectedStaffId, setSelectedStaffId] = useState<string>("")
     const [taskToAssignId, setTaskToAssignId] = useState<string>("")
+    const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
 
     const [formData, setFormData] = useState<{
         title: string
@@ -279,14 +281,19 @@ export function StaffTaskAssignments() {
         }
     }
 
-    const handleDeleteTask = async (id: string) => {
-        if (confirm("Delete this task? This cannot be undone.")) {
-            try {
-                await remove(ref(database, `staffdashboard/tasks/${id}`))
-                toast({ title: "Deleted", description: "Task removed" })
-            } catch (e) {
-                toast({ title: "Error", description: "Failed to delete task", variant: "destructive" })
-            }
+    const handleDeleteTask = (id: string) => {
+        setTaskToDelete(id)
+    }
+
+    const confirmDeleteTask = async () => {
+        if (!taskToDelete) return
+        try {
+            await remove(ref(database, `staffdashboard/tasks/${taskToDelete}`))
+            toast({ title: "Deleted", description: "Task removed" })
+        } catch (e) {
+            toast({ title: "Error", description: "Failed to delete task", variant: "destructive" })
+        } finally {
+            setTaskToDelete(null)
         }
     }
 
@@ -529,7 +536,7 @@ export function StaffTaskAssignments() {
 
                                 <div className="flex items-center justify-between mt-auto">
                                     <span className={`text-xs font-medium ${status === 'available' ? 'text-emerald-400' :
-                                            status === 'busy' ? 'text-yellow-400' : 'text-red-400'
+                                        status === 'busy' ? 'text-yellow-400' : 'text-red-400'
                                         }`}>
                                         {status === 'available' ? 'Available' : status === 'busy' ? 'Busy (10+)' : 'On Leave'}
                                     </span>
@@ -791,6 +798,21 @@ export function StaffTaskAssignments() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+                <AlertDialogContent className="bg-gray-900 border-gray-800 text-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-400">
+                            This action cannot be undone. This will permanently delete the task.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDeleteTask} className="bg-red-600 hover:bg-red-700 text-white border-none">Delete Task</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }
