@@ -105,6 +105,15 @@ export function ProjectManagement() {
           clientName: val.clientName || "Internal",
           tasks: val.tasks || {}
         }));
+
+        // Sort by priority logic
+        const priorityOrder: { [key: string]: number } = { critical: 0, high: 1, medium: 2, low: 3 };
+        projectList.sort((a, b) => {
+          const pA = priorityOrder[a.priority?.toLowerCase()] ?? 4;
+          const pB = priorityOrder[b.priority?.toLowerCase()] ?? 4;
+          return pA - pB;
+        });
+
         setProjects(projectList);
       } else {
         setProjects([]);

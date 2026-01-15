@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { database } from "@/lib/firebase";
+import { ref, onValue, push, remove, update } from "firebase/database";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -90,87 +92,40 @@ export function TicketSystem() {
     "Alex Rodriguez",
   ];
 
+  // Data Fetching
   useEffect(() => {
-    fetchTickets();
+    const ticketsRef = ref(database, 'tickets');
+    const unsubscribe = onValue(ticketsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const ticketList = Object.entries(data).map(([id, val]: [string, any]) => ({
+          id,
+          ...val,
+          comments: val.comments || []
+        }));
+
+        // Sort by Priority
+        const priorityOrder: { [key: string]: number } = { critical: 0, high: 1, medium: 2, low: 3 };
+        ticketList.sort((a, b) => {
+          const pA = priorityOrder[a.priority] ?? 4;
+          const pB = priorityOrder[b.priority] ?? 4;
+          return pA - pB;
+        });
+
+        setTickets(ticketList);
+      } else {
+        setTickets([]);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
+  // Filter Logic
   useEffect(() => {
     filterTickets();
   }, [tickets, searchTerm, selectedStatus, selectedPriority, selectedAssignee]);
-
-  const fetchTickets = async () => {
-    try {
-      setLoading(true);
-      // In real implementation, fetch from Firebase
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const mockTickets: TicketItem[] = [
-        {
-          id: "1",
-          title: "Fix login authentication bug",
-          description: "Users are unable to login with correct credentials. The authentication system is returning false negatives.",
-          status: "open",
-          priority: "high",
-          category: "Bug Fix",
-          assignedTo: "John Smith",
-          reporter: "Sarah Johnson",
-          createdDate: "2024-01-15",
-          dueDate: "2024-01-20",
-          estimatedHours: 8,
-          actualHours: 0,
-          comments: [
-            {
-              id: "1",
-              author: "Sarah Johnson",
-              content: "This is affecting multiple users. Priority is high.",
-              timestamp: "2024-01-15T10:30:00Z",
-            },
-          ],
-        },
-        {
-          id: "2",
-          title: "Add dark mode support",
-          description: "Implement dark mode theme for the entire application to improve user experience.",
-          status: "in-progress",
-          priority: "medium",
-          category: "Feature Request",
-          assignedTo: "Emily Chen",
-          reporter: "Mike Davis",
-          createdDate: "2024-01-12",
-          dueDate: "2024-02-01",
-          estimatedHours: 16,
-          actualHours: 6,
-          comments: [],
-        },
-        {
-          id: "3",
-          title: "Update API documentation",
-          description: "API documentation needs to be updated with new endpoints and examples.",
-          status: "closed",
-          priority: "low",
-          category: "Documentation",
-          assignedTo: "Alex Rodriguez",
-          reporter: "John Smith",
-          createdDate: "2024-01-08",
-          dueDate: "2024-01-15",
-          estimatedHours: 4,
-          actualHours: 5,
-          comments: [
-            {
-              id: "2",
-              author: "Alex Rodriguez",
-              content: "Documentation has been updated and published.",
-              timestamp: "2024-01-15T14:22:00Z",
-            },
-          ],
-        },
-      ];
-      setTickets(mockTickets);
-    } catch (error) {
-      console.error("Error fetching tickets:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filterTickets = () => {
     let filtered = tickets;
@@ -205,15 +160,14 @@ export function TicketSystem() {
       return;
     }
 
-    const ticket: TicketItem = {
-      id: Date.now().toString(),
+    const ticketData = {
       title: newTicket.title!,
       description: newTicket.description!,
       status: (newTicket.status as TicketItem["status"]) || "open",
       priority: (newTicket.priority as TicketItem["priority"]) || "medium",
       category: newTicket.category || "Bug Fix",
       assignedTo: newTicket.assignedTo || "",
-      reporter: "Current User", // In real app, get from auth
+      reporter: "Current User", // Should be userProfile.name or similar
       createdDate: new Date().toISOString().split("T")[0],
       dueDate: newTicket.dueDate || "",
       estimatedHours: newTicket.estimatedHours || 0,
@@ -221,10 +175,13 @@ export function TicketSystem() {
       comments: [],
     };
 
-    // In real implementation, save to Firebase
-    setTickets([...tickets, ticket]);
-    setIsAddModalOpen(false);
-    resetNewTicket();
+    try {
+      await push(ref(database, 'tickets'), ticketData);
+      setIsAddModalOpen(false);
+      resetNewTicket();
+    } catch (error) {
+      console.error("Failed to add ticket", error);
+    }
   };
 
   const resetNewTicket = () => {
@@ -242,8 +199,11 @@ export function TicketSystem() {
 
   const handleDeleteTicket = async (id: string) => {
     if (confirm("Are you sure you want to delete this ticket?")) {
-      // In real implementation, delete from Firebase
-      setTickets(tickets.filter((ticket) => ticket.id !== id));
+      try {
+        await remove(ref(database, `tickets/${id}`));
+      } catch (error) {
+        console.error("Failed to delete ticket", error);
+      }
     }
   };
 
@@ -459,9 +419,9 @@ export function TicketSystem() {
                       {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
                     </Badge>
                   </div>
-                  
+
                   <p className="text-gray-400 mb-4 line-clamp-2">{ticket.description}</p>
-                  
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div className="flex items-center text-gray-400">
                       <User className="h-4 w-4 mr-2" />
@@ -481,7 +441,7 @@ export function TicketSystem() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2 ml-4">
                   {ticket.comments.length > 0 && (
                     <div className="flex items-center text-gray-400">
