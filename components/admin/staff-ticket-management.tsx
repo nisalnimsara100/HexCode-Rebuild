@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { database } from "@/lib/firebase"
-import { ref, push, update, remove, onValue } from "firebase/database"
+import { ref, push, update, remove, onValue, set } from "firebase/database"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,22 +12,21 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle, Clock, AlertCircle, Plus, Search, Filter, MoreVertical, Edit2, Trash2, User, Calendar as CalendarIcon } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { CountdownTimer } from "@/components/ui/countdown-timer"
+import { CheckCircle, Clock, AlertCircle, Plus, Search, Filter, MoreVertical, Edit2, Trash2, User, Calendar as CalendarIcon, PlayCircle, Eye, Activity, Pencil } from "lucide-react"
+import { useAuth } from "@/components/auth/auth-context"
 
 interface Ticket {
     id: string
     title: string
     description: string
-    assignedTo: {
-        id: string
-        name: string
-        email: string
-        avatar?: string
-    }
-    status: 'open' | 'in-progress' | 'review' | 'closed'
+    assignedTo: string[] // Array of UIDs
+    status: 'open' | 'in-progress' | 'review' | 'closed' | 'planning' | 'available' | 'completed'
     priority: 'low' | 'medium' | 'high' | 'critical'
     dueDate: string
     estimatedHours: string
+    timeSpent?: number
     category: string
     project: string
 }
@@ -37,43 +36,58 @@ interface TeamMember {
     name: string
     email: string
     profilePicture?: string
+    role?: string
+}
+
+interface Team {
+    id: string;
+    name: string;
+    members: string[]; // array of UIDs
 }
 
 export function StaffTicketManagement() {
     const { toast } = useToast()
+    const { userProfile: currentUser } = useAuth()
     const [tickets, setTickets] = useState<Ticket[]>([])
     const [staffList, setStaffList] = useState<TeamMember[]>([])
+    const [teams, setTeams] = useState<Team[]>([]) // Added Teams state
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
-    const [filterStatus, setFilterStatus] = useState("all")
+    const [statusFilter, setStatusFilter] = useState("all")
+    const [priorityFilter, setPriorityFilter] = useState("all") // Added priority filter state
+
+    // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingTicket, setEditingTicket] = useState<Ticket | null>(null)
-
     const [formData, setFormData] = useState({
         title: "",
         description: "",
-        assigneeId: "",
+        assignedTo: [] as string[],
         status: "open",
         priority: "medium",
         dueDate: "",
         estimatedHours: "",
+        timeSpent: 0,
         category: "",
         project: ""
     })
 
     // Fetch Data
     useEffect(() => {
-        const ticketsRef = ref(database, 'tickets')
+        const ticketsRef = ref(database, 'staffdashboard/tickets')
         const usersRef = ref(database, 'users')
+        const teamsRef = ref(database, 'teams') // Reference to teams
 
         const unsubscribeTickets = onValue(ticketsRef, (snapshot) => {
-            if (snapshot.exists()) {
-                const data = snapshot.val()
-                const ticketList = Object.entries(data).map(([id, val]: [string, any]) => ({
+            const data = snapshot.val()
+            if (data) {
+                const ticketsList = Object.entries(data).map(([id, val]: [string, any]) => ({
                     id,
-                    ...val
+                    ...val,
+                    assignedTo: val.assignedTo || [] // Ensure array
                 }))
-                setTickets(ticketList)
+                // Sort by updated/created
+                setTickets(ticketsList.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()))
             } else {
                 setTickets([])
             }
@@ -81,23 +95,40 @@ export function StaffTicketManagement() {
         })
 
         const unsubscribeUsers = onValue(usersRef, (snapshot) => {
-            if (snapshot.exists()) {
-                const data = snapshot.val()
-                const users = Object.entries(data)
+            const data = snapshot.val()
+            if (data) {
+                const staff = Object.entries(data)
                     .map(([uid, val]: [string, any]) => ({
                         uid,
-                        name: val.name,
+                        name: val.name || 'Unknown',
                         email: val.email,
-                        profilePicture: val.profilePicture
+                        profilePicture: val.profilePicture,
+                        role: val.role
                     }))
-                    .filter(u => u.name) // Simple filter
-                setStaffList(users)
+                    .filter(u => u.role && u.role !== 'client') // Filter staff
+                setStaffList(staff)
             }
         })
+
+        // Fetch Teams
+        const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const teamsData = snapshot.val();
+                const teamsList = Object.entries(teamsData).map(([id, data]: [string, any]) => ({
+                    id,
+                    name: data.name,
+                    members: data.members || []
+                }));
+                setTeams(teamsList);
+            } else {
+                setTeams([]);
+            }
+        });
 
         return () => {
             unsubscribeTickets()
             unsubscribeUsers()
+            unsubscribeTeams()
         }
     }, [])
 
@@ -107,11 +138,12 @@ export function StaffTicketManagement() {
             setFormData({
                 title: ticket.title,
                 description: ticket.description,
-                assigneeId: ticket.assignedTo?.id || "",
+                assignedTo: ticket.assignedTo || [],
                 status: ticket.status,
                 priority: ticket.priority,
                 dueDate: ticket.dueDate,
                 estimatedHours: ticket.estimatedHours,
+                timeSpent: ticket.timeSpent || 0,
                 category: ticket.category,
                 project: ticket.project
             })
@@ -120,11 +152,12 @@ export function StaffTicketManagement() {
             setFormData({
                 title: "",
                 description: "",
-                assigneeId: "",
+                assignedTo: [],
                 status: "open",
                 priority: "medium",
                 dueDate: "",
                 estimatedHours: "",
+                timeSpent: 0,
                 category: "",
                 project: ""
             })
@@ -132,54 +165,76 @@ export function StaffTicketManagement() {
         setIsModalOpen(true)
     }
 
+    const toggleStaffSelection = (uid: string) => {
+        setFormData(prev => {
+            const assigned = prev.assignedTo.includes(uid)
+                ? prev.assignedTo.filter(id => id !== uid)
+                : [...prev.assignedTo, uid]
+            return { ...prev, assignedTo: assigned }
+        })
+    }
+
+    // Toggle Team: Add all members if not all selected, otherwise remove all team members
+    const toggleTeamSelection = (team: Team) => {
+        setFormData(prev => {
+            const allMembersSelected = team.members.length > 0 && team.members.every(m => prev.assignedTo.includes(m));
+            let newAssignedFn;
+
+            if (allMembersSelected) {
+                // Remove all team members
+                newAssignedFn = prev.assignedTo.filter(id => !team.members.includes(id));
+            } else {
+                // Add all team members (deduplicate)
+                newAssignedFn = Array.from(new Set([...prev.assignedTo, ...team.members]));
+            }
+            return { ...prev, assignedTo: newAssignedFn };
+        });
+    }
+
     const handleSave = async () => {
-        if (!formData.title || !formData.assigneeId) {
-            toast({ title: "Error", description: "Title and Assignee are required", variant: "destructive" })
+        if (!formData.title || formData.assignedTo.length === 0) {
+            toast({ title: "Error", description: "Title and at least one Assignee are required", variant: "destructive" })
             return
         }
 
-        const assignee = staffList.find(u => u.uid === formData.assigneeId)
-        if (!assignee) return
-
-        const ticketData = {
-            title: formData.title,
-            description: formData.description,
-            assignedTo: {
-                id: assignee.uid,
-                name: assignee.name,
-                email: assignee.email,
-                avatar: assignee.profilePicture || ""
-            },
-            status: formData.status,
-            priority: formData.priority,
-            dueDate: formData.dueDate,
-            estimatedHours: formData.estimatedHours,
-            category: formData.category,
-            project: formData.project,
-            updatedAt: new Date().toISOString()
-        }
-
         try {
+            const ticketData = {
+                title: formData.title,
+                description: formData.description,
+                assignedTo: formData.assignedTo,
+                status: formData.status,
+                priority: formData.priority,
+                dueDate: formData.dueDate,
+                estimatedHours: formData.estimatedHours,
+                timeSpent: formData.timeSpent,
+                category: formData.category,
+                project: formData.project,
+                updatedAt: new Date().toISOString()
+            }
+
             if (editingTicket) {
-                await update(ref(database, `tickets/${editingTicket.id}`), ticketData)
-                toast({ title: "Success", description: "Ticket updated" })
+                await update(ref(database, `staffdashboard/tickets/${editingTicket.id}`), ticketData)
+                toast({ title: "Updated", description: "Ticket updated successfully." })
             } else {
-                await push(ref(database, 'tickets'), {
+                const newRef = push(ref(database, 'staffdashboard/tickets'))
+                await set(newRef, {
                     ...ticketData,
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    createdBy: currentUser?.uid
                 })
-                toast({ title: "Success", description: "Ticket created" })
+                toast({ title: "Created", description: "Ticket created successfully." })
             }
             setIsModalOpen(false)
         } catch (error) {
-            toast({ title: "Error", description: "Failed to save ticket", variant: "destructive" })
+            console.error(error)
+            toast({ variant: "destructive", title: "Error", description: "Failed to save ticket." })
         }
     }
 
-    const handleDelete = async (id: string) => {
+    const deleteTicket = async (id: string) => {
         if (!confirm("Delete this ticket?")) return
         try {
-            await remove(ref(database, `tickets/${id}`))
+            await remove(ref(database, `staffdashboard/tickets/${id}`))
             toast({ title: "Deleted", description: "Ticket removed" })
         } catch (error) {
             toast({ title: "Error", description: "Failed to delete", variant: "destructive" })
@@ -187,20 +242,42 @@ export function StaffTicketManagement() {
     }
 
     const filteredTickets = tickets.filter(ticket => {
+        // Handle undefined or incorrect assignedTo format safely
+        const assignedNames = (Array.isArray(ticket.assignedTo) ? ticket.assignedTo : [])
+            .map(uid => staffList.find(s => s.uid === uid)?.name || '')
+            .join(' ').toLowerCase();
+
         const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            ticket.assignedTo?.name.toLowerCase().includes(searchTerm.toLowerCase())
-        const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus
-        return matchesSearch && matchesStatus
+            assignedNames.includes(searchTerm.toLowerCase()) ||
+            ticket.project.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
+        const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter // logic for priority
+        return matchesSearch && matchesStatus && matchesPriority
     })
 
     // Helper for Status/Priority Colors
     const getStatusColor = (s: string) => {
         switch (s) {
-            case 'open': return 'bg-orange-500/20 text-orange-400 border-orange-500/50'
-            case 'in-progress': return 'bg-blue-500/20 text-blue-400 border-blue-500/50'
-            case 'review': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
-            case 'closed': return 'bg-green-500/20 text-green-400 border-green-500/50'
+            case 'open':
+            case 'planning':
+            case 'available':
+                return 'bg-blue-500/20 text-blue-400 border-blue-500/50'
+            case 'in-progress': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
+            case 'review': return 'bg-teal-500/20 text-teal-400 border-teal-500/50'
+            case 'closed':
+            case 'completed':
+                return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
             default: return 'bg-gray-800 text-gray-400'
+        }
+    }
+
+    const getPriorityColor = (p: string) => {
+        switch (p) {
+            case 'critical': return 'text-red-500'
+            case 'high': return 'text-orange-500'
+            case 'medium': return 'text-yellow-500'
+            case 'low': return 'text-blue-500'
+            default: return 'text-gray-400'
         }
     }
 
@@ -209,75 +286,120 @@ export function StaffTicketManagement() {
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-bold text-white">Ticket Management</h2>
-                    <p className="text-gray-400">Assign and track tasks across your team</p>
+                    <p className="text-gray-400">Create and assign tickets to staff</p>
                 </div>
                 <Button onClick={() => handleOpenModal()} className="bg-orange-600 hover:bg-orange-700 text-white">
-                    <Plus className="w-4 h-4 mr-2" /> Create Ticket
+                    <Plus className="w-4 h-4 mr-2" /> New Ticket
                 </Button>
             </div>
 
-            <div className="flex gap-4 mb-6">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <div className="flex gap-4 items-center">
+                <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-2 top-2.5 w-4 h-4 text-gray-500" />
                     <Input
                         placeholder="Search tickets..."
-                        className="pl-10 bg-gray-900 border-gray-800 text-white"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
+                        className="pl-8 bg-gray-900 border-gray-800"
                     />
                 </div>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-[180px] bg-gray-900 border-gray-800 text-white">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[150px] bg-gray-900 border-gray-800">
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-900 border-gray-800 text-white">
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="planning">Planning</SelectItem>
+                        <SelectItem value="available">Available</SelectItem>
                         <SelectItem value="in-progress">In Progress</SelectItem>
                         <SelectItem value="review">Review</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
                         <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger className="w-[150px] bg-gray-900 border-gray-800">
+                        <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-gray-800 text-white">
+                        <SelectItem value="all">All Priority</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="critical">Critical</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredTickets.map(ticket => (
-                    <Card key={ticket.id} className="bg-gray-900 border-gray-800 p-4 hover:border-orange-500/30 transition-all">
-                        <div className="flex justify-between items-start mb-3">
-                            <Badge variant="outline" className={`${getStatusColor(ticket.status)} capitalize`}>
-                                {ticket.status}
-                            </Badge>
-                            <div className="flex gap-2">
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => handleOpenModal(ticket)}>
-                                    <Edit2 className="w-3 h-3" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-300" onClick={() => handleDelete(ticket.id)}>
-                                    <Trash2 className="w-3 h-3" />
-                                </Button>
-                            </div>
+                    <Card key={ticket.id} className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-all group relative">
+                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-800" onClick={() => handleOpenModal(ticket)}>
+                                <Pencil className="w-4 h-4 text-blue-400" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-800" onClick={() => deleteTicket(ticket.id)}>
+                                <Trash2 className="w-4 h-4 text-red-400" />
+                            </Button>
                         </div>
-
-                        <h3 className="font-bold text-white mb-2 line-clamp-1">{ticket.title}</h3>
-                        <p className="text-sm text-gray-400 mb-4 line-clamp-2 min-h-[2.5em]">{ticket.description}</p>
-
-                        <div className="space-y-3 pt-3 border-t border-gray-800">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500 flex items-center">
-                                    <User className="w-3 h-3 mr-1" /> Assignee
-                                </span>
-                                <span className="text-gray-300">{ticket.assignedTo?.name || 'Unassigned'}</span>
+                        <div className="p-4 space-y-3">
+                            <div className="flex justify-between items-start pr-16">
+                                <Badge className={`${getStatusColor(ticket.status)} capitalize border`}>
+                                    {ticket.status}
+                                </Badge>
+                                {(ticket.status !== 'completed' && ticket.status !== 'closed') && (
+                                    <CountdownTimer dueDate={ticket.dueDate} priority={ticket.priority} />
+                                )}
                             </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500 flex items-center">
-                                    <Clock className="w-3 h-3 mr-1" /> Due
-                                </span>
-                                <span className="text-gray-300">{ticket.dueDate}</span>
+
+                            <div>
+                                <h3 className="font-semibold text-white truncate pr-2">{ticket.title}</h3>
+                                <p className="text-xs text-gray-400 mt-1 line-clamp-2 h-[2.5em]">{ticket.description}</p>
                             </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500 flex items-center">
-                                    <CalendarIcon className="w-3 h-3 mr-1" /> Project
-                                </span>
-                                <span className="text-gray-300 truncate max-w-[120px]">{ticket.project}</span>
+
+                            <div className="flex items-center justify-between text-xs text-gray-500">
+                                <div className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    <span>Due: {new Date(ticket.dueDate).toLocaleDateString()}</span>
+                                </div>
+                                <span className={`font-medium uppercase ${getPriorityColor(ticket.priority)}`}>{ticket.priority}</span>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="space-y-1">
+                                <div className="flex justify-between text-[10px] text-gray-400">
+                                    <span>Progress</span>
+                                    <span>{Math.round((ticket.timeSpent || 0) / parseFloat(ticket.estimatedHours || '1') * 100) || 0}%</span>
+                                </div>
+                                <Progress value={Math.min(((ticket.timeSpent || 0) / parseFloat(ticket.estimatedHours || '1')) * 100, 100)} className="h-1.5" />
+                                <div className="flex justify-between text-[10px] text-gray-500">
+                                    <span>{ticket.timeSpent || 0}h Spent</span>
+                                    <span>{ticket.estimatedHours}h Est.</span>
+                                </div>
+                            </div>
+
+                            {/* Assignee Footer */}
+                            <div className="flex items-center space-x-2 pt-2">
+                                {(Array.isArray(ticket.assignedTo) ? ticket.assignedTo : []).slice(0, 1).map((uid) => {
+                                    const member = staffList.find(s => s.uid === uid)
+                                    return (
+                                        <div key={uid} className="flex items-center space-x-2 flex-1">
+                                            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white overflow-hidden border border-gray-600">
+                                                {member?.profilePicture ? <img src={member.profilePicture} className="w-full h-full object-cover" /> : member?.name?.charAt(0)}
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-medium text-white">{member?.name || 'Unknown'}</span>
+                                                <span className="text-[10px] text-gray-500">{member?.role || 'Staff'}</span>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                                {(Array.isArray(ticket.assignedTo) && ticket.assignedTo.length > 1) && (
+                                    <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-[10px] text-gray-400 border border-gray-700 font-medium">
+                                        +{ticket.assignedTo.length - 1}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </Card>
@@ -300,53 +422,56 @@ export function StaffTicketManagement() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Assign To</Label>
-                                <Select value={formData.assigneeId} onValueChange={v => setFormData({ ...formData, assigneeId: v })}>
-                                    <SelectTrigger className="bg-gray-800 border-gray-700">
-                                        <SelectValue placeholder="Select Staff" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                                        {staffList.map(u => (
-                                            <SelectItem key={u.uid} value={u.uid}>{u.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label>Assign To (Multi-Select)</Label>
+                                <div className="border border-gray-700 rounded-lg p-2 max-h-[250px] overflow-y-auto bg-gray-800">
+                                    {/* TEAMS SECTION */}
+                                    {teams.length > 0 && (
+                                        <div className="mb-2">
+                                            <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Teams</p>
+                                            {teams.map(team => {
+                                                const allSelected = team.members.length > 0 && team.members.every(m => formData.assignedTo.includes(m));
+                                                return (
+                                                    <div key={team.id} className="flex items-center space-x-2 py-1 hover:bg-gray-700/50 rounded px-1 cursor-pointer" onClick={() => toggleTeamSelection(team)}>
+                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${allSelected ? 'bg-orange-600 border-orange-600' : 'border-gray-500'}`}>
+                                                            {allSelected && <CheckCircle className="w-3 h-3 text-white" />}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-medium text-gray-200">{team.name}</span>
+                                                            <span className="text-[10px] text-gray-400">{team.members.length} members</span>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                            <div className="h-px bg-gray-700 my-2"></div>
+                                        </div>
+                                    )}
+
+                                    {/* STAFF SECTION */}
+                                    <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Staff Members</p>
+                                    {staffList.map(u => (
+                                        <div key={u.uid} className="flex items-center space-x-2 py-1 hover:bg-gray-700/50 rounded px-1 cursor-pointer" onClick={() => toggleStaffSelection(u.uid)}>
+                                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600 border-orange-600' : 'border-gray-500'}`}>
+                                                {formData.assignedTo.includes(u.uid) && <CheckCircle className="w-3 h-3 text-white" />}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center text-[10px]">
+                                                    {u.profilePicture ? <img src={u.profilePicture} className="w-full h-full" /> : u.name?.charAt(0)}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-gray-200">{u.name}</span>
+                                                    <span className="text-[10px] text-gray-400">{u.role || 'Staff'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <Label>Project</Label>
                                 <Input value={formData.project} onChange={e => setFormData({ ...formData, project: e.target.value })} className="bg-gray-800 border-gray-700" placeholder="Project Name" />
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Status</Label>
-                                <Select value={formData.status} onValueChange={(v: any) => setFormData({ ...formData, status: v })}>
-                                    <SelectTrigger className="bg-gray-800 border-gray-700">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                                        <SelectItem value="open">Open</SelectItem>
-                                        <SelectItem value="in-progress">In Progress</SelectItem>
-                                        <SelectItem value="review">Review</SelectItem>
-                                        <SelectItem value="closed">Closed</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Priority</Label>
-                                <Select value={formData.priority} onValueChange={(v: any) => setFormData({ ...formData, priority: v })}>
-                                    <SelectTrigger className="bg-gray-800 border-gray-700">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                                        <SelectItem value="low">Low</SelectItem>
-                                        <SelectItem value="medium">Medium</SelectItem>
-                                        <SelectItem value="high">High</SelectItem>
-                                        <SelectItem value="critical">Critical</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Due Date</Label>
@@ -356,6 +481,21 @@ export function StaffTicketManagement() {
                                 <Label>Est. Hours</Label>
                                 <Input type="number" value={formData.estimatedHours} onChange={e => setFormData({ ...formData, estimatedHours: e.target.value })} className="bg-gray-800 border-gray-700" />
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Priority</Label>
+                            <Select value={formData.priority} onValueChange={(v: any) => setFormData({ ...formData, priority: v })}>
+                                <SelectTrigger className="bg-gray-800 border-gray-700">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                                    <SelectItem value="low">Low</SelectItem>
+                                    <SelectItem value="medium">Medium</SelectItem>
+                                    <SelectItem value="high">High</SelectItem>
+                                    <SelectItem value="critical">Critical</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <DialogFooter>
