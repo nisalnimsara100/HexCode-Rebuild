@@ -56,86 +56,86 @@ export default function UnifiedLoginPage() {
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="p-4 bg-gradient-to-r from-orange-600 to-red-600 rounded-2xl shadow-2xl">
-              <Building2 className="h-12 w-12 text-white" />
+        <div className="text-center mb-4">
+          <div className="flex justify-center mb-2">
+            <div className="p-3 bg-gradient-to-r from-orange-600 to-red-600 rounded-2xl shadow-2xl">
+              <Building2 className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold mb-1 bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">
             HexCode Portal
           </h1>
-          <p className="text-slate-400 text-lg">Welcome back to your workspace</p>
+          <p className="text-slate-400 text-sm">Welcome back to your workspace</p>
         </div>
 
         {/* Login Card */}
-        <Card className="bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">Sign In</h2>
-            <p className="text-slate-300">Access your portal</p>
+        <Card className="bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl p-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-white mb-1">Sign In</h2>
+            <p className="text-slate-300 text-sm">Access your portal</p>
           </div>
 
           {/* Role Info */}
-          <div className="mb-6 p-4 bg-gradient-to-r from-blue-500/10 to-orange-500/10 border border-blue-500/20 rounded-xl">
+          <div className="mb-4 p-3 bg-gradient-to-r from-blue-500/10 to-orange-500/10 border border-blue-500/20 rounded-xl">
             <div className="text-center">
-              <div className="flex items-center justify-center space-y-1 mb-2">
-                <Shield className="h-4 w-4 text-orange-400 mr-2" />
-                <span className="text-xs text-slate-300">Admins → Admin Panel</span>
+              <div className="flex items-center justify-center space-y-1 mb-1">
+                <Shield className="h-3 w-3 text-orange-400 mr-2" />
+                <span className="text-[10px] text-slate-300">Admins → Admin Panel</span>
               </div>
-              <div className="flex items-center justify-center space-y-1 mb-2">
-                <Users className="h-4 w-4 text-blue-400 mr-2" />
-                <span className="text-xs text-slate-300">Employees → Staff Portal</span>
+              <div className="flex items-center justify-center space-y-1 mb-1">
+                <Users className="h-3 w-3 text-blue-400 mr-2" />
+                <span className="text-[10px] text-slate-300">Employees → Staff Portal</span>
               </div>
-              <p className="text-xs text-slate-400 mt-3">
+              <p className="text-[10px] text-slate-400 mt-2">
                 Staff and Admin login portal
               </p>
             </div>
           </div>
 
           {error && (
-            <Alert className="bg-red-500/20 border-red-500/50 text-red-300 mb-6 rounded-xl">
+            <Alert className="bg-red-500/20 border-red-500/50 text-red-300 mb-4 rounded-xl py-2">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription className="text-xs">{error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Email Address</label>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">Email Address</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
+                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type="email"
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-12 h-12 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl transition-all duration-200"
+                  className="pl-10 h-10 bg-white/10 border-white/20 text-white text-sm placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl transition-all duration-200"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Password</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">Password</label>
               <div className="relative">
-                <Lock className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-12 pr-12 h-12 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl transition-all duration-200"
+                  className="pl-10 pr-10 h-10 bg-white/10 border-white/20 text-white text-sm placeholder:text-slate-400 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl transition-all duration-200"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-3.5 text-slate-400 hover:text-white transition-colors duration-200"
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-white transition-colors duration-200"
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
+                    <EyeOff className="h-4 w-4" />
                   ) : (
-                    <Eye className="h-5 w-5" />
+                    <Eye className="h-4 w-4" />
                   )}
                 </button>
               </div>
@@ -144,11 +144,11 @@ export default function UnifiedLoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none shadow-lg"
+              className="w-full h-10 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white text-sm font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none shadow-lg"
             >
               {loading ? (
                 <div className="flex items-center justify-center space-x-2">
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   <span>Signing In...</span>
                 </div>
               ) : (
@@ -161,13 +161,13 @@ export default function UnifiedLoginPage() {
           </form>
 
           {/* Register Link */}
-          <div className="mt-8 pt-6 border-t border-white/10">
+          <div className="mt-4 pt-4 border-t border-white/10">
             <div className="text-center">
-              <p className="text-slate-400 mb-4">Need an account?</p>
-              <Button asChild variant="outline" className="w-full h-12 border-white/20 text-white hover:bg-white/10 rounded-xl transition-all duration-200">
+              <p className="text-slate-400 text-xs mb-3">Need an account?</p>
+              <Button asChild variant="outline" className="w-full h-10 border-white/20 text-white hover:bg-white/10 rounded-xl transition-all duration-200">
                 <Link href="/register" className="flex items-center justify-center space-x-2">
                   <UserPlus className="h-4 w-4" />
-                  <span>Create Account</span>
+                  <span className="text-sm">Create Account</span>
                 </Link>
               </Button>
             </div>
@@ -175,9 +175,9 @@ export default function UnifiedLoginPage() {
         </Card>
 
         {/* Footer */}
-        <div className="mt-8 text-center text-sm text-slate-500">
+        <div className="mt-6 text-center text-xs text-slate-500">
           <p>&copy; 2025 HexCode. All rights reserved.</p>
-          <p className="mt-1">For support, contact IT Department</p>
+          <p className="mt-0.5">For support, contact IT Department</p>
         </div>
       </div>
     </div>

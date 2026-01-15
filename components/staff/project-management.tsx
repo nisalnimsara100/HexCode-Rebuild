@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/components/auth/auth-context";
 import {
   FolderOpen,
   Search,
@@ -35,8 +36,11 @@ interface Task {
   projectId: string
   priority: string
   dueDate: string
-  assignedTo: string
+  assignedTo: string | string[]
+  estimatedHours?: string | number
 }
+
+
 
 interface Project {
   id: string;
@@ -59,6 +63,7 @@ interface TeamMember {
 }
 
 export function ProjectManagement() {
+  const { userProfile } = useAuth();
   const { toast } = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -420,7 +425,7 @@ export function ProjectManagement() {
                     Tasks
                   </span>
                   <span className="text-gray-300 font-mono">
-                    {allTasks.filter(t => t.projectId === project.id && t.status === 'completed').length} / {allTasks.filter(t => t.projectId === project.id).length}
+                    {allTasks.filter(t => t.projectId === project.id && t.status === 'completed' && (Array.isArray(t.assignedTo) ? t.assignedTo.includes(userProfile?.uid || '') : t.assignedTo === userProfile?.uid)).length} / {allTasks.filter(t => t.projectId === project.id && (Array.isArray(t.assignedTo) ? t.assignedTo.includes(userProfile?.uid || '') : t.assignedTo === userProfile?.uid)).length}
                   </span>
                 </div>
               </div>
@@ -527,14 +532,14 @@ export function ProjectManagement() {
 
       {/* View Details Modal */}
       <Dialog open={!!viewProject} onOpenChange={(open) => !open && setViewProject(null)}>
-        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[600px]">
-          <DialogHeader>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[600px] max-h-[85vh] flex flex-col p-6">
+          <DialogHeader className="mb-2 shrink-0">
             <DialogTitle className="text-xl flex items-center justify-between">
               {viewProject?.title}
               <Badge className={viewProject ? getStatusColor(viewProject.status) : ''}>{viewProject?.status}</Badge>
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
             <div className="p-4 bg-gray-800 rounded-lg text-gray-300 text-sm leading-relaxed">
               {viewProject?.description}
             </div>
@@ -569,6 +574,97 @@ export function ProjectManagement() {
                     <span className="text-xs text-gray-300">{staffMap[uid]?.name}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Tasks Section */}
+            <div className="space-y-3 pt-6 border-t border-gray-800">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">My Project Tasks</h4>
+                <span className="text-xs text-emerald-500 font-mono">
+                  {allTasks.filter(t => t.projectId === viewProject?.id && t.status === 'completed' && (Array.isArray(t.assignedTo) ? t.assignedTo.includes(userProfile?.uid || '') : t.assignedTo === userProfile?.uid)).length} / {allTasks.filter(t => t.projectId === viewProject?.id && (Array.isArray(t.assignedTo) ? t.assignedTo.includes(userProfile?.uid || '') : t.assignedTo === userProfile?.uid)).length} Completed
+                </span>
+              </div>
+
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {allTasks.filter(t => t.projectId === viewProject?.id && (Array.isArray(t.assignedTo) ? t.assignedTo.includes(userProfile?.uid || '') : t.assignedTo === userProfile?.uid)).length === 0 ? (
+                  <p className="text-sm text-gray-500 italic py-4 text-center border border-dashed border-gray-800 rounded">No tasks assigned to you in this project.</p>
+                ) : (
+                  allTasks.filter(t => t.projectId === viewProject?.id && (Array.isArray(t.assignedTo) ? t.assignedTo.includes(userProfile?.uid || '') : t.assignedTo === userProfile?.uid)).map(task => {
+                    const daysLeft = task.dueDate ? Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null;
+                    const isOverdue = daysLeft !== null && daysLeft < 0;
+
+                    return (
+                      <div key={task.id} className={`group flex flex-col gap-3 bg-gray-950/50 p-4 rounded-lg border ${task.status === 'completed' ? 'border-gray-800 bg-gray-900/30' : 'border-gray-800 hover:border-gray-700'} transition-all`}>
+                        <div className="flex items-start gap-4">
+                          <div className="pt-1">
+                            <input
+                              type="checkbox"
+                              checked={task.status === 'completed'}
+                              onChange={async (e) => {
+                                const newStatus = e.target.checked ? 'completed' : 'pending';
+                                await update(ref(database, `staffdashboard/tasks/${task.id}`), {
+                                  status: newStatus
+                                });
+                                toast({
+                                  title: newStatus === 'completed' ? "Task Completed" : "Task Reopened",
+                                  description: `Marked "${task.title}" as ${newStatus}`
+                                });
+                              }}
+                              className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-gray-900 cursor-pointer"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                              <p className={`text-base font-medium truncate pr-4 ${task.status === 'completed' ? 'text-gray-500 line-through' : 'text-white'}`}>
+                                {task.title}
+                              </p>
+                              <Badge variant="outline" className={`shrink-0 text-[10px] py-0 border-gray-700 capitalize ${task.status === 'completed' ? 'text-gray-500' : 'text-gray-400'}`}>
+                                {task.priority || 'Normal'}
+                              </Badge>
+                            </div>
+
+                            {/* Task Meta Details */}
+                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-3 text-xs text-gray-400">
+                              {task.dueDate && (
+                                <div className={`flex items-center gap-2 ${isOverdue && task.status !== 'completed' ? 'text-red-400' : ''}`}>
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  <span>Due: {task.dueDate}</span>
+                                </div>
+                              )}
+
+                              {daysLeft !== null && task.status !== 'completed' && (
+                                <div className={`flex items-center gap-2 ${isOverdue ? 'text-red-400 font-bold' : daysLeft <= 2 ? 'text-orange-400' : 'text-emerald-400'}`}>
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>{isOverdue ? `${Math.abs(daysLeft)} days overdue` : `${daysLeft} days left`}</span>
+                                </div>
+                              )}
+
+                              {/* Placeholder for Estimate if exist on Task object */}
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>Est: {task.estimatedHours || 0}h</span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <div className="flex -space-x-1">
+                                  {(Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]).slice(0, 3).map((uid, i) => (
+                                    <div key={uid || i} className="w-4 h-4 rounded-full bg-gray-700 flex items-center justify-center text-[8px] text-gray-300 border border-gray-800">
+                                      {staffMap[uid]?.name?.charAt(0) || '?'}
+                                    </div>
+                                  ))}
+                                </div>
+                                <span className="truncate max-w-[100px] text-xs">
+                                  {(Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]).map(uid => staffMap[uid]?.name || 'Unassigned').join(', ')}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
               </div>
             </div>
           </div>

@@ -32,7 +32,7 @@ interface TaskItem {
   description: string;
   status: 'pending' | 'in-progress' | 'completed' | 'overdue';
   priority: 'low' | 'medium' | 'high' | 'critical';
-  assignedTo: string; // UID
+  assignedTo: string | string[]; // UID or array of UIDs
   projectId: string;
   dueDate: string;
   estimatedHours: string;
@@ -90,8 +90,17 @@ export default function EmployeeView() {
             id,
             ...val
           }))
-          .filter((t: TaskItem) => t.assignedTo === userProfile.uid)
-          .sort((a, b) => new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime());
+          .filter((t: TaskItem) => {
+            if (Array.isArray(t.assignedTo)) {
+              return t.assignedTo.includes(userProfile.uid);
+            }
+            return t.assignedTo === userProfile.uid;
+          })
+          .sort((a, b) => {
+            const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+            const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+            return dateA - dateB;
+          });
 
         setTasks(taskList);
       } else {
@@ -232,7 +241,7 @@ export default function EmployeeView() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-white flex items-center">
               <Activity className="w-5 h-5 mr-2 text-orange-500" />
-              Your Active Projects
+              Your Projects
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeProjects.map(project => (

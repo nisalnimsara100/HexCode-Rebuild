@@ -10,6 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/components/auth/auth-context";
+import { database } from "@/lib/firebase";
+import { ref, onValue, push, update, remove } from "firebase/database";
+import { useToast } from "@/components/ui/use-toast";
 import {
   ClipboardList,
   Plus,
@@ -23,230 +27,231 @@ import {
   CheckCircle,
   Edit3,
   Trash2,
-  MoreVertical,
   TrendingUp,
   Users,
+  MoreVertical,
+  Briefcase
 } from "lucide-react";
 
 interface Assignment {
   id: string;
   title: string;
   description: string;
-  assignedTo: string;
-  assignedBy: string;
-  project: string;
+  assignedTo: string | string[]; // UID or array of UIDs
+  assignedBy: string; // UID
+  projectId: string; // Project ID
   status: "pending" | "in-progress" | "completed" | "overdue";
   priority: "low" | "medium" | "high" | "critical";
   startDate: string;
   dueDate: string;
   completedDate?: string;
   estimatedHours: number;
-  actualHours: number;
   progress: number;
-  dependencies: string[];
   tags: string[];
 }
 
+interface TeamMember {
+  uid: string;
+  name: string;
+  role: string;
+  status: "available" | "busy" | "on_leave";
+  avatar?: string;
+}
+
+interface Project {
+  id: string;
+  title: string;
+}
+
 export function AssignmentSystem() {
+  const { userProfile } = useAuth();
+  const { toast } = useToast();
+
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [filteredAssignments, setFilteredAssignments] = useState<Assignment[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [selectedPriority, setSelectedPriority] = useState<string>("all");
-  const [selectedAssignee, setSelectedAssignee] = useState<string>("all");
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Modals
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isUpdateProgressOpen, setIsUpdateProgressOpen] = useState(false);
+  const [isReassignOpen, setIsReassignOpen] = useState(false);
+
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
 
   const [newAssignment, setNewAssignment] = useState<Partial<Assignment>>({
     title: "",
     description: "",
     assignedTo: "",
-    project: "",
+    projectId: "",
     status: "pending",
     priority: "medium",
-    startDate: "",
+    startDate: new Date().toISOString().split("T")[0],
     dueDate: "",
     estimatedHours: 0,
     progress: 0,
-    dependencies: [],
     tags: [],
   });
 
-  const teamMembers = [
-    "John Smith",
-    "Sarah Johnson",
-    "Mike Davis",
-    "Emily Chen",
-    "Alex Rodriguez",
-  ];
+  // Progress Update State
+  const [progressUpdateValue, setProgressUpdateValue] = useState(0);
 
-  const projects = [
-    "E-commerce Platform v2.0",
-    "Mobile Banking App",
-    "Marketing Website",
-    "API Redesign",
-    "Database Optimization",
-  ];
-
-  const availableTags = [
-    "Frontend",
-    "Backend", 
-    "Design",
-    "Testing",
-    "Documentation",
-    "Bug Fix",
-    "Feature",
-    "Urgent",
-  ];
-
+  // Fetch Data
   useEffect(() => {
-    fetchAssignments();
+    setLoading(true);
+
+    // 1. Fetch Users (Team Members)
+    const usersRef = ref(database, 'users');
+    const unsubscribeUsers = onValue(usersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const members: TeamMember[] = Object.entries(data).map(([uid, val]: [string, any]) => ({
+          uid,
+          name: val.name || "Unknown",
+          role: val.role || "Staff",
+          status: val.status || "available", // Assuming status exists or defaulting
+          avatar: val.profilePicture
+        }));
+        setTeamMembers(members);
+      }
+    });
+
+    // 2. Fetch Projects
+    const projectsRef = ref(database, 'staffdashboard/projects');
+    const unsubscribeProjects = onValue(projectsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const projList: Project[] = Object.entries(data).map(([id, val]: [string, any]) => ({
+          id,
+          title: val.title || "Untitled"
+        }));
+        setProjects(projList);
+      }
+    });
+
+    // 3. Fetch Tasks
+    const tasksRef = ref(database, 'staffdashboard/tasks');
+    const unsubscribeTasks = onValue(tasksRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const taskList: Assignment[] = Object.entries(data).map(([id, val]: [string, any]) => ({
+          id,
+          ...val
+        }));
+        setAssignments(taskList);
+      } else {
+        setAssignments([]);
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribeUsers();
+      unsubscribeProjects();
+      unsubscribeTasks();
+    };
   }, []);
 
+  // Filter Logic
   useEffect(() => {
-    filterAssignments();
-  }, [assignments, searchTerm, selectedStatus, selectedPriority, selectedAssignee]);
+    if (!userProfile) return;
 
-  const fetchAssignments = async () => {
-    try {
-      setLoading(true);
-      // In real implementation, fetch from Firebase
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const mockAssignments: Assignment[] = [
-        {
-          id: "1",
-          title: "Implement user authentication",
-          description: "Create login and registration functionality with JWT tokens",
-          assignedTo: "John Smith",
-          assignedBy: "Sarah Johnson",
-          project: "E-commerce Platform v2.0",
-          status: "in-progress",
-          priority: "high",
-          startDate: "2024-01-15",
-          dueDate: "2024-01-25",
-          estimatedHours: 16,
-          actualHours: 8,
-          progress: 50,
-          dependencies: [],
-          tags: ["Backend", "Feature"],
-        },
-        {
-          id: "2",
-          title: "Design mobile app UI",
-          description: "Create wireframes and mockups for the mobile banking application",
-          assignedTo: "Emily Chen",
-          assignedBy: "Mike Davis",
-          project: "Mobile Banking App",
-          status: "completed",
-          priority: "medium",
-          startDate: "2024-01-10",
-          dueDate: "2024-01-20",
-          completedDate: "2024-01-18",
-          estimatedHours: 12,
-          actualHours: 10,
-          progress: 100,
-          dependencies: [],
-          tags: ["Design", "Frontend"],
-        },
-        {
-          id: "3",
-          title: "Fix payment gateway integration",
-          description: "Resolve issues with payment processing and error handling",
-          assignedTo: "Alex Rodriguez",
-          assignedBy: "John Smith",
-          project: "E-commerce Platform v2.0",
-          status: "overdue",
-          priority: "critical",
-          startDate: "2024-01-12",
-          dueDate: "2024-01-18",
-          estimatedHours: 8,
-          actualHours: 6,
-          progress: 75,
-          dependencies: ["Implement user authentication"],
-          tags: ["Backend", "Bug Fix", "Urgent"],
-        },
-        {
-          id: "4",
-          title: "Write API documentation",
-          description: "Document all API endpoints with examples and usage guidelines",
-          assignedTo: "Sarah Johnson",
-          assignedBy: "Mike Davis", 
-          project: "API Redesign",
-          status: "pending",
-          priority: "low",
-          startDate: "2024-01-20",
-          dueDate: "2024-02-05",
-          estimatedHours: 6,
-          actualHours: 0,
-          progress: 0,
-          dependencies: [],
-          tags: ["Documentation"],
-        },
-      ];
-      setAssignments(mockAssignments);
-    } catch (error) {
-      console.error("Error fetching assignments:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterAssignments = () => {
     let filtered = assignments;
 
+    // Visibility Rule: Admin sees all, Staff sees only assigned to them
+    if (userProfile.role !== "admin") {
+      filtered = filtered.filter(a => a.assignedTo === userProfile.uid);
+    }
+
     if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
       filtered = filtered.filter(
-        (assignment) =>
-          assignment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          assignment.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          assignment.project.toLowerCase().includes(searchTerm.toLowerCase())
+        (a) =>
+          a.title.toLowerCase().includes(lower) ||
+          a.description.toLowerCase().includes(lower)
       );
     }
 
     if (selectedStatus !== "all") {
-      filtered = filtered.filter((assignment) => assignment.status === selectedStatus);
-    }
-
-    if (selectedPriority !== "all") {
-      filtered = filtered.filter((assignment) => assignment.priority === selectedPriority);
-    }
-
-    if (selectedAssignee !== "all") {
-      filtered = filtered.filter((assignment) => assignment.assignedTo === selectedAssignee);
+      filtered = filtered.filter((a) => a.status === selectedStatus);
     }
 
     setFilteredAssignments(filtered);
-  };
+  }, [assignments, searchTerm, selectedStatus, userProfile]);
 
   const handleAddAssignment = async () => {
     if (!newAssignment.title || !newAssignment.assignedTo || !newAssignment.dueDate) {
-      alert("Please fill in required fields");
+      toast({ title: "Missing Fields", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
 
-    const assignment: Assignment = {
-      id: Date.now().toString(),
-      title: newAssignment.title!,
-      description: newAssignment.description || "",
-      assignedTo: newAssignment.assignedTo!,
-      assignedBy: "Current User", // In real app, get from auth
-      project: newAssignment.project || "",
-      status: (newAssignment.status as Assignment["status"]) || "pending",
-      priority: (newAssignment.priority as Assignment["priority"]) || "medium",
-      startDate: newAssignment.startDate || new Date().toISOString().split("T")[0],
-      dueDate: newAssignment.dueDate!,
-      estimatedHours: newAssignment.estimatedHours || 0,
-      actualHours: 0,
-      progress: 0,
-      dependencies: newAssignment.dependencies || [],
-      tags: newAssignment.tags || [],
-    };
+    try {
+      const tasksRef = ref(database, 'staffdashboard/tasks');
+      await push(tasksRef, {
+        ...newAssignment,
+        assignedBy: userProfile?.uid || "system",
+        createdAt: new Date().toISOString(),
+      });
+      toast({ title: "Success", description: "Assignment created successfully." });
+      setIsAddModalOpen(false);
+      resetNewAssignment();
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Error", description: "Failed to create assignment.", variant: "destructive" });
+    }
+  };
 
-    // In real implementation, save to Firebase
-    setAssignments([...assignments, assignment]);
-    setIsAddModalOpen(false);
-    resetNewAssignment();
+  const handleDeleteAssignment = async (id: string) => {
+    if (userProfile?.role !== "admin") {
+      toast({ title: "Access Denied", description: "Only admins can delete assignments.", variant: "destructive" });
+      return;
+    }
+
+    if (confirm("Are you sure you want to delete this assignment permanently?")) {
+      try {
+        await remove(ref(database, `staffdashboard/tasks/${id}`));
+        toast({ title: "Deleted", description: "Assignment removed successfully." });
+      } catch (err) {
+        toast({ title: "Error", description: "Failed to delete assignment.", variant: "destructive" });
+      }
+    }
+  };
+
+  const handleReassign = async (newUid: string) => {
+    if (!selectedAssignment) return;
+    try {
+      await update(ref(database, `staffdashboard/tasks/${selectedAssignment.id}`), {
+        assignedTo: newUid
+      });
+      toast({ title: "Reassigned", description: `Task reassigned to ${teamMembers.find(m => m.uid === newUid)?.name}` });
+      setIsReassignOpen(false);
+      setSelectedAssignment(null);
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to reassign task.", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateProgress = async () => {
+    if (!selectedAssignment) return;
+    try {
+      let newStatus = selectedAssignment.status;
+      if (progressUpdateValue === 100) newStatus = "completed";
+      else if (progressUpdateValue > 0 && newStatus === "pending") newStatus = "in-progress";
+
+      await update(ref(database, `staffdashboard/tasks/${selectedAssignment.id}`), {
+        progress: progressUpdateValue,
+        status: newStatus
+      });
+      toast({ title: "Updated", description: "Progress updated successfully." });
+      setIsUpdateProgressOpen(false);
+      setSelectedAssignment(null);
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to update progress.", variant: "destructive" });
+    }
   };
 
   const resetNewAssignment = () => {
@@ -254,507 +259,383 @@ export function AssignmentSystem() {
       title: "",
       description: "",
       assignedTo: "",
-      project: "",
+      projectId: "",
       status: "pending",
       priority: "medium",
-      startDate: "",
+      startDate: new Date().toISOString().split("T")[0],
       dueDate: "",
       estimatedHours: 0,
       progress: 0,
-      dependencies: [],
       tags: [],
     });
   };
 
-  const handleDeleteAssignment = async (id: string) => {
-    if (confirm("Are you sure you want to delete this assignment?")) {
-      // In real implementation, delete from Firebase
-      setAssignments(assignments.filter((assignment) => assignment.id !== id));
-    }
-  };
-
   const getStatusColor = (status: Assignment["status"]) => {
     switch (status) {
-      case "pending":
-        return "bg-gray-100 text-gray-800 border-gray-200";
-      case "in-progress":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "completed":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      case "overdue":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+      case "pending": return "bg-gray-100/10 text-gray-400 border-gray-700";
+      case "in-progress": return "bg-blue-500/20 text-blue-400 border-blue-500/50";
+      case "completed": return "bg-emerald-500/20 text-emerald-400 border-emerald-500/50";
+      case "overdue": return "bg-red-500/20 text-red-400 border-red-500/50";
+      default: return "bg-gray-800 text-gray-400 border-gray-700";
     }
   };
 
   const getPriorityColor = (priority: Assignment["priority"]) => {
     switch (priority) {
-      case "low":
-        return "bg-gray-100 text-gray-800 border-gray-200";
-      case "medium":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "high":
-        return "bg-orange-100 text-orange-800 border-orange-200";
-      case "critical":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+      case "critical": return "text-red-400";
+      case "high": return "text-orange-400";
+      case "medium": return "text-blue-400";
+      case "low": return "text-gray-400";
+      default: return "text-gray-400";
     }
   };
 
-  const getProgressColor = (progress: number, status: Assignment["status"]) => {
-    if (status === "overdue") return "bg-red-500";
-    if (progress < 30) return "bg-red-500";
-    if (progress < 70) return "bg-yellow-500";
-    return "bg-emerald-500";
-  };
-
-  const calculateWorkload = (assignee: string) => {
-    const assigneeAssignments = assignments.filter(
-      (assignment) => assignment.assignedTo === assignee && assignment.status !== "completed"
-    );
-    return assigneeAssignments.reduce((total, assignment) => total + assignment.estimatedHours, 0);
-  };
-
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-emerald-500 mx-auto"></div>
-          <p className="text-gray-400">Loading assignments...</p>
-        </div>
-      </div>
-    );
+    return <div className="p-8 text-center text-gray-500">Loading system...</div>;
   }
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="md:flex md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold leading-7 text-white sm:truncate sm:text-3xl sm:tracking-tight">
-            Assignment System
-          </h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Delegate tasks and track work progress across your team.
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Active Assignments</h2>
+          <p className="text-sm text-gray-400">Manage tasks and track team progress</p>
         </div>
-        <div className="mt-4 flex md:ml-4 md:mt-0">
-          <Button
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
+        {userProfile?.role === "admin" && (
+          <Button onClick={() => setIsAddModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <Plus className="h-4 w-4 mr-2" />
             New Assignment
           </Button>
-        </div>
+        )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-        <Card className="bg-gray-800 border-gray-700">
-          <div className="p-6">
-            <div className="flex items-center">
-              <ClipboardList className="h-8 w-8 text-emerald-500" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-400">Total Assignments</p>
-                <p className="text-2xl font-semibold text-white">{assignments.length}</p>
-              </div>
-            </div>
-          </div>
-        </Card>
-        <Card className="bg-gray-800 border-gray-700">
-          <div className="p-6">
-            <div className="flex items-center">
-              <Clock className="h-8 w-8 text-blue-500" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-400">In Progress</p>
-                <p className="text-2xl font-semibold text-white">
-                  {assignments.filter((a) => a.status === "in-progress").length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-        <Card className="bg-gray-800 border-gray-700">
-          <div className="p-6">
-            <div className="flex items-center">
-              <CheckCircle className="h-8 w-8 text-green-500" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-400">Completed</p>
-                <p className="text-2xl font-semibold text-white">
-                  {assignments.filter((a) => a.status === "completed").length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-        <Card className="bg-gray-800 border-gray-700">
-          <div className="p-6">
-            <div className="flex items-center">
-              <AlertTriangle className="h-8 w-8 text-red-500" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-400">Overdue</p>
-                <p className="text-2xl font-semibold text-white">
-                  {assignments.filter((a) => a.status === "overdue").length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Workload Overview */}
-      <Card className="bg-gray-800 border-gray-700">
-        <div className="p-6">
-          <h3 className="text-lg font-medium text-white mb-4">Team Workload Overview</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {teamMembers.map((member) => {
-              const workload = calculateWorkload(member);
-              const activeAssignments = assignments.filter(
-                (a) => a.assignedTo === member && a.status !== "completed"
-              ).length;
-              
-              return (
-                <div key={member} className="bg-gray-700 p-4 rounded-lg">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="h-8 w-8 rounded-full bg-gray-600 flex items-center justify-center text-xs font-medium text-white">
-                      {member.split(" ").map(n => n[0]).join("")}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">{member}</p>
-                      <p className="text-xs text-gray-400">{activeAssignments} active tasks</p>
-                    </div>
+      {/* Team Availability Section (Restored) */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-white flex items-center">
+          <Users className="w-5 h-5 mr-2 text-emerald-500" />
+          Team Availability
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {teamMembers.map(member => (
+            <Card key={member.uid} className="bg-gray-900 border-gray-800 p-4 flex flex-col justify-between">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-orange-600 flex items-center justify-center text-white font-bold">
+                    {member.avatar ? <img src={member.avatar} alt={member.name} className="h-full w-full rounded-full object-cover" /> : member.name.charAt(0)}
                   </div>
-                  <div className="text-center">
-                    <p className="text-lg font-semibold text-white">{workload}h</p>
-                    <p className="text-xs text-gray-400">Total workload</p>
+                  <div>
+                    <p className="font-semibold text-white text-sm">{member.name}</p>
+                    <p className="text-xs text-gray-400">{member.role}</p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </Card>
+              </div>
 
-      {/* Filters */}
-      <Card className="bg-gray-800 border-gray-700">
-        <div className="p-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <div className="flex items-center justify-between mt-auto">
+                <span className={`text-xs font-medium ${member.status === 'available' ? 'text-emerald-400' :
+                  member.status === 'busy' ? 'text-yellow-400' : 'text-red-400'
+                  }`}>
+                  {member.status === 'available' ? 'Available' : member.status === 'busy' ? 'Busy' : 'On Leave'}
+                </span>
+
+                {userProfile?.role === "admin" && (
+                  <Button
+                    size="sm"
+                    className="bg-orange-600/90 hover:bg-orange-700 h-7 text-xs"
+                    onClick={() => {
+                      setNewAssignment(prev => ({ ...prev, assignedTo: member.uid }));
+                      setIsAddModalOpen(true);
+                    }}
+                  >
+                    Assign Task
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Assignments List Section */}
+      <div className="space-y-4">
+        {/* Filters */}
+        <Card className="bg-gray-900 border-gray-800 p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
               <Input
-                placeholder="Search assignments..."
+                placeholder="Search tasks..."
+                className="pl-9 bg-gray-800 border-gray-700 text-white h-9"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-700 border-gray-600 text-white"
               />
             </div>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="w-[180px] bg-gray-800 border-gray-700 text-white h-9">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+              <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="in-progress">In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="overdue">Overdue</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                <SelectValue placeholder="Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                <SelectValue placeholder="Assignee" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Assignees</SelectItem>
-                {teamMembers.map((member) => (
-                  <SelectItem key={member} value={member}>
-                    {member}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700">
-              <Filter className="h-4 w-4 mr-2" />
-              Export
-            </Button>
           </div>
-        </div>
-      </Card>
+        </Card>
 
-      {/* Assignments List */}
-      <div className="space-y-4">
-        {filteredAssignments.map((assignment) => (
-          <Card key={assignment.id} className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors">
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-white truncate">
-                      {assignment.title}
-                    </h3>
-                    <Badge className={getStatusColor(assignment.status)}>
-                      {assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
-                    </Badge>
-                    <Badge className={getPriorityColor(assignment.priority)}>
-                      {assignment.priority.charAt(0).toUpperCase() + assignment.priority.slice(1)}
-                    </Badge>
-                  </div>
-                  
-                  <p className="text-gray-400 mb-4 line-clamp-2">{assignment.description}</p>
-                  
-                  {/* Progress */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-400">Progress</span>
-                      <span className="text-sm font-medium text-white">{assignment.progress}%</span>
-                    </div>
-                    <Progress
-                      value={assignment.progress}
-                      className="h-2"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
-                    <div className="flex items-center text-gray-400">
-                      <User className="h-4 w-4 mr-2" />
-                      <span>{assignment.assignedTo}</span>
-                    </div>
-                    <div className="flex items-center text-gray-400">
-                      <Target className="h-4 w-4 mr-2" />
-                      <span>{assignment.project}</span>
-                    </div>
-                    <div className="flex items-center text-gray-400">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      <span>Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex items-center text-gray-400">
-                      <Clock className="h-4 w-4 mr-2" />
-                      <span>{assignment.actualHours}h / {assignment.estimatedHours}h</span>
-                    </div>
-                  </div>
+        {/* Task Cards */}
+        <div className="space-y-3">
+          {filteredAssignments.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">No tasks found.</div>
+          ) : (
+            filteredAssignments.map(task => {
+              const projectTitle = projects.find(p => p.id === task.projectId)?.title || "Unknown Project";
+              // Handle assignedTo being a string or an array of strings
+              const assigneeName = Array.isArray(task.assignedTo)
+                ? task.assignedTo.map(uid => teamMembers.find(m => m.uid === uid)?.name || "Unknown User").join(", ")
+                : teamMembers.find(m => m.uid === task.assignedTo)?.name || "Unknown User";
 
-                  {/* Tags */}
-                  {assignment.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {assignment.tags.map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="outline"
-                          className="text-xs border-gray-600 text-gray-300"
-                        >
-                          {tag}
+              return (
+                <Card key={task.id} className="bg-gray-900 border-gray-800 p-5 hover:border-gray-700 transition-all group">
+                  <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
+
+                    {/* Left: Task Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className={`text-lg font-bold ${task.status === 'completed' ? 'text-gray-500 line-through' : 'text-white'}`}>
+                          {task.title}
+                        </h4>
+                        <Badge variant="outline" className={`${getStatusColor(task.status)} border-0 px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-sm`}>
+                          {task.status}
                         </Badge>
-                      ))}
-                    </div>
-                  )}
+                      </div>
 
-                  {/* Dependencies */}
-                  {assignment.dependencies.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-400 mb-1">Dependencies:</p>
-                      <div className="text-sm text-gray-300">
-                        {assignment.dependencies.map((dep, index) => (
-                          <span key={dep}>
-                            {dep}
-                            {index < assignment.dependencies.length - 1 && ", "}
-                          </span>
-                        ))}
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-2 gap-x-6 text-sm text-gray-400 mt-3">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] uppercase tracking-wider text-gray-600 font-bold">Assigned To</span>
+                          <span className="text-white font-medium">{assigneeName}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] uppercase tracking-wider text-gray-600 font-bold">Deadline</span>
+                          <span className="text-white font-medium">{task.dueDate}</span>
+                        </div>
+                        <div className="flex flex-col col-span-2">
+                          <span className="text-[10px] uppercase tracking-wider text-gray-600 font-bold">Description</span>
+                          <span className="truncate">{task.description}</span>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mt-4 flex items-center gap-4">
+                        <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${task.progress === 100 ? 'bg-emerald-500' : 'bg-yellow-500'}`}
+                            style={{ width: `${task.progress}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-white w-8 text-right">{task.progress}%</span>
                       </div>
                     </div>
-                  )}
-                </div>
-                
-                <div className="flex items-center space-x-2 ml-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedAssignment(assignment)}
-                    className="text-gray-400 hover:text-white"
-                  >
-                    <Edit3 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteAssignment(assignment.id)}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
+
+                    {/* Right: Estimated Hours & Actions */}
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <span className="text-xs text-gray-500 font-mono mb-2">{task.estimatedHours}h estimated</span>
+
+                      <div className="flex flex-wrap gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          className="h-8 bg-blue-600 hover:bg-blue-700 text-white border-none"
+                          onClick={() => {
+                            setSelectedAssignment(task);
+                            setProgressUpdateValue(task.progress);
+                            setIsUpdateProgressOpen(true);
+                          }}
+                        >
+                          Update Progress
+                        </Button>
+
+                        {userProfile?.role === "admin" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                              onClick={() => {
+                                setSelectedAssignment(task);
+                                setIsReassignOpen(true);
+                              }}
+                            >
+                              Reassign
+                            </Button>
+
+                            {/* Delete Button (Icon) */}
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-red-500 hover:text-red-400 hover:bg-red-950/30"
+                              onClick={() => handleDeleteAssignment(task.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-gray-600 mt-1">
+                        Assigned by {task.assignedBy === userProfile?.uid ? 'Me' : 'Admin'}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })
+          )}
+        </div>
       </div>
 
-      {/* Add Assignment Modal */}
+      {/* --- Modals --- */}
+
+      {/* 1. Add Assignment Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-3xl">
+        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create New Assignment</DialogTitle>
+            <DialogTitle>New Assignment</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="title">Title *</Label>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
               <Input
-                id="title"
+                placeholder="Task title"
                 value={newAssignment.title}
                 onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
-                className="bg-gray-700 border-gray-600"
-                placeholder="Enter assignment title"
+                className="bg-gray-800 border-gray-700"
               />
             </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="description">Description</Label>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Assign To</Label>
+                <Select
+                  value={typeof newAssignment.assignedTo === 'string' ? newAssignment.assignedTo : ''} // Ensure value is string for single select
+                  onValueChange={(val) => setNewAssignment({ ...newAssignment, assignedTo: val })}
+                >
+                  <SelectTrigger className="bg-gray-800 border-gray-700">
+                    <SelectValue placeholder="Select Staff" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                    {teamMembers.map(m => (
+                      <SelectItem key={m.uid} value={m.uid}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Project</Label>
+                <Select
+                  value={newAssignment.projectId}
+                  onValueChange={(val) => setNewAssignment({ ...newAssignment, projectId: val })}
+                >
+                  <SelectTrigger className="bg-gray-800 border-gray-700">
+                    <SelectValue placeholder="Select Project" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                    {projects.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Description</Label>
               <Textarea
-                id="description"
+                placeholder="Task details..."
                 value={newAssignment.description}
                 onChange={(e) => setNewAssignment({ ...newAssignment, description: e.target.value })}
-                className="bg-gray-700 border-gray-600"
-                rows={3}
-                placeholder="Describe the assignment"
+                className="bg-gray-800 border-gray-700 min-h-[100px]"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="assignedTo">Assign To *</Label>
-              <Select
-                value={newAssignment.assignedTo}
-                onValueChange={(value) => setNewAssignment({ ...newAssignment, assignedTo: value })}
-              >
-                <SelectTrigger className="bg-gray-700 border-gray-600">
-                  <SelectValue placeholder="Select assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teamMembers.map((member) => (
-                    <SelectItem key={member} value={member}>
-                      {member}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="project">Project</Label>
-              <Select
-                value={newAssignment.project}
-                onValueChange={(value) => setNewAssignment({ ...newAssignment, project: value })}
-              >
-                <SelectTrigger className="bg-gray-700 border-gray-600">
-                  <SelectValue placeholder="Select project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project} value={project}>
-                      {project}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="priority">Priority</Label>
-              <Select
-                value={newAssignment.priority}
-                onValueChange={(value) => setNewAssignment({ ...newAssignment, priority: value as Assignment["priority"] })}
-              >
-                <SelectTrigger className="bg-gray-700 border-gray-600">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={newAssignment.status}
-                onValueChange={(value) => setNewAssignment({ ...newAssignment, status: value as Assignment["status"] })}
-              >
-                <SelectTrigger className="bg-gray-700 border-gray-600">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={newAssignment.startDate}
-                onChange={(e) => setNewAssignment({ ...newAssignment, startDate: e.target.value })}
-                className="bg-gray-700 border-gray-600"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dueDate">Due Date *</Label>
-              <Input
-                id="dueDate"
-                type="date"
-                value={newAssignment.dueDate}
-                onChange={(e) => setNewAssignment({ ...newAssignment, dueDate: e.target.value })}
-                className="bg-gray-700 border-gray-600"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="estimatedHours">Estimated Hours</Label>
-              <Input
-                id="estimatedHours"
-                type="number"
-                value={newAssignment.estimatedHours}
-                onChange={(e) => setNewAssignment({ ...newAssignment, estimatedHours: parseFloat(e.target.value) })}
-                className="bg-gray-700 border-gray-600"
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="progress">Progress (%)</Label>
-              <Input
-                id="progress"
-                type="number"
-                min="0"
-                max="100"
-                value={newAssignment.progress}
-                onChange={(e) => setNewAssignment({ ...newAssignment, progress: parseFloat(e.target.value) })}
-                className="bg-gray-700 border-gray-600"
-                placeholder="0"
-              />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Due Date</Label>
+                <Input
+                  type="date"
+                  value={newAssignment.dueDate}
+                  onChange={(e) => setNewAssignment({ ...newAssignment, dueDate: e.target.value })}
+                  className="bg-gray-800 border-gray-700"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Estimated Hours</Label>
+                <Input
+                  type="number"
+                  value={newAssignment.estimatedHours}
+                  onChange={(e) => setNewAssignment({ ...newAssignment, estimatedHours: Number(e.target.value) })}
+                  className="bg-gray-800 border-gray-700"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddAssignment} className="bg-emerald-600 hover:bg-emerald-700">
-              Create Assignment
-            </Button>
+            <Button variant="ghost" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddAssignment} className="bg-emerald-600 hover:bg-emerald-700">Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 2. Reassign Modal */}
+      <Dialog open={isReassignOpen} onOpenChange={setIsReassignOpen}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white">
+          <DialogHeader>
+            <DialogTitle>Reassign Task</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Select New Assignee</Label>
+            <Select onValueChange={handleReassign}>
+              <SelectTrigger className="mt-2 bg-gray-800 border-gray-700">
+                <SelectValue placeholder="Choose staff member" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                {teamMembers.map(m => (
+                  <SelectItem key={m.uid} value={m.uid}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 3. Update Progress Modal */}
+      <Dialog open={isUpdateProgressOpen} onOpenChange={setIsUpdateProgressOpen}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white">
+          <DialogHeader>
+            <DialogTitle>Update Progress: {selectedAssignment?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="py-6 space-y-6">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Current Progress</span>
+              <span className="text-2xl font-bold text-emerald-500">{progressUpdateValue}%</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={progressUpdateValue}
+              onChange={(e) => setProgressUpdateValue(Number(e.target.value))}
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+            />
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>0% (Pending)</span>
+              <span>50% (In Progress)</span>
+              <span>100% (Completed)</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleUpdateProgress} className="bg-emerald-600 hover:bg-emerald-700 w-full">Save Progress</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
