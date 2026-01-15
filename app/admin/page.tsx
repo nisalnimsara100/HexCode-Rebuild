@@ -15,7 +15,7 @@ export default function AdminPage() {
       router.push("/admin/login")
       return
     }
-    
+
     // If authenticated but not admin, redirect to unauthorized
     if (userProfile.role !== "admin") {
       router.push("/unauthorized")

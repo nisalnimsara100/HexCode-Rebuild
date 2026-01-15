@@ -102,6 +102,7 @@ export function StaffProjectManagement() {
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState<TeamMember[]>([]);
   const [teams, setTeams] = useState<{ id: string, name: string, members: string[] }[]>([]);
+  const [hideBudget, setHideBudget] = useState(false); // New State
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -125,6 +126,12 @@ export function StaffProjectManagement() {
 
   // Fetch Projects & Staff
   useEffect(() => {
+    // 0. Fetch Settings
+    const settingsRef = ref(database, 'settings/staffSystem/hideBudget');
+    onValue(settingsRef, (snapshot) => {
+      setHideBudget(snapshot.exists() ? snapshot.val() : false);
+    });
+
     // 1. Fetch Staff List for assignment
     const usersRef = ref(database, 'users');
     const unsubscribeUsers = onValue(usersRef, (snapshot) => {
@@ -359,12 +366,14 @@ export function StaffProjectManagement() {
                   <Calendar className="w-4 h-4 text-gray-500" />
                   <span className="text-xs">{project.startDate || 'TBD'} - {project.endDate || 'TBD'}</span>
                 </div>
-                <div className="flex items-center gap-2 justify-end">
-                  <span className="text-xs font-bold text-green-500">LKR</span>
-                  <span className="text-white font-medium">
-                    {project.budget ? project.budget.replace(/[^0-9,.]/g, '') : '0'}
-                  </span>
-                </div>
+                {!hideBudget && (
+                  <div className="flex items-center gap-2 justify-end">
+                    <span className="text-xs font-bold text-green-500">LKR</span>
+                    <span className="text-white font-medium">
+                      {project.budget ? project.budget.replace(/[^0-9,.]/g, '') : '0'}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 col-span-2">
                   <Briefcase className="w-4 h-4 text-gray-500" />
                   <span>Client: <span className="text-gray-300">{project.clientName || 'Internal'}</span></span>
@@ -449,15 +458,17 @@ export function StaffProjectManagement() {
                   className="bg-gray-800 border-gray-700"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Budget</Label>
-                <Input
-                  value={formData.budget}
-                  onChange={e => setFormData({ ...formData, budget: e.target.value })}
-                  className="bg-gray-800 border-gray-700"
-                  placeholder="$5,000"
-                />
-              </div>
+              {!hideBudget && (
+                <div className="space-y-2">
+                  <Label>Budget</Label>
+                  <Input
+                    value={formData.budget}
+                    onChange={e => setFormData({ ...formData, budget: e.target.value })}
+                    className="bg-gray-800 border-gray-700"
+                    placeholder="$5,000"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Start Date</Label>
@@ -659,10 +670,12 @@ export function StaffProjectManagement() {
                 <p className="text-xs text-gray-500 mb-1">Client</p>
                 <p className="font-medium text-white truncate" title={viewProject?.clientName}>{viewProject?.clientName || "Internal"}</p>
               </div>
-              <div className="p-3 bg-gray-800/30 rounded border border-gray-700/30">
-                <p className="text-xs text-gray-500 mb-1">Budget</p>
-                <p className="font-medium text-green-400">{viewProject?.budget || "N/A"}</p>
-              </div>
+              {!hideBudget && (
+                <div className="p-3 bg-gray-800/30 rounded border border-gray-700/30">
+                  <p className="text-xs text-gray-500 mb-1">Budget</p>
+                  <p className="font-medium text-green-400">{viewProject?.budget || "N/A"}</p>
+                </div>
+              )}
               <div className="p-3 bg-gray-800/30 rounded border border-gray-700/30">
                 <p className="text-xs text-gray-500 mb-1">Start Date</p>
                 <p className="font-medium text-white">{viewProject?.startDate || "TBD"}</p>

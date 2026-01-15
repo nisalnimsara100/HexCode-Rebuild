@@ -69,7 +69,7 @@ interface Ticket {
   id: string
   title: string
   description: string
-  status: 'open' | 'in-progress' | 'review' | 'closed'
+  status: 'open' | 'in-progress' | 'review' | 'closed' | 'planning' | 'available' | 'completed'
   priority: 'low' | 'medium' | 'high' | 'critical'
   assignee?: string
   assigneeEmail?: string
@@ -100,6 +100,15 @@ interface Project {
     status: 'completed' | 'in-progress' | 'pending'
     date: string
   }>
+}
+
+interface Task {
+  id: string
+  title: string
+  status: 'todo' | 'in-progress' | 'review' | 'completed'
+  priority: 'low' | 'medium' | 'high' | 'critical'
+  assignedTo: string[]
+  dueDate?: string
 }
 
 interface ServiceItem {
@@ -152,6 +161,7 @@ export function AdminDashboard() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
 
   // Website Management Data
   const [services, setServices] = useState<ServiceItem[]>([
@@ -224,7 +234,7 @@ export function AdminDashboard() {
     })
 
     // 2. Fetch Tickets
-    const ticketsRef = ref(database, 'tickets')
+    const ticketsRef = ref(database, 'staffdashboard/tickets')
     const unsubscribeTickets = onValue(ticketsRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val()
@@ -234,8 +244,8 @@ export function AdminDashboard() {
           description: val.description,
           status: val.status,
           priority: val.priority,
-          assignee: val.assignedTo?.name,
-          assigneeEmail: val.assignedTo?.email,
+          assignee: val.assignedTo?.[0] || 'Unassigned',
+          assigneeEmail: val.assignedTo?.email, // Keep consistent if available
           reporter: val.reporter || "Admin",
           created: val.createdAt || new Date().toISOString(),
           updated: val.updatedAt || new Date().toISOString(),
@@ -276,10 +286,30 @@ export function AdminDashboard() {
       }
     })
 
+    // 4. Fetch Tasks
+    const tasksRef = ref(database, 'staffdashboard/tasks')
+    const unsubscribeTasks = onValue(tasksRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val()
+        const taskList: Task[] = Object.entries(data).map(([id, val]: [string, any]) => ({
+          id,
+          title: val.title,
+          status: val.status,
+          priority: val.priority,
+          assignedTo: val.assignedTo || [],
+          dueDate: val.dueDate
+        }))
+        setTasks(taskList)
+      } else {
+        setTasks([])
+      }
+    })
+
     return () => {
       unsubscribeUsers()
       unsubscribeTickets()
       unsubscribeProjects()
+      unsubscribeTasks()
     }
   }, [])
 
@@ -430,12 +460,12 @@ export function AdminDashboard() {
 
         {activeMainTab === 'staff' && (
           <div>
-            {activeStaffTab === 'overview' && <StaffOverview staffMembers={staffMembers} tickets={tickets} projects={projects} />}
+            {activeStaffTab === 'overview' && <StaffOverview staffMembers={staffMembers} tickets={tickets} projects={projects} tasks={tasks} onNavigate={setActiveStaffTab} />}
             {activeStaffTab === 'staff' && <StaffManagement staffMembers={staffMembers} setStaffMembers={setStaffMembers} setShowModal={setShowModal} setEditingItem={setEditingItem} />}
             {activeStaffTab === 'tickets' && <TicketSystem tickets={tickets} setTickets={setTickets} staffMembers={staffMembers} setShowModal={setShowModal} setEditingItem={setEditingItem} />}
             {activeStaffTab === 'assignments' && <TaskAssignments staffMembers={staffMembers} />}
             {activeStaffTab === 'projects' && <ProjectManagement projects={projects} setProjects={setProjects} staffMembers={staffMembers} setShowModal={setShowModal} setEditingItem={setEditingItem} />}
-            {activeStaffTab === 'reports' && <StaffReports staffMembers={staffMembers} tickets={tickets} projects={projects} />}
+            {activeStaffTab === 'reports' && <StaffReports />}
             {activeStaffTab === 'settings' && <StaffSettings />}
           </div>
         )}
@@ -517,11 +547,22 @@ export function AdminDashboard() {
 }
 
 // Staff Overview Component
-function StaffOverview({ staffMembers, tickets, projects }: { staffMembers: StaffMember[], tickets: Ticket[], projects: Project[] }) {
-  const activeStaff = staffMembers.filter(s => s.status === 'active').length
-  const openTickets = tickets.filter(t => t.status === 'open').length
-  const activeProjects = projects.filter(p => p.status === 'active').length
-  const avgWorkload = Math.round(staffMembers.reduce((acc, s) => acc + s.workload, 0) / staffMembers.length)
+function StaffOverview({ staffMembers, tickets, projects, tasks, onNavigate }: { staffMembers: StaffMember[], tickets: Ticket[], projects: Project[], tasks: Task[], onNavigate: (tab: string) => void }) {
+  const totalStaff = staffMembers.length
+  const onlineStaff = staffMembers.filter(s => s.status === 'active').length
+
+  const activeTickets = tickets.filter(t => t.status !== 'closed' && t.status !== 'completed').length
+  const pendingTickets = tickets.filter(t => !t.assignee || t.assignee === 'Unassigned').length
+
+  const completedTasks = tasks.filter(t => t.status === 'completed').length
+
+  const activeProjectsCount = projects.filter(p => p.status === 'active').length
+
+  const totalTasks = tasks.length
+  const productivity = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+  const overdueCount = tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'completed').length +
+    tickets.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'closed' && t.status !== 'completed').length
 
   return (
     <div className="space-y-6">
@@ -532,98 +573,110 @@ function StaffOverview({ staffMembers, tickets, projects }: { staffMembers: Staf
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-blue-500">
-          <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Total Staff */}
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-orange-500 relative overflow-hidden group">
+          <div className="flex justify-between items-start z-10 relative">
             <div>
-              <h3 className="text-blue-400 font-semibold">Active Staff</h3>
-              <p className="text-3xl font-bold text-white">{activeStaff}</p>
-              <p className="text-gray-400 text-sm">of {staffMembers.length} total</p>
+              <h3 className="text-orange-500 font-semibold mb-1">Total Staff</h3>
+              <p className="text-4xl font-bold text-white">{totalStaff}</p>
+              <p className="text-gray-400 text-sm mt-1">{onlineStaff} currently active</p>
             </div>
-            <Users className="w-12 h-12 text-blue-500" />
+            <div className="p-3 bg-gray-800 rounded-lg group-hover:bg-gray-700 transition-colors">
+              <Users className="w-6 h-6 text-orange-500" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-orange-500">
-          <div className="flex items-center justify-between">
+        {/* Active Tickets */}
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-blue-500 relative overflow-hidden group">
+          <div className="flex justify-between items-start z-10 relative">
             <div>
-              <h3 className="text-orange-400 font-semibold">Open Tickets</h3>
-              <p className="text-3xl font-bold text-white">{openTickets}</p>
-              <p className="text-gray-400 text-sm">Need attention</p>
+              <h3 className="text-blue-500 font-semibold mb-1">Active Tickets</h3>
+              <p className="text-4xl font-bold text-white">{activeTickets}</p>
+              <p className="text-gray-400 text-sm mt-1">{pendingTickets} pending assignment</p>
             </div>
-            <Ticket className="w-12 h-12 text-orange-500" />
+            <div className="p-3 bg-gray-800 rounded-lg group-hover:bg-gray-700 transition-colors">
+              <Ticket className="w-6 h-6 text-blue-500" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-green-500">
-          <div className="flex items-center justify-between">
+        {/* Completed Tasks */}
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-green-500 relative overflow-hidden group">
+          <div className="flex justify-between items-start z-10 relative">
             <div>
-              <h3 className="text-green-400 font-semibold">Active Projects</h3>
-              <p className="text-3xl font-bold text-white">{activeProjects}</p>
-              <p className="text-gray-400 text-sm">In progress</p>
+              <h3 className="text-green-500 font-semibold mb-1">Completed Tasks</h3>
+              <p className="text-4xl font-bold text-white">{completedTasks}</p>
+              <p className="text-gray-400 text-sm mt-1">This month</p>
             </div>
-            <FolderOpen className="w-12 h-12 text-green-500" />
+            <div className="p-3 bg-gray-800 rounded-lg group-hover:bg-gray-700 transition-colors">
+              <Activity className="w-6 h-6 text-green-500" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-purple-500">
-          <div className="flex items-center justify-between">
+        {/* Projects */}
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-purple-500 relative overflow-hidden group">
+          <div className="flex justify-between items-start z-10 relative">
             <div>
-              <h3 className="text-purple-400 font-semibold">Avg Workload</h3>
-              <p className="text-3xl font-bold text-white">{avgWorkload}%</p>
-              <p className="text-gray-400 text-sm">Team capacity</p>
+              <h3 className="text-purple-500 font-semibold mb-1">Projects</h3>
+              <p className="text-4xl font-bold text-white">{activeProjectsCount}</p>
+              <p className="text-gray-400 text-sm mt-1">In progress</p>
             </div>
-            <Activity className="w-12 h-12 text-purple-500" />
+            <div className="p-3 bg-gray-800 rounded-lg group-hover:bg-gray-700 transition-colors">
+              <FolderOpen className="w-6 h-6 text-purple-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* Productivity */}
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-yellow-500 relative overflow-hidden group">
+          <div className="flex justify-between items-start z-10 relative">
+            <div>
+              <h3 className="text-yellow-500 font-semibold mb-1">Productivity</h3>
+              <p className="text-4xl font-bold text-white">{productivity}%</p>
+              <p className="text-gray-400 text-sm mt-1">Team efficiency</p>
+            </div>
+            <div className="p-3 bg-gray-800 rounded-lg group-hover:bg-gray-700 transition-colors">
+              <TrendingUp className="w-6 h-6 text-yellow-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* Overdue */}
+        <div className="bg-gray-900 p-6 rounded-xl border-l-4 border-l-red-500 relative overflow-hidden group">
+          <div className="flex justify-between items-start z-10 relative">
+            <div>
+              <h3 className="text-red-500 font-semibold mb-1">Overdue</h3>
+              <p className="text-4xl font-bold text-white">{overdueCount}</p>
+              <p className="text-gray-400 text-sm mt-1">Tasks need attention</p>
+            </div>
+            <div className="p-3 bg-gray-800 rounded-lg group-hover:bg-gray-700 transition-colors">
+              <Clock className="w-6 h-6 text-red-500" />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-gray-900 p-6 rounded-xl">
-          <h3 className="text-xl font-bold text-white mb-4">Recent Tickets</h3>
-          <div className="space-y-3">
-            {tickets.slice(0, 5).map((ticket) => (
-              <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
-                <div>
-                  <p className="text-white font-medium">{ticket.title}</p>
-                  <p className="text-gray-400 text-sm">{ticket.assignee || 'Unassigned'}</p>
-                </div>
-                <span className={`px-2 py-1 text-xs rounded-full ${ticket.status === 'open' ? 'bg-orange-500' :
-                  ticket.status === 'in-progress' ? 'bg-blue-500' :
-                    ticket.status === 'review' ? 'bg-yellow-500' : 'bg-green-500'
-                  } text-white`}>
-                  {ticket.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-gray-900 p-6 rounded-xl">
-          <h3 className="text-xl font-bold text-white mb-4">Team Workload</h3>
-          <div className="space-y-3">
-            {staffMembers.map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
-                <div>
-                  <p className="text-white font-medium">{member.name}</p>
-                  <p className="text-gray-400 text-sm">{member.role}</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-20 bg-gray-700 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full ${member.workload >= 90 ? 'bg-red-500' :
-                        member.workload >= 70 ? 'bg-yellow-500' : 'bg-green-500'
-                        }`}
-                      style={{ width: `${member.workload}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-white text-sm">{member.workload}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Shortcuts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+        <button onClick={() => onNavigate('tickets')} className="flex items-center justify-center space-x-2 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white p-4 rounded-xl transition-all shadow-lg shadow-orange-900/20 font-medium group">
+          <Ticket className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          <span>Assign New Ticket</span>
+        </button>
+        <button onClick={() => onNavigate('staff')} className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium group">
+          <Users className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          <span>Manage Staff</span>
+        </button>
+        <button onClick={() => onNavigate('projects')} className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-500 text-white p-4 rounded-xl transition-all shadow-lg shadow-green-900/20 font-medium group">
+          <FolderOpen className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          <span>Create Project</span>
+        </button>
+        <button onClick={() => onNavigate('reports')} className="flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-500 text-white p-4 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium group">
+          <BarChart3 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          <span>View Reports</span>
+        </button>
       </div>
     </div>
   )

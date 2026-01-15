@@ -20,6 +20,7 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog"
+import { CountdownTimer } from "@/components/ui/countdown-timer"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import {
     Select,
@@ -90,6 +91,7 @@ export function StaffTaskAssignments() {
     const [tasks, setTasks] = useState<Task[]>([])
     const [projects, setProjects] = useState<Project[]>([])
     const [staffList, setStaffList] = useState<StaffMember[]>([])
+    const [teams, setTeams] = useState<{ id: string, name: string, members: string[] }[]>([])
     const [loading, setLoading] = useState(true)
 
     // Modal State
@@ -158,7 +160,22 @@ export function StaffTaskAssignments() {
             }
         })
 
-        // 3. Tasks
+        // 3. Teams
+        const teamsRef = ref(database, 'teams')
+        const unsubTeams = onValue(teamsRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val()
+                setTeams(Object.entries(data).map(([id, val]: [string, any]) => ({
+                    id,
+                    name: val.name,
+                    members: val.members || []
+                })))
+            } else {
+                setTeams([])
+            }
+        })
+
+        // 4. Tasks
         const tasksRef = ref(database, 'staffdashboard/tasks')
         const unsubTasks = onValue(tasksRef, (snapshot) => {
             if (snapshot.exists()) {
@@ -330,6 +347,20 @@ export function StaffTaskAssignments() {
         }
     }
 
+    // Toggle Team Selection
+    const toggleTeamSelection = (team: { id: string, name: string, members: string[] }) => {
+        const current = formData.assignedTo;
+        const allMembersSelected = team.members.length > 0 && team.members.every(m => current.includes(m));
+
+        if (allMembersSelected) {
+            // Remove all
+            setFormData({ ...formData, assignedTo: current.filter(id => !team.members.includes(id)) });
+        } else {
+            // Add all (deduplicate)
+            setFormData({ ...formData, assignedTo: Array.from(new Set([...current, ...team.members])) });
+        }
+    }
+
     const openEditModal = (task: Task) => {
         setSelectedTask(task)
         setFormData({
@@ -444,9 +475,18 @@ export function StaffTaskAssignments() {
                                                     <span className="text-xs text-gray-400">{task.projectName}</span>
                                                 </div>
                                             </div>
-                                            <Badge variant="outline" className={`${getStatusColor(task.status)} uppercase border ml-2`}>
-                                                {task.status}
-                                            </Badge>
+                                            {(() => {
+                                                const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'completed' && task.status !== 'overdue';
+                                                const displayStatus = isOverdue ? 'overdue' : task.status;
+                                                return (
+                                                    <Badge variant="outline" className={`${getStatusColor(displayStatus)} uppercase border ml-2`}>
+                                                        {displayStatus}
+                                                    </Badge>
+                                                )
+                                            })()}
+                                            {(task.status !== 'completed') && (
+                                                <CountdownTimer dueDate={task.dueDate} priority={task.priority} showProgress={false} size="sm" className="ml-4 min-w-[200px]" />
+                                            )}
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3 mt-4">
@@ -596,18 +636,55 @@ export function StaffTaskAssignments() {
 
                             <div className="space-y-2 col-span-2">
                                 <Label>Assign To (Multi-select)</Label>
-                                <div className="bg-gray-800 border border-gray-700 rounded-md p-2 max-h-32 overflow-y-auto grid grid-cols-2 gap-2">
-                                    {staffList.map(u => (
-                                        <div
-                                            key={u.uid}
-                                            className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors select-none ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600/20 border border-orange-600/50' : 'hover:bg-gray-700'
-                                                }`}
-                                            onClick={() => toggleStaffSelection(u.uid)}
-                                        >
-                                            <div className={`shrink-0 w-3 h-3 rounded-full border ${formData.assignedTo.includes(u.uid) ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`} />
-                                            <span className="text-sm text-gray-300 truncate">{u.name}</span>
+                                <div className="bg-gray-800 border border-gray-700 rounded-md p-2 max-h-[250px] overflow-y-auto">
+                                    {/* TEAMS */}
+                                    {teams.length > 0 && (
+                                        <div className="mb-2">
+                                            <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Teams</p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {teams.map(team => {
+                                                    const allSelected = team.members.length > 0 && team.members.every(m => formData.assignedTo.includes(m));
+                                                    return (
+                                                        <div
+                                                            key={team.id}
+                                                            className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors select-none ${allSelected ? 'bg-orange-600/20 border border-orange-600/50' : 'hover:bg-gray-700'}`}
+                                                            onClick={() => toggleTeamSelection(team)}
+                                                        >
+                                                            <div className={`shrink-0 w-3 h-3 rounded border flex items-center justify-center ${allSelected ? 'bg-orange-600 border-orange-600' : 'border-gray-500'}`}>
+                                                                {allSelected && <CheckCircle className="w-2.5 h-2.5 text-white" />}
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-sm text-gray-300 truncate font-medium">{team.name}</span>
+                                                                <span className="text-[10px] text-gray-500">{team.members.length} members</span>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                            <div className="h-px bg-gray-700 my-2"></div>
                                         </div>
-                                    ))}
+                                    )}
+
+                                    {/* STAFF */}
+                                    <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Staff Members</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {staffList.map(u => (
+                                            <div
+                                                key={u.uid}
+                                                className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors select-none ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600/20 border border-orange-600/50' : 'hover:bg-gray-700'
+                                                    }`}
+                                                onClick={() => toggleStaffSelection(u.uid)}
+                                            >
+                                                <div className={`shrink-0 w-3 h-3 rounded-full border ${formData.assignedTo.includes(u.uid) ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`} />
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden shrink-0">
+                                                        {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px]">{u.name.charAt(0)}</div>}
+                                                    </div>
+                                                    <span className="text-sm text-gray-300 truncate">{u.name}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
@@ -699,18 +776,55 @@ export function StaffTaskAssignments() {
 
                             <div className="space-y-2 col-span-2">
                                 <Label>Assign To (Multi-select)</Label>
-                                <div className="bg-gray-800 border border-gray-700 rounded-md p-2 max-h-32 overflow-y-auto grid grid-cols-2 gap-2">
-                                    {staffList.map(u => (
-                                        <div
-                                            key={u.uid}
-                                            className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors select-none ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600/20 border border-orange-600/50' : 'hover:bg-gray-700'
-                                                }`}
-                                            onClick={() => toggleStaffSelection(u.uid)}
-                                        >
-                                            <div className={`shrink-0 w-3 h-3 rounded-full border ${formData.assignedTo.includes(u.uid) ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`} />
-                                            <span className="text-sm text-gray-300 truncate">{u.name}</span>
+                                <div className="bg-gray-800 border border-gray-700 rounded-md p-2 max-h-[250px] overflow-y-auto">
+                                    {/* TEAMS */}
+                                    {teams.length > 0 && (
+                                        <div className="mb-2">
+                                            <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Teams</p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {teams.map(team => {
+                                                    const allSelected = team.members.length > 0 && team.members.every(m => formData.assignedTo.includes(m));
+                                                    return (
+                                                        <div
+                                                            key={team.id}
+                                                            className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors select-none ${allSelected ? 'bg-orange-600/20 border border-orange-600/50' : 'hover:bg-gray-700'}`}
+                                                            onClick={() => toggleTeamSelection(team)}
+                                                        >
+                                                            <div className={`shrink-0 w-3 h-3 rounded border flex items-center justify-center ${allSelected ? 'bg-orange-600 border-orange-600' : 'border-gray-500'}`}>
+                                                                {allSelected && <CheckCircle className="w-2.5 h-2.5 text-white" />}
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-sm text-gray-300 truncate font-medium">{team.name}</span>
+                                                                <span className="text-[10px] text-gray-500">{team.members.length} members</span>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                            <div className="h-px bg-gray-700 my-2"></div>
                                         </div>
-                                    ))}
+                                    )}
+
+                                    {/* STAFF */}
+                                    <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Staff Members</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {staffList.map(u => (
+                                            <div
+                                                key={u.uid}
+                                                className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors select-none ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600/20 border border-orange-600/50' : 'hover:bg-gray-700'
+                                                    }`}
+                                                onClick={() => toggleStaffSelection(u.uid)}
+                                            >
+                                                <div className={`shrink-0 w-3 h-3 rounded-full border ${formData.assignedTo.includes(u.uid) ? 'bg-orange-500 border-orange-500' : 'border-gray-500'}`} />
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden shrink-0">
+                                                        {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px]">{u.name.charAt(0)}</div>}
+                                                    </div>
+                                                    <span className="text-sm text-gray-300 truncate">{u.name}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 

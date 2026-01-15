@@ -358,7 +358,7 @@ export function StaffTicketManagement() {
                                     {ticket.status}
                                 </Badge>
                                 {(ticket.status !== 'completed' && ticket.status !== 'closed') && (
-                                    <CountdownTimer dueDate={ticket.dueDate} priority={ticket.priority} />
+                                    <CountdownTimer dueDate={ticket.dueDate} priority={ticket.priority} className="min-w-[280px] px-6" />
                                 )}
                             </div>
 
@@ -445,7 +445,7 @@ export function StaffTicketManagement() {
             </div>
 
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[500px]">
+                <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>{editingTicket ? 'Edit Ticket' : 'Create New Ticket'}</DialogTitle>
                     </DialogHeader>

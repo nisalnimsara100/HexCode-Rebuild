@@ -80,10 +80,17 @@ export function ProjectManagement() {
 
   const [viewProject, setViewProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hideBudget, setHideBudget] = useState(false); // New State
 
   // Fetch Data from Firebase
   useEffect(() => {
     setLoading(true);
+
+    // 0. Fetch Settings
+    const settingsRef = ref(database, 'settings/staffSystem/hideBudget');
+    onValue(settingsRef, (snapshot) => {
+      setHideBudget(snapshot.exists() ? snapshot.val() : false);
+    });
 
     // 1. Fetch Staff Details
     const usersRef = ref(database, 'users');
@@ -405,13 +412,15 @@ export function ProjectManagement() {
                     {project.startDate} - {project.endDate || 'TBD'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 flex items-center gap-2">
-                    <DollarSign className="h-3.5 w-3.5" />
-                    Budget
-                  </span>
-                  <span className="text-gray-300 font-medium">LKR {String(project.budget).replace(/[^0-9,.]/g, '')}</span>
-                </div>
+                {!hideBudget && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500 flex items-center gap-2">
+                      <DollarSign className="h-3.5 w-3.5" />
+                      Budget
+                    </span>
+                    <span className="text-gray-300 font-medium">LKR {String(project.budget).replace(/[^0-9,.]/g, '')}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 flex items-center gap-2">
                     <Target className="h-3.5 w-3.5" />
@@ -553,10 +562,12 @@ export function ProjectManagement() {
                 <span className="text-xs text-gray-500 block mb-1">End Date</span>
                 <span>{viewProject?.endDate || 'Dec 31, 2024'}</span>
               </div>
-              <div className="p-3 bg-gray-800 rounded border border-gray-700">
-                <span className="text-xs text-gray-500 block mb-1">Budget</span>
-                <span className="text-green-400 font-mono">LKR {String(viewProject?.budget).replace(/[^0-9,.]/g, '')}</span>
-              </div>
+              {!hideBudget && (
+                <div className="p-3 bg-gray-800 rounded border border-gray-700">
+                  <span className="text-xs text-gray-500 block mb-1">Budget</span>
+                  <span className="text-green-400 font-mono">LKR {String(viewProject?.budget).replace(/[^0-9,.]/g, '')}</span>
+                </div>
+              )}
               <div className="p-3 bg-gray-800 rounded border border-gray-700">
                 <span className="text-xs text-gray-500 block mb-1">Client</span>
                 <span>{viewProject?.clientName}</span>

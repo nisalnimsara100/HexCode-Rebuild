@@ -14,7 +14,10 @@ import { TeamManagement } from "./team-management"
 import { StaffReports } from "./staff-components" // Changed from StaffReportsPanel
 import { StaffTaskAssignments } from "./staff-task-assignments"
 import { StaffSettingsPanel } from "./staff-settings-panel"
+
 import { fetchPendingApprovalProjects, FirebaseClientProject, approveProject, rejectProject } from "@/lib/client-projects-firebase"
+import { database } from "@/lib/firebase"
+import { ref, onValue } from "firebase/database"
 import {
   BarChart3,
   Users,
@@ -51,15 +54,122 @@ import {
 } from "lucide-react"
 
 // Staff Management Components
-function StaffOverviewDashboard() {
-  const [staffStats] = useState({
-    totalStaff: 12,
-    activeTickets: 24,
-    completedTasks: 89,
-    pendingAssignments: 7,
-    onlineStaff: 8,
-    projectsInProgress: 5
+function StaffOverviewDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
+  const [staffStats, setStaffStats] = useState({
+    totalStaff: 0,
+    activeTickets: 0,
+    completedTasks: 0,
+    pendingAssignments: 0,
+    onlineStaff: 0,
+    projectsInProgress: 0,
+    productivity: 0,
+    overdue: 0
   })
+
+  // Fetch Real Data
+  useEffect(() => {
+    const fetchData = () => {
+      // 1. Staff (Users with role 'staff' or 'admin')
+      const usersRef = ref(database, 'users')
+      onValue(usersRef, (snapshot) => {
+        const data = snapshot.val() || {}
+        const staff = Object.values(data).filter((u: any) => u.role === 'staff' || u.role === 'admin')
+        // @ts-ignore
+        const online = staff.filter((u: any) => u.status === 'active').length
+
+        setStaffStats(prev => ({
+          ...prev,
+          totalStaff: staff.length,
+          onlineStaff: online
+        }))
+      })
+
+      // 2. Tickets
+      const ticketsRef = ref(database, 'staffdashboard/tickets')
+      onValue(ticketsRef, (snapshot) => {
+        const data = snapshot.val() || {}
+        const tickets = Object.values(data)
+        // @ts-ignore
+        const active = tickets.filter((t: any) => t.status !== 'closed' && t.status !== 'completed').length
+        // @ts-ignore
+        const pending = tickets.filter((t: any) => !t.assignedTo || t.assignedTo.length === 0 || t.assignedTo[0] === 'Unassigned').length
+        // @ts-ignore
+        const overdueTickets = tickets.filter((t: any) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'closed' && t.status !== 'completed').length
+
+        setStaffStats(prev => ({
+          ...prev,
+          activeTickets: active,
+          pendingAssignments: pending, // This was pending assignments count, mapping to pending tickets for now
+          overdue: (prev.overdue || 0) + overdueTickets // Will be summed with tasks later, but for now this runs async so simplistic logic might race. Better to calc all in one go or separate states.
+          // Actually, let's keep it simple. We can't easily sum async like this.
+          // Let's use individual states or just set them directly if we assume independent listeners.
+        }))
+      })
+
+      // 3. Tasks
+      const tasksRef = ref(database, 'staffdashboard/tasks')
+      onValue(tasksRef, (snapshot) => {
+        const data = snapshot.val() || {}
+        const tasks = Object.values(data)
+        // @ts-ignore
+        const completed = tasks.filter((t: any) => t.status === 'completed').length
+        const total = tasks.length
+        const productivity = total > 0 ? Math.round((completed / total) * 100) : 0
+        // @ts-ignore
+        const overdueTasks = tasks.filter((t: any) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'completed').length
+
+        setStaffStats(prev => ({
+          ...prev,
+          completedTasks: completed,
+          productivity: productivity,
+          // We need to combine overdue, but these listeners run independently.
+          // A simple way is to store them in separate refs or state and compute total.
+          // For now, let's just use tasks overdue for the tasks overdue card, or simplify.
+          // Actually, let's just make `overdue` a sum.
+          overdueTasksCount: overdueTasks
+        }))
+      })
+
+      // 4. Projects
+      const projectsRef = ref(database, 'staffdashboard/projects')
+      onValue(projectsRef, (snapshot) => {
+        const data = snapshot.val() || {}
+        const projects = Object.values(data)
+        // @ts-ignore
+        const active = projects.filter((p: any) => p.status === 'in-progress' || p.status === 'researching' || p.status === 'planning').length
+
+        setStaffStats(prev => ({
+          ...prev,
+          projectsInProgress: active
+        }))
+      })
+    }
+
+    fetchData()
+  }, [])
+
+  // Combine overdue separately since we can't easily sum inside partial updates without race conditions or complex reducers
+  // Re-implementing correctly: using distinct state variables is safer.
+  const [overdueTicketsCount, setOverdueTicketsCount] = useState(0)
+  const [overdueTasksCount, setOverdueTasksCount] = useState(0)
+
+  useEffect(() => {
+    const ticketsRef = ref(database, 'staffdashboard/tickets')
+    onValue(ticketsRef, snapshot => {
+      const data = snapshot.val() || {}
+      // @ts-ignore
+      setOverdueTicketsCount(Object.values(data).filter((t: any) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'closed').length)
+    })
+
+    const tasksRef = ref(database, 'staffdashboard/tasks')
+    onValue(tasksRef, snapshot => {
+      const data = snapshot.val() || {}
+      // @ts-ignore
+      setOverdueTasksCount(Object.values(data).filter((t: any) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'completed').length)
+    })
+  }, [])
+
+  const totalOverdue = overdueTicketsCount + overdueTasksCount
 
   return (
     <div className="space-y-6">
@@ -119,7 +229,7 @@ function StaffOverviewDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-yellow-400 font-semibold">Productivity</h3>
-              <p className="text-3xl font-bold text-white">94%</p>
+              <p className="text-3xl font-bold text-white">{staffStats.productivity}%</p>
               <p className="text-gray-400 text-sm">Team efficiency</p>
             </div>
             <TrendingUp className="w-12 h-12 text-yellow-500" />
@@ -130,7 +240,7 @@ function StaffOverviewDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-red-400 font-semibold">Overdue</h3>
-              <p className="text-3xl font-bold text-white">3</p>
+              <p className="text-3xl font-bold text-white">{totalOverdue}</p>
               <p className="text-gray-400 text-sm">Tasks need attention</p>
             </div>
             <Clock className="w-12 h-12 text-red-500" />
@@ -140,19 +250,19 @@ function StaffOverviewDashboard() {
 
       {/* Quick Actions */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <button className="bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
+        <button onClick={() => onNavigate('tickets')} className="bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
           <AlertCircle className="w-6 h-6" />
           <span className="font-medium">Assign New Ticket</span>
         </button>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
+        <button onClick={() => onNavigate('team')} className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
           <Users className="w-6 h-6" />
           <span className="font-medium">Manage Staff</span>
         </button>
-        <button className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
+        <button onClick={() => onNavigate('staff-projects')} className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
           <FolderOpen className="w-6 h-6" />
           <span className="font-medium">Create Project</span>
         </button>
-        <button className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
+        <button onClick={() => onNavigate('reports')} className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-lg flex items-center space-x-3 transition-colors">
           <BarChart3 className="w-6 h-6" />
           <span className="font-medium">View Reports</span>
         </button>
@@ -384,7 +494,7 @@ export function AdminDashboard() {
         {/* Staff Management Section */}
         {activeSection === "staff" && (
           <>
-            {activeTab === "staff-overview" && <StaffOverviewDashboard />}
+            {activeTab === "staff-overview" && <StaffOverviewDashboard onNavigate={setActiveTab} />}
             {activeTab === "tickets" && <StaffTicketManagement />}
             {activeTab === "assignments" && <StaffTaskAssignments />}
             {activeTab === "staff-projects" && <StaffProjectManagement />}

@@ -23,12 +23,12 @@ interface TimeRemaining {
   urgencyLevel: "safe" | "warning" | "urgent" | "critical" | "overdue";
 }
 
-export function CountdownTimer({ 
-  dueDate, 
-  priority, 
-  className = "", 
+export function CountdownTimer({
+  dueDate,
+  priority,
+  className = "",
   showProgress = true,
-  size = "md" 
+  size = "md"
 }: CountdownTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState<TimeRemaining>({
     days: 0,
@@ -63,7 +63,7 @@ export function CountdownTimer({
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
     let urgencyLevel: TimeRemaining["urgencyLevel"] = "safe";
-    
+
     // Determine urgency based on time left and priority
     if (days === 0) {
       if (hours < 1) {
@@ -154,7 +154,7 @@ export function CountdownTimer({
       const overdueDiff = Math.abs(new Date().getTime() - new Date(dueDate).getTime());
       const overdueHours = Math.floor(overdueDiff / (1000 * 60 * 60));
       const overdueDays = Math.floor(overdueHours / 24);
-      
+
       if (overdueDays > 0) {
         return `${overdueDays}d ${overdueHours % 24}h overdue`;
       }
@@ -172,7 +172,7 @@ export function CountdownTimer({
 
   const getProgressValue = () => {
     if (timeRemaining.isOverdue) return 100;
-    
+
     // Calculate progress based on urgency (more urgent = higher progress)
     const totalDueTime = new Date(dueDate).getTime() - new Date(dueDate).getTime() + (7 * 24 * 60 * 60 * 1000); // Assume 7 days total
     const elapsed = totalDueTime - timeRemaining.totalMs;
@@ -180,7 +180,7 @@ export function CountdownTimer({
   };
 
   const colors = getUrgencyColors();
-  
+
   const sizeClasses = {
     sm: {
       container: "p-2",
@@ -227,7 +227,7 @@ export function CountdownTimer({
               {timeRemaining.isOverdue ? 'OVERDUE' : 'Time Left'}
             </span>
           </div>
-          
+
           <Badge className={`${colors.badge} ${sizeClass.badge} font-semibold`}>
             {timeRemaining.urgencyLevel.toUpperCase()}
           </Badge>
@@ -242,11 +242,11 @@ export function CountdownTimer({
           `}>
             {formatTimeDisplay()}
           </div>
-          
+
           {size !== 'sm' && (
             <div className={`${sizeClass.text} ${colors.text} opacity-75 mt-1`}>
-              Due: {new Date(dueDate).toLocaleDateString('en-US', { 
-                month: 'short', 
+              Due: {new Date(dueDate).toLocaleDateString('en-US', {
+                month: 'short',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
@@ -280,8 +280,8 @@ export function CountdownTimer({
         {/* Progress bar */}
         {showProgress && (
           <div className="space-y-1">
-            <Progress 
-              value={getProgressValue()} 
+            <Progress
+              value={getProgressValue()}
               className="h-2 bg-gray-700"
             />
             <div className="flex justify-between text-xs opacity-75">

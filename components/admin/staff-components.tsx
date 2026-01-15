@@ -1,7 +1,7 @@
 // Staff Management Components
 
 import { useState, useEffect, useMemo } from "react"
-import { Edit, Trash2, Plus, Search, Filter, Users, Mail, Phone, AlertCircle, MoreVertical, Shield, UserMinus, UserCheck, Download, FileText, Calendar, TrendingUp, CheckCircle, Clock } from "lucide-react"
+import { Edit, Trash2, Plus, Search, Filter, Users, Mail, Phone, AlertCircle, MoreVertical, Shield, UserMinus, UserCheck, Download, FileText, Calendar, TrendingUp, CheckCircle, Clock, ClipboardList } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +39,7 @@ interface Ticket {
   id: string
   title: string
   description: string
-  status: 'open' | 'in-progress' | 'review' | 'closed'
+  status: 'open' | 'in-progress' | 'review' | 'closed' | 'planning' | 'available' | 'completed'
   priority: 'low' | 'medium' | 'high' | 'critical'
   assignee?: string
   assigneeEmail?: string
@@ -327,6 +327,9 @@ export function TicketSystem({
       case 'in-progress': return 'bg-blue-500'
       case 'review': return 'bg-yellow-500'
       case 'closed': return 'bg-green-500'
+      case 'planning': return 'bg-purple-500'
+      case 'available': return 'bg-gray-400'
+      case 'completed': return 'bg-emerald-600'
       default: return 'bg-gray-500'
     }
   }
@@ -395,6 +398,9 @@ export function TicketSystem({
               <option value="in-progress">In Progress</option>
               <option value="review">Review</option>
               <option value="closed">Closed</option>
+              <option value="planning">Planning</option>
+              <option value="available">Available</option>
+              <option value="completed">Completed</option>
             </select>
           </div>
           <div className="sm:w-48">
@@ -457,6 +463,9 @@ export function TicketSystem({
                       <option value="in-progress">In Progress</option>
                       <option value="review">Review</option>
                       <option value="closed">Closed</option>
+                      <option value="planning">Planning</option>
+                      <option value="available">Available</option>
+                      <option value="completed">Completed</option>
                     </select>
                   </td>
                   <td className="px-6 py-4">
@@ -623,6 +632,7 @@ export function StaffReports() {
   // Data States
   const [tickets, setTickets] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [selectedStaffId, setSelectedStaffId] = useState<string>("all")
 
@@ -647,7 +657,7 @@ export function StaffReports() {
     })
 
     // 2. Tickets
-    const ticketsRef = ref(database, 'tickets')
+    const ticketsRef = ref(database, 'staffdashboard/tickets')
     onValue(ticketsRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val()
@@ -667,72 +677,149 @@ export function StaffReports() {
         setProjects([])
       }
     })
+
+    // 4. Tasks (New)
+    const tasksRef = ref(database, 'staffdashboard/tasks')
+    onValue(tasksRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val()
+        const taskList = Object.entries(data).map(([id, val]: [string, any]) => {
+          // Normalize assignedTo
+          let assignedTo: string[] = []
+          if (Array.isArray(val.assignedTo)) {
+            assignedTo = val.assignedTo
+          } else if (typeof val.assignedTo === 'string' && val.assignedTo) {
+            assignedTo = [val.assignedTo]
+          }
+          return { id, ...val, assignedTo }
+        })
+        setTasks(taskList)
+      } else {
+        setTasks([])
+      }
+    })
   }, [])
 
   // Derived Data
   const reportData = useMemo(() => {
     let filteredTickets = tickets
     let filteredProjects = projects
+    let filteredTasks = tasks
 
     if (selectedStaffId !== 'all') {
-      filteredTickets = tickets.filter(t => t.assignedTo === users.find(u => u.uid === selectedStaffId)?.name)
+      const selectedUser = users.find(u => u.uid === selectedStaffId)
+      filteredTickets = tickets.filter(t => t.assignedTo === selectedUser?.name || (t.assignees && t.assignees.includes(selectedStaffId)))
       filteredProjects = projects.filter(p => p.team && p.team.includes(selectedStaffId))
+      filteredTasks = tasks.filter(t => t.assignedTo && t.assignedTo.includes(selectedStaffId))
     }
 
-    const completedTickets = filteredTickets.filter(t => t.status === 'closed').length
-    const activeTickets = filteredTickets.filter(t => t.status !== 'closed').length
-    const ticketHours = filteredTickets.reduce((acc, t) => acc + (Number(t.actualHours) || 0), 0)
-    const totalHours = ticketHours
-    const totalTasks = filteredTickets.length
-    const completionRate = totalTasks > 0 ? Math.round((completedTickets / totalTasks) * 100) : 0
-    const activeStaffCount = users.length
+    // Ticket Metrics
+    const completedTickets = filteredTickets.filter(t => t.status === 'closed' || t.status === 'completed').length
+    const ticketHours = filteredTickets.reduce((acc, t) => acc + (Number(t.estimatedHours) || 0), 0) // Using estimated as actual
+
+    // Calculate Overdue Tickets (Status not closed/completed AND Due Date < Now)
+    const now = new Date();
+    const overdueTicketsCount = filteredTickets.filter(t => {
+      if (t.status === 'closed' || t.status === 'completed') return false;
+      if (!t.dueDate) return false;
+      const due = new Date(t.dueDate);
+      return due < now;
+    }).length;
+
+    // Task Metrics
+    const completedTasks = filteredTasks.filter(t => t.status === 'completed').length
+    const totalTasks = filteredTasks.length
+
+    // Calculate Overdue Tasks (Status 'overdue' OR (Status not completed AND Due Date < Now))
+    const overdueTasksCount = filteredTasks.filter(t => {
+      if (t.status === 'overdue') return true;
+      if (t.status === 'completed') return false;
+      if (!t.dueDate) return false;
+      const due = new Date(t.dueDate);
+      return due < now;
+    }).length;
+
+    const totalOverdueItems = overdueTasksCount + overdueTicketsCount;
+    const taskCompletionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+    // Efficiency Calculation (Tasks Completed / Total Assigned)
+    const efficiency = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+    // Combined Activity Stream
+    const activityStream = [
+      ...filteredTickets.map(t => ({ type: 'ticket', ...t })),
+      ...filteredTasks.map(t => ({ type: 'task', ...t }))
+    ].sort((a, b) => new Date(b.created || b.createdAt).getTime() - new Date(a.created || a.createdAt).getTime())
 
     return {
       completedTickets,
-      activeTickets,
-      totalHours,
-      completionRate,
-      activeStaffCount,
+      ticketHours,
+      completedTasks,
+      totalTasks,
+      overdueItems: totalOverdueItems,
+      taskCompletionRate,
+      efficiency,
+      activeStaffCount: users.length,
       filteredTickets,
-      filteredProjects
+      filteredProjects,
+      filteredTasks,
+      activityStream
     }
-  }, [selectedStaffId, tickets, projects, users])
+  }, [selectedStaffId, tickets, projects, tasks, users])
 
   const generateExcelReport = () => {
     let csvContent = "data:text/csv;charset=utf-8,";
 
     if (selectedStaffId === 'all') {
-      csvContent += "Staff Name,Role,Total Tickets,Completed,Pending,Hours Logged\n";
+      // Aggregate Report for All Staff
+      csvContent += "Staff Name,Role,Department,Assigned Tasks,Completed Tasks,Completion Rate (%),Active Projects,Open Tickets\n";
       users.forEach(u => {
-        const userTickets = tickets.filter(t => t.assignedTo === u.name);
-        const completed = userTickets.filter(t => t.status === 'closed').length;
-        const pending = userTickets.length - completed;
-        const hours = userTickets.reduce((acc, t) => acc + (Number(t.actualHours) || 0), 0);
-        csvContent += `${u.name},${u.role},${userTickets.length},${completed},${pending},${hours}\n`;
+        const userTasks = tasks.filter(t => t.assignedTo && t.assignedTo.includes(u.uid));
+        const completedUserTasks = userTasks.filter(t => t.status === 'completed').length;
+        const rate = userTasks.length > 0 ? Math.round((completedUserTasks / userTasks.length) * 100) : 0;
+
+        const userProjects = projects.filter(p => p.team && p.team.includes(u.uid));
+        const userTickets = tickets.filter(t => t.assignedTo === u.name); // Legacy name match, ideally ID
+
+        csvContent += `${u.name},${u.role},${u.department},${userTasks.length},${completedUserTasks},${rate}%,${userProjects.length},${userTickets.length}\n`;
       });
       csvContent += `\nTotal Active Staff,${reportData.activeStaffCount}\n`;
     } else {
+      // Detailed Report for Selected Staff
       const staffName = users.find(u => u.uid === selectedStaffId)?.name || "Staff";
-      csvContent += `Report for: ${staffName}\n\n`;
+      csvContent += `Performance Report for: ${staffName}\n`;
+      csvContent += `Generated on: ${new Date().toLocaleDateString()}\n\n`;
+
+      csvContent += "SECTION: Performance Summary\n";
+      csvContent += `Task Completion Rate,${reportData.taskCompletionRate}%\n`;
+      csvContent += `Total Assigned Tasks,${reportData.totalTasks}\n`;
+      csvContent += `Projects Involved,${reportData.filteredProjects.length}\n\n`;
+
       csvContent += "SECTION: Active Projects\n";
-      csvContent += "Project Title,Status,Priority,Due Date\n";
+      csvContent += "Project Title,Status,Priority,Role\n";
       reportData.filteredProjects.forEach(p => {
-        csvContent += `${p.title},${p.status},${p.priority},${p.endDate}\n`;
+        csvContent += `${p.title},${p.status},${p.priority},Team Member\n`;
       });
-      csvContent += "\nSECTION: Tickets & Tasks\n";
-      csvContent += "Ticket Title,Priority,Status,Hours Logged,Due Date\n";
+
+      csvContent += "\nSECTION: Tasks & Assignments\n";
+      csvContent += "Task Title,Status,Priority,Due Date,Estimated Hours\n";
+      reportData.filteredTasks.forEach(t => {
+        csvContent += `${t.title},${t.status},${t.priority},${t.dueDate},${t.estimatedHours}\n`;
+      });
+
+      csvContent += "\nSECTION: Support Tickets\n";
+      csvContent += "Ticket Title,Status,Priority,Due Date\n";
       reportData.filteredTickets.forEach(t => {
-        csvContent += `${t.title},${t.priority},${t.status},${t.actualHours},${t.dueDate}\n`;
+        csvContent += `${t.title},${t.status},${t.priority},${t.dueDate}\n`;
       });
-      csvContent += `\nTOTALS:,${reportData.totalHours} Hours,${reportData.completedTickets} Completed Tasks\n`;
     }
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     const fileName = selectedStaffId === 'all'
-      ? `HexCode_Staff_Report_ALL_${new Date().toISOString().split('T')[0]}.csv`
-      : `HexCode_Report_${users.find(u => u.uid === selectedStaffId)?.name}_${new Date().toISOString().split('T')[0]}.csv`;
+      ? `HexCode_Team_Performance_Report_${new Date().toISOString().split('T')[0]}.csv`
+      : `HexCode_Staff_Report_${users.find(u => u.uid === selectedStaffId)?.name.replace(' ', '_')}_${new Date().toISOString().split('T')[0]}.csv`;
     link.setAttribute("download", fileName);
     document.body.appendChild(link);
     link.click();
@@ -744,7 +831,7 @@ export function StaffReports() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white">Staff Analytics & Reports</h2>
-          <p className="text-gray-400">Generate insights on team performance and productivity.</p>
+          <p className="text-gray-400"> comprehensive insights across Tasks, Projects, and Tickets.</p>
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -766,18 +853,19 @@ export function StaffReports() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-[#1a1f2e] border-gray-800 p-6 relative overflow-hidden group hover:border-blue-500/30 transition-all">
           <div className="flex items-center justify-between z-10 relative">
             <div>
-              <p className="text-sm font-medium text-gray-400">Total Hours Logged</p>
-              <h3 className="text-4xl font-bold text-white mt-2">{reportData.totalHours}h</h3>
-              <p className="text-xs text-green-400 mt-2 flex items-center">
-                <TrendingUp className="w-3 h-3 mr-1" /> Based on ticket logs
+              <p className="text-sm font-medium text-gray-400">Total Tasks</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{reportData.totalTasks}</h3>
+              <p className="text-xs text-blue-400 mt-1 flex items-center">
+                Assigned Workload
               </p>
             </div>
             <div className="p-3 bg-blue-500/10 rounded-lg">
-              <Clock className="w-8 h-8 text-blue-500" />
+              <ClipboardList className="w-6 h-6 text-blue-500" />
             </div>
           </div>
         </Card>
@@ -785,14 +873,14 @@ export function StaffReports() {
         <Card className="bg-[#1a1f2e] border-gray-800 p-6 relative overflow-hidden group hover:border-green-500/30 transition-all">
           <div className="flex items-center justify-between z-10 relative">
             <div>
-              <p className="text-sm font-medium text-gray-400">Tasks Completed</p>
-              <h3 className="text-4xl font-bold text-white mt-2">{reportData.completedTickets}</h3>
-              <p className="text-xs text-green-400 mt-2 flex items-center">
-                <CheckCircle className="w-3 h-3 mr-1" /> {reportData.completionRate}% Completion Rate
+              <p className="text-sm font-medium text-gray-400">Completion Rate</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{reportData.efficiency}%</h3>
+              <p className="text-xs text-green-400 mt-1 flex items-center">
+                <CheckCircle className="w-3 h-3 mr-1" /> Returns Success
               </p>
             </div>
             <div className="p-3 bg-green-500/10 rounded-lg">
-              <FileText className="w-8 h-8 text-green-500" />
+              <TrendingUp className="w-6 h-6 text-green-500" />
             </div>
           </div>
         </Card>
@@ -800,60 +888,107 @@ export function StaffReports() {
         <Card className="bg-[#1a1f2e] border-gray-800 p-6 relative overflow-hidden group hover:border-purple-500/30 transition-all">
           <div className="flex items-center justify-between z-10 relative">
             <div>
-              <p className="text-sm font-medium text-gray-400">Active Staff</p>
-              <h3 className="text-4xl font-bold text-white mt-2">{selectedStaffId === 'all' ? reportData.activeStaffCount : 1}</h3>
-              <p className="text-xs text-purple-400 mt-2">
-                {selectedStaffId === 'all' ? 'Full Capacity' : 'Selected User'}
+              <p className="text-sm font-medium text-gray-400">Active Projects</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{reportData.filteredProjects.length}</h3>
+              <p className="text-xs text-purple-400 mt-1">
+                Currently Involved
               </p>
             </div>
             <div className="p-3 bg-purple-500/10 rounded-lg">
-              <Users className="w-8 h-8 text-purple-500" />
+              <Users className="w-6 h-6 text-purple-500" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="bg-[#1a1f2e] border-gray-800 p-6 relative overflow-hidden group hover:border-red-500/30 transition-all">
+          <div className="flex items-center justify-between z-10 relative">
+            <div>
+              <p className="text-sm font-medium text-gray-400">Overdue Items</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{reportData.overdueItems}</h3>
+              <p className="text-xs text-red-400 mt-1">
+                Needs Attention
+              </p>
+            </div>
+            <div className="p-3 bg-red-500/10 rounded-lg">
+              <AlertCircle className="w-6 h-6 text-red-500" />
             </div>
           </div>
         </Card>
       </div>
 
-      <Card className="bg-[#1a1f2e] border-gray-800 p-6">
-        <h3 className="text-lg font-bold text-white mb-4">
-          {selectedStaffId === 'all' ? 'Recent Global Activity' : 'User Activity Log'}
-        </h3>
-        <div className="space-y-4">
-          {reportData.filteredTickets.slice(0, 5).map(ticket => (
-            <div key={ticket.id} className="flex justify-between items-center p-4 bg-gray-900/50 rounded-lg border border-gray-800 hover:border-gray-700 transition-all">
-              <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-full ${ticket.priority === 'critical' ? 'bg-red-500/20 text-red-500' :
-                  ticket.priority === 'high' ? 'bg-orange-500/20 text-orange-500' :
-                    ticket.priority === 'medium' ? 'bg-blue-500/20 text-blue-500' :
-                      'bg-gray-500/20 text-gray-500'
-                  }`}>
-                  <AlertCircle className="w-4 h-4" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Activity Stream */}
+        <Card className="bg-[#1a1f2e] border-gray-800 p-6">
+          <h3 className="text-lg font-bold text-white mb-4">
+            {selectedStaffId === 'all' ? 'Recent Team Activity' : 'Recent User Activity'}
+          </h3>
+          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+            {reportData.activityStream.slice(0, 10).map((item: any) => (
+              <div key={item.id} className="flex justify-between items-center p-4 bg-gray-900/50 rounded-lg border border-gray-800 hover:border-gray-700 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className={`p-2 rounded-full ${item.type === 'ticket' ? 'bg-blue-500/20 text-blue-500' : 'bg-orange-500/20 text-orange-500'
+                    }`}>
+                    {item.type === 'ticket' ? <Mail className="w-4 h-4" /> : <ClipboardList className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <p className="font-medium text-white line-clamp-1">{item.title}</p>
+                    <p className="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
+                      <span className="capitalize">{item.type}</span>
+                      <span className="w-1 h-1 bg-gray-600 rounded-full" />
+                      <span>Due: {item.dueDate || 'N/A'}</span>
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-white">{ticket.title}</p>
-                  <p className="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
-                    <span>Due: {ticket.dueDate || 'N/A'}</span>
-                    <span className="w-1 h-1 bg-gray-600 rounded-full" />
-                    <span>{Number(ticket.actualHours)}h logged</span>
-                  </p>
+                <div className="flex items-center">
+                  <span className={`text-xs px-2.5 py-1 rounded-full capitalize font-medium ${item.status === 'completed' || item.status === 'closed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                    item.status === 'in-progress' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                      item.status === 'overdue' || item.status === 'critical' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                        'bg-gray-500/10 text-gray-400 border border-gray-500/20'
+                    }`}>
+                    {item.status}
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center">
-                <span className={`text-xs px-2.5 py-1 rounded-full capitalize font-medium ${ticket.status === 'closed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
-                  ticket.status === 'open' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                    'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-                  }`}>
-                  {ticket.status}
-                </span>
+            ))}
+            {reportData.activityStream.length === 0 && (
+              <div className="text-center py-10">
+                <p className="text-gray-500">No recent activity found.</p>
               </div>
-            </div>
-          ))}
-          {reportData.filteredTickets.length === 0 && (
-            <div className="text-center py-10">
-              <p className="text-gray-500">No activity data available.</p>
-            </div>
-          )}
-        </div>
-      </Card>
+            )}
+          </div>
+        </Card>
+
+        {/* Project Involvement */}
+        <Card className="bg-[#1a1f2e] border-gray-800 p-6">
+          <h3 className="text-lg font-bold text-white mb-4">Active Projects</h3>
+          <div className="space-y-4">
+            {reportData.filteredProjects.length === 0 ? (
+              <p className="text-gray-500">No active projects.</p>
+            ) : (
+              reportData.filteredProjects.map((p: any) => (
+                <div key={p.id} className="p-4 bg-gray-900/50 border border-gray-800 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-medium text-white">{p.title}</h4>
+                    <span className={`text-xs px-2 py-0.5 rounded border capitalize ${p.priority === 'critical' ? 'text-red-400 border-red-500/30 bg-red-500/10' :
+                      p.priority === 'high' ? 'text-orange-400 border-orange-500/30 bg-orange-500/10' :
+                        'text-blue-400 border-blue-500/30 bg-blue-500/10'
+                      }`}>{p.priority}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>Progress</span>
+                      <span>{p.progress}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-orange-500" style={{ width: `${p.progress}%` }} />
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }
