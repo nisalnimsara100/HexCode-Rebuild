@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { CountdownTimer } from "@/components/ui/countdown-timer";
-import { db } from "@/lib/firebase";
 import { 
   collection, 
   addDoc, 
@@ -52,6 +51,7 @@ import {
   List,
   Grid3X3,
   Flag,
+  Briefcase,
 } from "lucide-react";
 
 interface TicketItem {
@@ -66,6 +66,7 @@ interface TicketItem {
     name: string;
     avatar?: string;
     email: string;
+    team: string; // Added team property
   };
   reporter: {
     id: string;
@@ -144,31 +145,36 @@ export function TicketSystem() {
       id: "1",
       name: "John Smith",
       avatar: "/placeholder-user.jpg",
-      email: "john@company.com"
+      email: "john@company.com",
+      team: "Engineering"
     },
     {
       id: "2", 
       name: "Sarah Johnson",
       avatar: "/placeholder-user.jpg",
-      email: "sarah@company.com"
+      email: "sarah@company.com",
+      team: "Product"
     },
     {
       id: "3",
       name: "Mike Davis", 
       avatar: "/placeholder-user.jpg",
-      email: "mike@company.com"
+      email: "mike@company.com",
+      team: "Design"
     },
     {
       id: "4",
       name: "Emily Chen",
       avatar: "/placeholder-user.jpg", 
-      email: "emily@company.com"
+      email: "emily@company.com",
+      team: "Engineering"
     },
     {
       id: "5",
       name: "Alex Rodriguez",
       avatar: "/placeholder-user.jpg",
-      email: "alex@company.com"
+      email: "alex@company.com",
+      team: "DevOps"
     },
   ];
 
@@ -193,6 +199,19 @@ export function TicketSystem() {
     "Easy Fix",
     "Needs Review",
   ];
+
+  // Calculate Workload based on tickets
+  const getMemberWorkload = (memberId: string) => {
+    const memberTickets = tickets.filter(t => t.assignedTo.id === memberId);
+    // Calculate workload based on estimated hours assuming 40h work week
+    const totalHours = memberTickets.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
+    const percentage = Math.min((totalHours / 40) * 100, 100); 
+    return {
+      hours: totalHours,
+      percentage: Math.round(percentage),
+      ticketCount: memberTickets.length
+    };
+  };
 
   useEffect(() => {
     fetchTickets();
@@ -241,21 +260,22 @@ export function TicketSystem() {
       // });
       // return unsubscribe;
 
-      // Mock data for now
+      // Mock data updated to match the provided images
       await new Promise((resolve) => setTimeout(resolve, 1000));
       const mockTickets: TicketItem[] = [
         {
           id: "1",
-          title: "Fix login authentication bug",
+          title: "Fix responsive design issues on mobile",
           description: "Users are unable to log in with correct credentials. Error appears to be related to JWT token validation.",
-          status: "in-progress",
-          priority: "critical",
+          status: "open",
+          priority: "high",
           category: "Bug Fix",
           assignedTo: {
             id: "1",
             name: "John Smith",
             avatar: "/placeholder-user.jpg",
-            email: "john@company.com"
+            email: "john@company.com",
+            team: "Engineering"
           },
           reporter: {
             id: "2",
@@ -263,40 +283,16 @@ export function TicketSystem() {
             avatar: "/placeholder-user.jpg",
             email: "sarah@company.com"
           },
-          createdDate: "2024-01-15T10:30:00Z",
-          dueDate: "2024-01-18T17:00:00Z",
-          estimatedHours: 8,
-          actualHours: 4,
-          timeSpent: 14400, // 4 hours in seconds
-          isTimerRunning: true,
-          timerStartTime: new Date(Date.now() - 3600000).toISOString(), // Started 1 hour ago
+          createdDate: "2025-09-01T10:30:00Z",
+          dueDate: "2025-10-05T17:00:00Z", // Overdue as per image
+          estimatedHours: 16,
+          actualHours: 0,
+          timeSpent: 14400, 
+          isTimerRunning: false,
           watchers: ["3", "4"],
-          tags: ["Backend", "Critical", "API"],
+          tags: ["Frontend", "Critical", "Mobile"],
           attachments: [],
-          comments: [
-            {
-              id: "1",
-              author: {
-                id: "1",
-                name: "John Smith",
-                avatar: "/placeholder-user.jpg"
-              },
-              content: "Started investigating the issue. Looks like it's related to token expiration.",
-              timestamp: "2024-01-15T11:00:00Z",
-              type: "comment"
-            },
-            {
-              id: "2",
-              author: {
-                id: "2", 
-                name: "Sarah Johnson",
-                avatar: "/placeholder-user.jpg"
-              },
-              content: "Changed status from Open to In Progress",
-              timestamp: "2024-01-15T11:15:00Z",
-              type: "status_change"
-            }
-          ]
+          comments: []
         },
         {
           id: "2",
@@ -309,7 +305,8 @@ export function TicketSystem() {
             id: "4",
             name: "Emily Chen",
             avatar: "/placeholder-user.jpg",
-            email: "emily@company.com"
+            email: "emily@company.com",
+            team: "Engineering"
           },
           reporter: {
             id: "3",
@@ -318,9 +315,9 @@ export function TicketSystem() {
             email: "mike@company.com"
           },
           createdDate: "2024-01-14T14:20:00Z",
-          dueDate: "2024-01-25T17:00:00Z",
+          dueDate: "2024-01-25T22:30:00Z", // Overdue as per image logic
           estimatedHours: 6,
-          actualHours: 0,
+          actualHours: 2,
           timeSpent: 0,
           isTimerRunning: false,
           watchers: ["1", "2"],
@@ -332,14 +329,15 @@ export function TicketSystem() {
           id: "3",
           title: "Database performance optimization",
           description: "Optimize slow-running queries in the reports module. Current response time is >3 seconds.",
-          status: "review",
+          status: "open", // Image shows OVERDUE, usually mapped to open status but visually indicated
           priority: "high",
           category: "Enhancement",
           assignedTo: {
             id: "5",
             name: "Alex Rodriguez",
             avatar: "/placeholder-user.jpg",
-            email: "alex@company.com"
+            email: "alex@company.com",
+            team: "DevOps"
           },
           reporter: {
             id: "1",
@@ -348,27 +346,15 @@ export function TicketSystem() {
             email: "john@company.com"
           },
           createdDate: "2024-01-10T09:15:00Z",
-          dueDate: "2024-01-20T17:00:00Z",
+          dueDate: "2024-01-20T22:30:00Z", // Overdue
           estimatedHours: 12,
           actualHours: 10,
-          timeSpent: 36000, // 10 hours in seconds
+          timeSpent: 36000,
           isTimerRunning: false,
           watchers: ["2", "3"],
           tags: ["Database", "Backend", "Needs Review"],
           attachments: [],
-          comments: [
-            {
-              id: "3",
-              author: {
-                id: "5",
-                name: "Alex Rodriguez",
-                avatar: "/placeholder-user.jpg"
-              },
-              content: "Completed initial optimization. Ready for code review.",
-              timestamp: "2024-01-13T16:30:00Z",
-              type: "comment"
-            }
-          ]
+          comments: []
         }
       ];
       setTickets(mockTickets);
@@ -412,6 +398,8 @@ export function TicketSystem() {
       return;
     }
 
+    const member = teamMembers.find(m => m.id === newTicket.assignedTo?.id);
+
     const ticket: TicketItem = {
       id: Date.now().toString(),
       title: newTicket.title!,
@@ -419,7 +407,10 @@ export function TicketSystem() {
       status: (newTicket.status as TicketItem["status"]) || "open",
       priority: (newTicket.priority as TicketItem["priority"]) || "medium",
       category: newTicket.category || "General",
-      assignedTo: newTicket.assignedTo!,
+      assignedTo: {
+        ...newTicket.assignedTo!,
+        team: member?.team || "General"
+      },
       reporter: {
         id: "current-user",
         name: "Current User",
@@ -443,13 +434,6 @@ export function TicketSystem() {
     };
 
     try {
-      // In real implementation, save to Firebase
-      // await addDoc(collection(db, "tickets"), {
-      //   ...ticket,
-      //   createdDate: Timestamp.fromDate(new Date()),
-      //   dueDate: Timestamp.fromDate(new Date(ticket.dueDate)),
-      // });
-      
       setTickets([...tickets, ticket]);
       setIsAddModalOpen(false);
       resetNewTicket();
@@ -479,9 +463,6 @@ export function TicketSystem() {
   const handleDeleteTicket = async (id: string) => {
     if (confirm("Are you sure you want to delete this ticket?")) {
       try {
-        // In real implementation, delete from Firebase
-        // await deleteDoc(doc(db, "tickets", id));
-        
         setTickets(tickets.filter((ticket) => ticket.id !== id));
       } catch (error) {
         console.error("Error deleting ticket:", error);
@@ -500,13 +481,6 @@ export function TicketSystem() {
         timerStartTime: !ticket.isTimerRunning ? new Date().toISOString() : undefined,
         timeSpent: ticket.isTimerRunning ? timers[ticketId] || ticket.timeSpent : ticket.timeSpent
       };
-
-      // In real implementation, update Firebase
-      // await updateDoc(doc(db, "tickets", ticketId), {
-      //   isTimerRunning: updatedTicket.isTimerRunning,
-      //   timerStartTime: updatedTicket.timerStartTime,
-      //   timeSpent: updatedTicket.timeSpent,
-      // });
 
       setTickets(tickets.map(t => t.id === ticketId ? updatedTicket : t));
     } catch (error) {
@@ -530,7 +504,6 @@ export function TicketSystem() {
     };
 
     try {
-      // In real implementation, update Firebase
       const updatedTickets = tickets.map(ticket => 
         ticket.id === ticketId 
           ? { ...ticket, comments: [...ticket.comments, comment] }
@@ -611,28 +584,26 @@ export function TicketSystem() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getTimeRemaining = (dueDate: string) => {
+  const getOverdueDetails = (dueDate: string) => {
     const now = new Date();
     const due = new Date(dueDate);
     const diffMs = due.getTime() - now.getTime();
     
-    if (diffMs <= 0) {
-      return { text: "Overdue", color: "text-red-500", urgent: true };
+    if (diffMs > 0) {
+       // Future dates handled by CountdownTimer usually, but returning null here
+       return null; 
     }
+
+    // Overdue calculation
+    const diffAbs = Math.abs(diffMs);
+    const diffDays = Math.floor(diffAbs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor((diffAbs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-    
-    if (diffDays > 1) {
-      return { text: `${diffDays} days left`, color: "text-gray-500", urgent: false };
-    } else if (diffHours > 24) {
-      return { text: "1 day left", color: "text-yellow-500", urgent: false };
-    } else if (diffHours > 1) {
-      return { text: `${diffHours} hours left`, color: "text-orange-500", urgent: true };
-    } else {
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      return { text: `${diffMinutes} minutes left`, color: "text-red-500", urgent: true };
-    }
+    return {
+      text: `${diffDays}d ${diffHours}h overdue`,
+      color: "text-red-500 font-semibold",
+      isOverdue: true
+    };
   };
 
   if (loading) {
@@ -648,7 +619,7 @@ export function TicketSystem() {
 
   return (
     <div className="space-y-8">
-      {/* Header - Mobile Responsive */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="min-w-0 flex-1">
           <h2 className="text-2xl font-bold leading-7 text-white sm:text-3xl sm:tracking-tight">
@@ -742,7 +713,57 @@ export function TicketSystem() {
         </Card>
       </div>
 
-      {/* Filters - Mobile Responsive */}
+      {/* Staff Workload Overview (Added based on Image 1) */}
+      <Card className="bg-gray-800 border-gray-700">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white flex items-center">
+              <Users className="h-5 w-5 mr-2 text-emerald-400" />
+              Staff Workload Overview
+            </h3>
+            <Button size="sm" variant="outline" className="border-gray-600 text-gray-300">
+              <Briefcase className="h-4 w-4 mr-2" />
+              Manage Teams
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {teamMembers.map((member) => {
+              const workload = getMemberWorkload(member.id);
+              return (
+                <div key={member.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600 hover:border-gray-500 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={member.avatar} />
+                        <AvatarFallback className="text-xs">{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{member.name}</p>
+                        <p className="text-xs text-gray-400">{member.team}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">Workload</span>
+                      <span className={`font-medium ${workload.percentage > 90 ? 'text-red-400' : workload.percentage > 70 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                        {workload.percentage}%
+                      </span>
+                    </div>
+                    <Progress value={workload.percentage} className="h-1.5" />
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>{workload.ticketCount} Tasks</span>
+                      <span>{workload.hours}h Est.</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      {/* Filters */}
       <Card className="bg-gray-800 border-gray-700">
         <div className="p-4 sm:p-6">
           <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -814,13 +835,12 @@ export function TicketSystem() {
       <div className="space-y-4">
         {filteredTickets.map((ticket) => {
           const currentTime = timers[ticket.id] || ticket.timeSpent;
+          const overdueDetails = getOverdueDetails(ticket.dueDate);
           
           return (
             <Card key={ticket.id} className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-all duration-200 overflow-hidden">
               <div className="p-4 sm:p-6">
-                {/* Mobile-first layout */}
                 <div className="space-y-4">
-                  {/* Header section - mobile optimized */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -847,7 +867,6 @@ export function TicketSystem() {
                       <p className="text-gray-400 text-sm sm:text-base mb-3 line-clamp-2">{ticket.description}</p>
                     </div>
                     
-                    {/* Action buttons - mobile optimized */}
                     <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
                       <Button
                         variant="ghost"
@@ -895,18 +914,26 @@ export function TicketSystem() {
                     </div>
                   </div>
 
-                  {/* Countdown Timer - Prominent Display */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="lg:col-span-2">
-                      <CountdownTimer 
-                        dueDate={ticket.dueDate}
-                        priority={ticket.priority}
-                        size="md"
-                        className="w-full"
-                      />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-gray-400 uppercase font-semibold tracking-wide">Time Remaining</span>
+                        <div className="flex items-center justify-between">
+                            <CountdownTimer 
+                            dueDate={ticket.dueDate}
+                            priority={ticket.priority}
+                            size="md"
+                            className="w-full"
+                            />
+                            {overdueDetails && (
+                                <span className={`text-sm ${overdueDetails.color} ml-2`}>
+                                    {overdueDetails.text}
+                                </span>
+                            )}
+                        </div>
+                      </div>
                     </div>
                     
-                    {/* Quick info panel */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-400">Time Spent</span>
@@ -925,7 +952,6 @@ export function TicketSystem() {
                     </div>
                   </div>
                   
-                  {/* Details section - responsive grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                     <div className="flex items-center text-gray-400">
                       <User className="h-4 w-4 mr-2 shrink-0" />
@@ -934,7 +960,10 @@ export function TicketSystem() {
                           <AvatarImage src={ticket.assignedTo.avatar} />
                           <AvatarFallback className="text-xs">{ticket.assignedTo.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                         </Avatar>
-                        <span className="truncate">{ticket.assignedTo.name}</span>
+                        <div className="min-w-0">
+                            <span className="block truncate text-white">{ticket.assignedTo.name}</span>
+                            <span className="block truncate text-xs text-gray-500">{ticket.assignedTo.team}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center text-gray-400">
@@ -996,7 +1025,7 @@ export function TicketSystem() {
                 <SelectContent>
                   {teamMembers.map((member) => (
                     <SelectItem key={member.id} value={member.id}>
-                      {member.name}
+                      {member.name} ({member.team})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1184,12 +1213,12 @@ export function TicketSystem() {
 
       {/* View Ticket Modal */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
           {selectedTicket && (
             <>
               <DialogHeader>
                 <div className="flex items-center justify-between">
-                  <DialogTitle className="text-xl">{selectedTicket.title}</DialogTitle>
+                  <DialogTitle className="text-xl pr-8">{selectedTicket.title}</DialogTitle>
                   <div className="flex items-center space-x-2">
                     <Badge className={getStatusColor(selectedTicket.status)}>
                       {selectedTicket.status.charAt(0).toUpperCase() + selectedTicket.status.slice(1).replace('-', ' ')}
@@ -1210,7 +1239,7 @@ export function TicketSystem() {
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <h4 className="text-sm font-medium text-gray-400 mb-2">Assigned To</h4>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3">
                       <Avatar>
                         <AvatarImage src={selectedTicket.assignedTo.avatar} />
                         <AvatarFallback>
@@ -1219,14 +1248,14 @@ export function TicketSystem() {
                       </Avatar>
                       <div>
                         <p className="text-white font-medium">{selectedTicket.assignedTo.name}</p>
-                        <p className="text-sm text-gray-400">{selectedTicket.assignedTo.email}</p>
+                        <p className="text-sm text-gray-400">{selectedTicket.assignedTo.team} • {selectedTicket.assignedTo.email}</p>
                       </div>
                     </div>
                   </div>
                   
                   <div>
                     <h4 className="text-sm font-medium text-gray-400 mb-2">Reporter</h4>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3">
                       <Avatar>
                         <AvatarImage src={selectedTicket.reporter.avatar} />
                         <AvatarFallback>
@@ -1255,6 +1284,57 @@ export function TicketSystem() {
                     <p className="text-white">{selectedTicket.estimatedHours}h</p>
                   </div>
                 </div>
+
+                {/* Admin Details Section */}
+                {(selectedTicket.adminNotes || selectedTicket.extraTimeAdded || (selectedTicket.ruralSituations && selectedTicket.ruralSituations.length > 0)) && (
+                  <>
+                    <Separator className="bg-gray-700" />
+                    <div className="space-y-4 bg-gray-700/30 p-4 rounded-lg border border-gray-700">
+                      <h4 className="text-sm font-semibold text-emerald-400 flex items-center">
+                        <Zap className="h-4 w-4 mr-2" />
+                        Admin & Extensions
+                      </h4>
+                      
+                      {selectedTicket.adminNotes && (
+                        <div>
+                          <span className="text-xs text-gray-400 uppercase font-semibold">Admin Notes</span>
+                          <p className="text-sm text-gray-300 mt-1 bg-gray-800 p-2 rounded">{selectedTicket.adminNotes}</p>
+                        </div>
+                      )}
+                      
+                      {(selectedTicket.extraTimeAdded || selectedTicket.extraTimeReason) && (
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                           <div className="bg-blue-900/30 border border-blue-700/50 rounded px-3 py-1">
+                              <span className="text-xs text-blue-300">+{selectedTicket.extraTimeAdded}h Extra Time</span>
+                           </div>
+                           {selectedTicket.extraTimeReason && (
+                             <span className="text-sm text-gray-400 italic">"{selectedTicket.extraTimeReason}"</span>
+                           )}
+                        </div>
+                      )}
+
+                      {selectedTicket.ruralSituations && selectedTicket.ruralSituations.length > 0 && (
+                        <div>
+                          <span className="text-xs text-gray-400 uppercase font-semibold block mb-2">Rural Situations</span>
+                          <div className="space-y-2">
+                            {selectedTicket.ruralSituations.map((situation, index) => (
+                              <div key={index} className="flex items-center justify-between text-sm bg-yellow-900/20 border border-yellow-700/30 p-2 rounded">
+                                <span className="text-yellow-200/80">
+                                  {situation.type === 'electricity' ? '⚡' : 
+                                   situation.type === 'internet' ? '🌐' : 
+                                   situation.type === 'weather' ? '🌧️' : 
+                                   situation.type === 'transport' ? '🚌' : '📋'} 
+                                  {situation.description}
+                                </span>
+                                <span className="text-xs text-yellow-500">+{situation.timeExtension}h</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <Separator className="bg-gray-700" />
 
