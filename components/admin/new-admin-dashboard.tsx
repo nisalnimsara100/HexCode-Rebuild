@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-context"
+import { database } from "@/lib/firebase"
+import { ref, onValue } from "firebase/database"
 import { StaffManagement, TicketSystem, TaskAssignments, ProjectManagement, StaffReports, StaffSettings } from "./staff-components"
 import { WebsiteOverview, ServicesManagement, PortfolioManagement, WebsiteStats, ContentManagement, WebsiteSettings, PricePackagesManagement } from "./website-components-fixed"
 import { FirebaseClientProjectsAdmin } from "./firebase-client-projects-admin"
@@ -147,99 +149,9 @@ export function AdminDashboard() {
   };
 
   // Staff Management Data
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([
-    {
-      id: '1',
-      name: 'John Smith',
-      email: 'john@hexcode.com',
-      role: 'Senior Developer',
-      department: 'Engineering',
-      status: 'active',
-      joinDate: '2024-01-15',
-      skills: ['React', 'Node.js', 'TypeScript', 'AWS'],
-      workload: 85
-    },
-    {
-      id: '2',
-      name: 'Sarah Johnson',
-      email: 'sarah@hexcode.com',
-      role: 'UI/UX Designer',
-      department: 'Design',
-      status: 'active',
-      joinDate: '2024-02-20',
-      skills: ['Figma', 'Adobe XD', 'React', 'CSS'],
-      workload: 70
-    },
-    {
-      id: '3',
-      name: 'Mike Davis',
-      email: 'mike@hexcode.com',
-      role: 'Backend Developer',
-      department: 'Engineering',
-      status: 'active',
-      joinDate: '2024-03-10',
-      skills: ['Python', 'Django', 'PostgreSQL', 'Docker'],
-      workload: 90
-    }
-  ])
-
-  const [tickets, setTickets] = useState<Ticket[]>([
-    {
-      id: '1',
-      title: 'Fix responsive design issues on mobile',
-      description: 'Mobile layout breaks on devices smaller than 768px',
-      status: 'open',
-      priority: 'high',
-      assignee: 'John Smith',
-      assigneeEmail: 'john@hexcode.com',
-      reporter: 'Admin',
-      created: '2025-10-01',
-      updated: '2025-10-01',
-      dueDate: '2025-10-05',
-      estimatedHours: 8,
-      category: 'Frontend',
-      project: 'E-commerce Platform'
-    },
-    {
-      id: '2',
-      title: 'Update API documentation',
-      description: 'Update REST API docs with new endpoints',
-      status: 'in-progress',
-      priority: 'medium',
-      assignee: 'Sarah Johnson',
-      assigneeEmail: 'sarah@hexcode.com',
-      reporter: 'Admin',
-      created: '2025-09-30',
-      updated: '2025-10-01',
-      dueDate: '2025-10-03',
-      estimatedHours: 4,
-      category: 'Documentation',
-      project: 'Internal Tools'
-    }
-  ])
-
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: '1',
-      name: 'E-commerce Platform Redesign',
-      description: 'Complete redesign of the e-commerce platform with modern UI/UX',
-      status: 'active',
-      priority: 'high',
-      progress: 75,
-      startDate: '2025-09-15',
-      deadline: '2025-10-30',
-      budget: '$50,000',
-      teamSize: 6,
-      lead: 'John Smith',
-      technologies: ['React', 'Node.js', 'PostgreSQL'],
-      milestones: [
-        { name: 'Design Phase', status: 'completed', date: '2025-09-30' },
-        { name: 'Frontend Development', status: 'in-progress', date: '2025-10-15' },
-        { name: 'Backend Integration', status: 'pending', date: '2025-10-25' },
-        { name: 'Testing & Deployment', status: 'pending', date: '2025-10-30' }
-      ]
-    }
-  ])
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
 
   // Website Management Data
   const [services, setServices] = useState<ServiceItem[]>([
@@ -282,6 +194,94 @@ export function AdminDashboard() {
       completedDate: '2025-09-15'
     }
   ])
+
+  // Fetch Data from Firebase
+  useEffect(() => {
+    // 1. Fetch Staff
+    const usersRef = ref(database, 'users')
+    const unsubscribeUsers = onValue(usersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val()
+        const staffList: StaffMember[] = Object.entries(data)
+          // @ts-ignore
+          .filter(([_, val]: [string, any]) => val.role !== 'client') // Filter out clients if necessary
+          .map(([uid, val]: [string, any]) => ({
+            id: uid,
+            name: val.name || "Unknown",
+            email: val.email || "",
+            role: (val.role || "staff").toLowerCase(),
+            department: val.department || "General",
+            status: val.status || "active",
+            avatar: val.profilePicture,
+            joinDate: val.createdAt ? new Date(val.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            skills: val.skills || [],
+            workload: val.workload || 0
+          }))
+        setStaffMembers(staffList)
+      } else {
+        setStaffMembers([])
+      }
+    })
+
+    // 2. Fetch Tickets
+    const ticketsRef = ref(database, 'tickets')
+    const unsubscribeTickets = onValue(ticketsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val()
+        const ticketList: Ticket[] = Object.entries(data).map(([id, val]: [string, any]) => ({
+          id,
+          title: val.title,
+          description: val.description,
+          status: val.status,
+          priority: val.priority,
+          assignee: val.assignedTo?.name,
+          assigneeEmail: val.assignedTo?.email,
+          reporter: val.reporter || "Admin",
+          created: val.createdAt || new Date().toISOString(),
+          updated: val.updatedAt || new Date().toISOString(),
+          dueDate: val.dueDate,
+          estimatedHours: Number(val.estimatedHours),
+          category: val.category || "General",
+          project: val.project
+        }))
+        setTickets(ticketList)
+      } else {
+        setTickets([])
+      }
+    })
+
+    // 3. Fetch Projects
+    const projectsRef = ref(database, 'staffdashboard/projects')
+    const unsubscribeProjects = onValue(projectsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val()
+        const projectList: Project[] = Object.entries(data).map(([id, val]: [string, any]) => ({
+          id,
+          name: val.title,
+          description: val.description,
+          status: val.status === 'in-progress' || val.status === 'researching' ? 'active' : val.status === 'completed' ? 'completed' : 'planning', // Map status loosely
+          priority: val.priority,
+          progress: Number(val.progress),
+          startDate: val.startDate,
+          deadline: val.endDate,
+          budget: val.budget,
+          teamSize: val.team ? val.team.length : 0,
+          lead: 'Admin', // Placeholder or derive from team
+          technologies: [], // Not in current schema
+          milestones: [] // Not in current schema
+        }))
+        setProjects(projectList)
+      } else {
+        setProjects([])
+      }
+    })
+
+    return () => {
+      unsubscribeUsers()
+      unsubscribeTickets()
+      unsubscribeProjects()
+    }
+  }, [])
 
   // Authentication check
   useEffect(() => {
@@ -348,7 +348,7 @@ export function AdminDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-gray-400">Welcome, {userProfile?.name}</span>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="text-gray-400 hover:text-white"
               >
@@ -367,11 +367,10 @@ export function AdminDashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveMainTab(tab.id as 'staff' | 'website' | 'projects')}
-                className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm ${
-                  activeMainTab === tab.id
-                    ? 'border-orange-500 text-orange-500'
-                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                }`}
+                className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm ${activeMainTab === tab.id
+                  ? 'border-orange-500 text-orange-500'
+                  : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                  }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -390,11 +389,10 @@ export function AdminDashboard() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveStaffTab(tab.id)}
-                  className={`flex items-center space-x-2 py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap ${
-                    activeStaffTab === tab.id
-                      ? 'border-orange-500 text-orange-500'
-                      : 'border-transparent text-gray-400 hover:text-gray-300'
-                  }`}
+                  className={`flex items-center space-x-2 py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap ${activeStaffTab === tab.id
+                    ? 'border-orange-500 text-orange-500'
+                    : 'border-transparent text-gray-400 hover:text-gray-300'
+                    }`}
                 >
                   {tab.icon}
                   <span>{tab.label}</span>
@@ -405,11 +403,10 @@ export function AdminDashboard() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveWebsiteTab(tab.id)}
-                  className={`flex items-center space-x-2 py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap ${
-                    activeWebsiteTab === tab.id
-                      ? 'border-orange-500 text-orange-500'
-                      : 'border-transparent text-gray-400 hover:text-gray-300'
-                  }`}
+                  className={`flex items-center space-x-2 py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap ${activeWebsiteTab === tab.id
+                    ? 'border-orange-500 text-orange-500'
+                    : 'border-transparent text-gray-400 hover:text-gray-300'
+                    }`}
                 >
                   {tab.icon}
                   <span>{tab.label}</span>
@@ -423,7 +420,7 @@ export function AdminDashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeMainTab === 'projects' && (
-          <FirebaseClientProjectsAdmin 
+          <FirebaseClientProjectsAdmin
             onProjectSelect={(project) => {
               console.log('Selected project:', project);
               // Handle project selection - could open modal or navigate
@@ -592,11 +589,10 @@ function StaffOverview({ staffMembers, tickets, projects }: { staffMembers: Staf
                   <p className="text-white font-medium">{ticket.title}</p>
                   <p className="text-gray-400 text-sm">{ticket.assignee || 'Unassigned'}</p>
                 </div>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  ticket.status === 'open' ? 'bg-orange-500' :
+                <span className={`px-2 py-1 text-xs rounded-full ${ticket.status === 'open' ? 'bg-orange-500' :
                   ticket.status === 'in-progress' ? 'bg-blue-500' :
-                  ticket.status === 'review' ? 'bg-yellow-500' : 'bg-green-500'
-                } text-white`}>
+                    ticket.status === 'review' ? 'bg-yellow-500' : 'bg-green-500'
+                  } text-white`}>
                   {ticket.status}
                 </span>
               </div>
@@ -615,11 +611,10 @@ function StaffOverview({ staffMembers, tickets, projects }: { staffMembers: Staf
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-20 bg-gray-700 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full ${
-                        member.workload >= 90 ? 'bg-red-500' :
+                    <div
+                      className={`h-2 rounded-full ${member.workload >= 90 ? 'bg-red-500' :
                         member.workload >= 70 ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}
+                        }`}
                       style={{ width: `${member.workload}%` }}
                     ></div>
                   </div>

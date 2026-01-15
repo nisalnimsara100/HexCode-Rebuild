@@ -118,12 +118,12 @@ export default function UnifiedRegisterPage() {
         department: formData.department || 'General',
         dateOfBirth: formData.dateOfBirth,
         profilePicture: profilePictureUrl,
-        // Role is forced to 'staff' in auth-context
+        role: 'employee' as 'employee' // Default role is employee, admin must promote to staff
       };
 
       await signUp(formData.email, formData.password, profile);
 
-      setSuccess("Registration successful! You can now sign in as a staff member.");
+      setSuccess("Registration successful! You can now sign in as a employee.");
       setTimeout(() => {
         router.push("/login");
       }, 2000);
@@ -162,8 +162,8 @@ export default function UnifiedRegisterPage() {
         {/* Registration Card */}
         <Card className="bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl p-8">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">Staff Registration</h2>
-            <p className="text-slate-300">Register for staff portal access</p>
+            <h2 className="text-2xl font-bold text-white mb-2">Employee Registration</h2>
+            <p className="text-slate-300">Register for employee portal access</p>
           </div>
 
           {/* Status Messages */}
@@ -394,7 +394,7 @@ export default function UnifiedRegisterPage() {
               ) : (
                 <div className="flex items-center justify-center space-x-2">
                   <UserPlus className="h-4 w-4" />
-                  <span>Create Staff Account</span>
+                  <span>Create Employee Account</span>
                 </div>
               )}
             </Button>

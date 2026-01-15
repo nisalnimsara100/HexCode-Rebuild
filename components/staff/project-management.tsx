@@ -1,18 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { database } from "@/lib/firebase";
+import { ref, onValue, update } from "firebase/database";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";  
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/components/ui/use-toast";
 import {
   FolderOpen,
-  Plus,
   Search,
   Filter,
   Calendar,
@@ -22,149 +23,111 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
-  MoreVertical,
   Edit3,
-  Trash2,
   Eye,
 } from "lucide-react";
 
 interface Project {
   id: string;
-  name: string;
+  title: string;
   description: string;
-  status: "planning" | "in-progress" | "review" | "completed" | "on-hold";
+  status: "planning" | "researching" | "in-progress" | "review" | "completed" | "on-hold";
   priority: "low" | "medium" | "high" | "critical";
   startDate: string;
   endDate: string;
-  budget: number;
+  budget: string | number;
   progress: number;
-  assignedTeam: string[];
-  client: string;
-  category: string;
-  tasks: number;
-  completedTasks: number;
+  team: string[]; // List of UIDs
+  clientName: string;
+  tasks: any;
+}
+
+interface TeamMember {
+  uid: string;
+  name: string;
+  avatar?: string;
 }
 
 export function ProjectManagement() {
+  const { toast } = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const [staffMap, setStaffMap] = useState<Record<string, TeamMember>>({});
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedPriority, setSelectedPriority] = useState<string>("all");
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ status: "", progress: 0 });
+
+  const [viewProject, setViewProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [newProject, setNewProject] = useState<Partial<Project>>({
-    name: "",
-    description: "",
-    status: "planning",
-    priority: "medium",
-    startDate: "",
-    endDate: "",
-    budget: 0,
-    client: "",
-    category: "",
-    assignedTeam: [],
-  });
-
-  const categories = [
-    "Web Development",
-    "Mobile App",
-    "E-commerce",
-    "Marketing",
-    "Consulting",
-    "Maintenance",
-  ];
-
-  const teamMembers = [
-    "John Smith",
-    "Sarah Johnson", 
-    "Mike Davis",
-    "Emily Chen",
-    "Alex Rodriguez",
-  ];
-
+  // Fetch Data from Firebase
   useEffect(() => {
-    fetchProjects();
+    setLoading(true);
+
+    // 1. Fetch Staff Details for mapping UIDs to Names
+    const usersRef = ref(database, 'users');
+    const unsubscribeUsers = onValue(usersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const usersData = snapshot.val();
+        const map: Record<string, TeamMember> = {};
+        Object.entries(usersData).forEach(([uid, data]: [string, any]) => {
+          map[uid] = {
+            uid,
+            name: data.name || "Unknown",
+            avatar: data.profilePicture
+          };
+        });
+        setStaffMap(map);
+      }
+    });
+
+    // 2. Fetch Projects
+    const projectsRef = ref(database, 'staffdashboard/projects');
+    const unsubscribeProjects = onValue(projectsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const projectList: Project[] = Object.entries(data).map(([id, val]: [string, any]) => ({
+          id,
+          title: val.title || "Untitled Project",
+          description: val.description || "",
+          status: val.status || "planning",
+          priority: val.priority || "medium",
+          startDate: val.startDate || "",
+          endDate: val.endDate || "",
+          budget: val.budget || 0,
+          progress: Number(val.progress) || 0,
+          team: val.team || [],
+          clientName: val.clientName || "Internal",
+          tasks: val.tasks || {}
+        }));
+        setProjects(projectList);
+      } else {
+        setProjects([]);
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribeUsers();
+      unsubscribeProjects();
+    };
   }, []);
 
+  // Filtering
   useEffect(() => {
-    filterProjects();
-  }, [projects, searchTerm, selectedStatus, selectedPriority]);
-
-  const fetchProjects = async () => {
-    try {
-      setLoading(true);
-      // In real implementation, fetch from Firebase
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const mockProjects: Project[] = [
-        {
-          id: "1",
-          name: "E-commerce Platform v2.0",
-          description: "Complete redesign of the e-commerce platform with new features",
-          status: "in-progress",
-          priority: "high",
-          startDate: "2024-01-15",
-          endDate: "2024-06-30",
-          budget: 50000,
-          progress: 65,
-          assignedTeam: ["John Smith", "Sarah Johnson", "Mike Davis"],
-          client: "ABC Corp",
-          category: "Web Development",
-          tasks: 45,
-          completedTasks: 29,
-        },
-        {
-          id: "2",
-          name: "Mobile Banking App",
-          description: "Secure mobile banking application with biometric authentication",
-          status: "planning",
-          priority: "critical",
-          startDate: "2024-03-01",
-          endDate: "2024-09-15",
-          budget: 75000,
-          progress: 15,
-          assignedTeam: ["Emily Chen", "Alex Rodriguez"],
-          client: "XYZ Bank",
-          category: "Mobile App",
-          tasks: 60,
-          completedTasks: 9,
-        },
-        {
-          id: "3",
-          name: "Marketing Website",
-          description: "Company marketing website with CMS integration",
-          status: "completed",
-          priority: "medium",
-          startDate: "2023-11-01",
-          endDate: "2024-01-31",
-          budget: 15000,
-          progress: 100,
-          assignedTeam: ["Sarah Johnson"],
-          client: "DEF Inc",
-          category: "Marketing",
-          tasks: 20,
-          completedTasks: 20,
-        },
-      ];
-      setProjects(mockProjects);
-    } catch (error) {
-      console.error("Error fetching projects:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterProjects = () => {
     let filtered = projects;
 
     if (searchTerm) {
+      const lowerTerm = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (project) =>
-          project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          project.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          project.category.toLowerCase().includes(searchTerm.toLowerCase())
+          project.title.toLowerCase().includes(lowerTerm) ||
+          project.clientName.toLowerCase().includes(lowerTerm)
       );
     }
 
@@ -177,95 +140,54 @@ export function ProjectManagement() {
     }
 
     setFilteredProjects(filtered);
-  };
+  }, [projects, searchTerm, selectedStatus, selectedPriority]);
 
-  const handleAddProject = async () => {
-    if (!newProject.name || !newProject.client || !newProject.startDate) {
-      alert("Please fill in required fields");
-      return;
-    }
-
-    const project: Project = {
-      id: Date.now().toString(),
-      name: newProject.name!,
-      description: newProject.description || "",
-      status: (newProject.status as Project["status"]) || "planning",
-      priority: (newProject.priority as Project["priority"]) || "medium",
-      startDate: newProject.startDate!,
-      endDate: newProject.endDate || "",
-      budget: newProject.budget || 0,
-      progress: 0,
-      assignedTeam: newProject.assignedTeam || [],
-      client: newProject.client!,
-      category: newProject.category || "",
-      tasks: 0,
-      completedTasks: 0,
-    };
-
-    // In real implementation, save to Firebase
-    setProjects([...projects, project]);
-    setIsAddModalOpen(false);
-    resetNewProject();
-  };
-
-  const resetNewProject = () => {
-    setNewProject({
-      name: "",
-      description: "",
-      status: "planning",
-      priority: "medium",
-      startDate: "",
-      endDate: "",
-      budget: 0,
-      client: "",
-      category: "",
-      assignedTeam: [],
+  const openEditModal = (project: Project) => {
+    setEditingProject(project);
+    setEditForm({
+      status: project.status,
+      progress: project.progress
     });
+    setIsEditModalOpen(true);
   };
 
-  const handleDeleteProject = async (id: string) => {
-    if (confirm("Are you sure you want to delete this project?")) {
-      // In real implementation, delete from Firebase
-      setProjects(projects.filter((proj) => proj.id !== id));
+  const handleUpdateProject = async () => {
+    if (!editingProject) return;
+
+    try {
+      await update(ref(database, `staffdashboard/projects/${editingProject.id}`), {
+        status: editForm.status,
+        progress: Number(editForm.progress)
+      });
+
+      toast({ title: "Updated", description: "Project status updated successfully." });
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error", description: "Failed to update project.", variant: "destructive" });
     }
   };
 
-  const getStatusColor = (status: Project["status"]) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case "planning":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "in-progress":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "review":
-        return "bg-purple-100 text-purple-800 border-purple-200";
-      case "completed":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      case "on-hold":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-black text-black border-black";
+      case "planning": return "bg-blue-500/20 text-blue-400 border-blue-500/50";
+      case "researching": return "bg-purple-500/20 text-purple-400 border-purple-500/50";
+      case "in-progress": return "bg-yellow-500/20 text-yellow-400 border-yellow-500/50";
+      case "review": return "bg-indigo-500/20 text-indigo-400 border-indigo-500/50";
+      case "completed": return "bg-emerald-500/20 text-emerald-400 border-emerald-500/50";
+      case "on-hold": return "bg-red-500/20 text-red-400 border-red-500/50";
+      default: return "bg-gray-800 text-gray-400 border-gray-700";
     }
   };
 
-  const getPriorityColor = (priority: Project["priority"]) => {
+  const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "low":
-        return "bg-gray-100 text-gray-800 border-gray-200";
-      case "medium":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "high":
-        return "bg-orange-100 text-orange-800 border-orange-200";
-      case "critical":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+      case "low": return "bg-gray-100/10 text-gray-400 border-gray-700";
+      case "medium": return "bg-blue-500/10 text-blue-400 border-blue-500/30";
+      case "high": return "bg-orange-500/10 text-orange-400 border-orange-500/30";
+      case "critical": return "bg-red-500/10 text-red-400 border-red-500/30";
+      default: return "bg-gray-100/10 text-gray-400 border-gray-700";
     }
-  };
-
-  const getProgressColor = (progress: number) => {
-    if (progress < 30) return "bg-red-500";
-    if (progress < 70) return "bg-yellow-500";
-    return "bg-emerald-500";
   };
 
   if (loading) {
@@ -280,31 +202,23 @@ export function ProjectManagement() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-6 lg:p-0">
       {/* Header */}
       <div className="md:flex md:items-center md:justify-between">
         <div className="min-w-0 flex-1">
           <h2 className="text-2xl font-bold leading-7 text-white sm:truncate sm:text-3xl sm:tracking-tight">
-            Project Management
+            My Projects
           </h2>
           <p className="mt-1 text-sm text-gray-400">
-            Track and manage all your projects in one place.
+            View assigned projects and update your progress.
           </p>
         </div>
-        <div className="mt-4 flex md:ml-4 md:mt-0">
-          <Button
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Project
-          </Button>
-        </div>
+        {/* Removed 'New Project' button as requested */}
       </div>
 
-      {/* Stats */}
+      {/* Stats - Kept existing layout/design */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <FolderOpen className="h-8 w-8 text-emerald-500" />
@@ -315,20 +229,20 @@ export function ProjectManagement() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <Clock className="h-8 w-8 text-yellow-500" />
               <div className="ml-4">
                 <p className="text-sm text-gray-400">In Progress</p>
                 <p className="text-2xl font-semibold text-white">
-                  {projects.filter((p) => p.status === "in-progress").length}
+                  {projects.filter((p) => p.status === "in-progress" || p.status === "researching").length}
                 </p>
               </div>
             </div>
           </div>
         </Card>
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <CheckCircle className="h-8 w-8 text-green-500" />
@@ -341,7 +255,7 @@ export function ProjectManagement() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <AlertTriangle className="h-8 w-8 text-red-500" />
@@ -357,7 +271,7 @@ export function ProjectManagement() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-gray-800 border-gray-700">
+      <Card className="bg-gray-900 border-gray-800">
         <div className="p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <div className="relative">
@@ -366,16 +280,17 @@ export function ProjectManagement() {
                 placeholder="Search projects..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-700 border-gray-600 text-white"
+                className="pl-10 bg-gray-800 border-gray-700 text-white focus:ring-emerald-500"
               />
             </div>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-800 border-gray-700 text-white">
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="planning">Planning</SelectItem>
+                <SelectItem value="researching">Researching</SelectItem>
                 <SelectItem value="in-progress">In Progress</SelectItem>
                 <SelectItem value="review">Review</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
@@ -383,10 +298,10 @@ export function ProjectManagement() {
               </SelectContent>
             </Select>
             <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-800 border-gray-700 text-white">
                 <SelectItem value="all">All Priorities</SelectItem>
                 <SelectItem value="low">Low</SelectItem>
                 <SelectItem value="medium">Medium</SelectItem>
@@ -394,7 +309,7 @@ export function ProjectManagement() {
                 <SelectItem value="critical">Critical</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700">
+            <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800">
               <Filter className="h-4 w-4 mr-2" />
               More Filters
             </Button>
@@ -405,119 +320,110 @@ export function ProjectManagement() {
       {/* Project Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
         {filteredProjects.map((project) => (
-          <Card key={project.id} className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors">
+          <Card key={project.id} className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-all duration-300 shadow-lg">
             <div className="p-6">
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-white mb-1">{project.name}</h3>
-                  <p className="text-sm text-gray-400 line-clamp-2">{project.description}</p>
+                  <h3 className="text-lg font-bold text-white mb-1">{project.title}</h3>
+                  <p className="text-sm text-gray-400 line-clamp-2 min-h-[40px]">{project.description}</p>
                 </div>
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
+                {/* Actions Menu removed, handled by buttons below */}
               </div>
 
               {/* Status and Priority */}
-              <div className="flex items-center space-x-2 mb-4">
-                <Badge className={getStatusColor(project.status)}>
-                  {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+              <div className="flex items-center gap-2 mb-6">
+                <Badge variant="outline" className={`${getStatusColor(project.status)} uppercase text-[10px] tracking-wider px-2 py-0.5 border`}>
+                  {project.status.replace('-', ' ')}
                 </Badge>
-                <Badge className={getPriorityColor(project.priority)}>
-                  {project.priority.charAt(0).toUpperCase() + project.priority.slice(1)}
+                <Badge variant="outline" className={`${getPriorityColor(project.priority)} uppercase text-[10px] tracking-wider px-2 py-0.5 border`}>
+                  {project.priority}
                 </Badge>
               </div>
 
               {/* Progress */}
-              <div className="mb-4">
+              <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Progress</span>
-                  <span className="text-sm font-medium text-white">{project.progress}%</span>
+                  <span className="text-sm text-gray-400 font-medium">Progress</span>
+                  <span className="text-sm font-bold text-white">{project.progress}%</span>
                 </div>
                 <Progress
                   value={project.progress}
-                  className="h-2"
+                  className="h-1.5 bg-gray-800"
+                  indicatorClassName={project.progress === 100 ? "bg-emerald-500" : "bg-white"}
                 />
               </div>
 
               {/* Details */}
-              <div className="space-y-2 mb-4">
+              <div className="space-y-3 mb-6 bg-gray-800/30 p-3 rounded-lg border border-gray-800">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400 flex items-center">
-                    <Calendar className="h-4 w-4 mr-1" />
+                  <span className="text-gray-500 flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5" />
                     Duration
                   </span>
-                  <span className="text-white">
-                    {new Date(project.startDate).toLocaleDateString()} - {" "}
-                    {project.endDate ? new Date(project.endDate).toLocaleDateString() : "TBD"}
+                  <span className="text-gray-300 text-xs">
+                    {project.startDate} - {project.endDate || 'TBD'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400 flex items-center">
-                    <DollarSign className="h-4 w-4 mr-1" />
+                  <span className="text-gray-500 flex items-center gap-2">
+                    <DollarSign className="h-3.5 w-3.5" />
                     Budget
                   </span>
-                  <span className="text-white">${project.budget.toLocaleString()}</span>
+                  <span className="text-gray-300 font-medium">${Number(project.budget).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400 flex items-center">
-                    <Target className="h-4 w-4 mr-1" />
-                    Tasks
+                  <span className="text-gray-500 flex items-center gap-2">
+                    <Target className="h-3.5 w-3.5" />
+                    Client
                   </span>
-                  <span className="text-white">{project.completedTasks}/{project.tasks}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">Client</span>
-                  <span className="text-white">{project.client}</span>
+                  <span className="text-gray-300">{project.clientName}</span>
                 </div>
               </div>
 
               {/* Team */}
-              <div className="mb-4">
-                <p className="text-sm text-gray-400 mb-2">Team ({project.assignedTeam.length})</p>
+              <div className="mb-6">
+                <p className="text-xs text-gray-500 font-medium mb-3 uppercase tracking-wider">Assigned Team</p>
                 <div className="flex -space-x-2">
-                  {project.assignedTeam.slice(0, 3).map((member, index) => (
-                    <div
-                      key={member}
-                      className="h-8 w-8 rounded-full bg-gray-600 border-2 border-gray-800 flex items-center justify-center text-xs font-medium text-white"
-                      title={member}
-                    >
-                      {member.split(" ").map(n => n[0]).join("")}
-                    </div>
-                  ))}
-                  {project.assignedTeam.length > 3 && (
-                    <div className="h-8 w-8 rounded-full bg-gray-600 border-2 border-gray-800 flex items-center justify-center text-xs font-medium text-white">
-                      +{project.assignedTeam.length - 3}
+                  {project.team && project.team.length > 0 ? (
+                    project.team.slice(0, 4).map((uid) => {
+                      const member = staffMap[uid];
+                      return (
+                        <div
+                          key={uid}
+                          className="h-8 w-8 rounded-full ring-2 ring-gray-900 bg-gray-700 flex items-center justify-center text-xs font-bold text-white overflow-hidden"
+                          title={member?.name || "Unknown"}
+                        >
+                          {member?.avatar ? <img src={member.avatar} alt={member.name} className="h-full w-full object-cover" /> : member?.name?.charAt(0)}
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <span className="text-gray-500 text-xs italic">No team assigned</span>
+                  )}
+                  {project.team && project.team.length > 4 && (
+                    <div className="h-8 w-8 rounded-full ring-2 ring-gray-900 bg-gray-800 flex items-center justify-center text-xs font-medium text-gray-400">
+                      +{project.team.length - 4}
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex space-x-2">
+              <div className="flex gap-3">
                 <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-white border border-gray-700"
+                  onClick={() => setViewProject(project)}
                 >
-                  <Eye className="h-4 w-4 mr-1" />
+                  <Eye className="h-4 w-4 mr-2 text-gray-400" />
                   View
                 </Button>
                 <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                  onClick={() => setEditingProject(project)}
+                  size="icon"
+                  className="bg-gray-800 hover:bg-gray-700 text-white border border-gray-700"
+                  onClick={() => openEditModal(project)}
                 >
-                  <Edit3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-red-600 text-red-400 hover:bg-red-950"
-                  onClick={() => handleDeleteProject(project.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
+                  <Edit3 className="h-4 w-4 text-emerald-500" />
                 </Button>
               </div>
             </div>
@@ -525,117 +431,25 @@ export function ProjectManagement() {
         ))}
       </div>
 
-      {/* Add Project Modal */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-3xl">
+      {/* Edit Status/Progress Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Create New Project</DialogTitle>
+            <DialogTitle>Update Progress</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+          <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Project Name *</Label>
-              <Input
-                id="name"
-                value={newProject.name}
-                onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                className="bg-gray-700 border-gray-600"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="client">Client *</Label>
-              <Input
-                id="client"
-                value={newProject.client}
-                onChange={(e) => setNewProject({ ...newProject, client: e.target.value })}
-                className="bg-gray-700 border-gray-600"
-              />
-            </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={newProject.description}
-                onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                className="bg-gray-700 border-gray-600"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
+              <Label>Current Status</Label>
               <Select
-                value={newProject.category}
-                onValueChange={(value) => setNewProject({ ...newProject, category: value })}
+                value={editForm.status}
+                onValueChange={(val) => setEditForm(prev => ({ ...prev, status: val }))}
               >
-                <SelectTrigger className="bg-gray-700 border-gray-600">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="priority">Priority</Label>
-              <Select
-                value={newProject.priority}
-                onValueChange={(value) => setNewProject({ ...newProject, priority: value as Project["priority"] })}
-              >
-                <SelectTrigger className="bg-gray-700 border-gray-600">
+                <SelectTrigger className="bg-gray-800 border-gray-700">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={newProject.startDate}
-                onChange={(e) => setNewProject({ ...newProject, startDate: e.target.value })}
-                className="bg-gray-700 border-gray-600"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={newProject.endDate}
-                onChange={(e) => setNewProject({ ...newProject, endDate: e.target.value })}
-                className="bg-gray-700 border-gray-600"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="budget">Budget ($)</Label>
-              <Input
-                id="budget"
-                type="number"
-                value={newProject.budget}
-                onChange={(e) => setNewProject({ ...newProject, budget: parseFloat(e.target.value) })}
-                className="bg-gray-700 border-gray-600"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={newProject.status}
-                onValueChange={(value) => setNewProject({ ...newProject, status: value as Project["status"] })}
-              >
-                <SelectTrigger className="bg-gray-700 border-gray-600">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-800 border-gray-700 text-white">
                   <SelectItem value="planning">Planning</SelectItem>
+                  <SelectItem value="researching">Researching</SelectItem>
                   <SelectItem value="in-progress">In Progress</SelectItem>
                   <SelectItem value="review">Review</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
@@ -643,15 +457,77 @@ export function ProjectManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <Label>Completion Percentage</Label>
+                <span className="text-sm font-bold text-emerald-500">{editForm.progress}%</span>
+              </div>
+              <Input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={editForm.progress}
+                onChange={(e) => setEditForm(prev => ({ ...prev, progress: Number(e.target.value) }))}
+                className="accent-emerald-500 h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddProject} className="bg-emerald-600 hover:bg-emerald-700">
-              Create Project
-            </Button>
+            <Button variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateProject} className="bg-emerald-600 hover:bg-emerald-700">Save Changes</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details Modal */}
+      <Dialog open={!!viewProject} onOpenChange={(open) => !open && setViewProject(null)}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center justify-between">
+              {viewProject?.title}
+              <Badge className={viewProject ? getStatusColor(viewProject.status) : ''}>{viewProject?.status}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-4 bg-gray-800 rounded-lg text-gray-300 text-sm leading-relaxed">
+              {viewProject?.description}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-gray-800 rounded border border-gray-700">
+                <span className="text-xs text-gray-500 block mb-1">Start Date</span>
+                <span>{viewProject?.startDate}</span>
+              </div>
+              <div className="p-3 bg-gray-800 rounded border border-gray-700">
+                <span className="text-xs text-gray-500 block mb-1">End Date</span>
+                <span>{viewProject?.endDate || 'Dec 31, 2024'}</span>
+              </div>
+              <div className="p-3 bg-gray-800 rounded border border-gray-700">
+                <span className="text-xs text-gray-500 block mb-1">Budget</span>
+                <span className="text-green-400 font-mono">${Number(viewProject?.budget).toLocaleString()}</span>
+              </div>
+              <div className="p-3 bg-gray-800 rounded border border-gray-700">
+                <span className="text-xs text-gray-500 block mb-1">Client</span>
+                <span>{viewProject?.clientName}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-sm text-gray-400 uppercase tracking-wider font-bold">Assigned Team</span>
+              <div className="flex gap-2 flex-wrap">
+                {viewProject?.team?.map(uid => (
+                  <div key={uid} className="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+                    <div className="w-5 h-5 rounded-full bg-emerald-900/50 flex items-center justify-center text-[10px] text-emerald-400 border border-emerald-900">
+                      {staffMap[uid]?.name?.charAt(0)}
+                    </div>
+                    <span className="text-xs text-gray-300">{staffMap[uid]?.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

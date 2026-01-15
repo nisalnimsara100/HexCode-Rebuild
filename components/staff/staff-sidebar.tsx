@@ -41,12 +41,11 @@ const getNavigationByRole = (role: string, pathname: string) => {
   // For admin and manager roles
   return [
     ...baseNavigation,
-    { name: "Employees", href: "/staff/employees", icon: Users, current: pathname === "/staff/employees" },
+    // { name: "Employees", href: "/staff/employees", icon: Users, current: pathname === "/staff/employees" },
     { name: "Projects", href: "/staff/projects", icon: FolderOpen, current: pathname === "/staff/projects" },
     { name: "Tickets", href: "/staff/tickets", icon: Ticket, current: pathname === "/staff/tickets" },
-    { name: "Teams", href: "/staff/teams", icon: UserCheck, current: pathname === "/staff/teams" },
-    // { name: "Assignments", href: "/staff/assignments", icon: ClipboardList, current: pathname === "/staff/assignments" },
-    { name: "Reports", href: "/staff/reports", icon: BarChart3, current: pathname === "/staff/reports" },
+    // { name: "Teams", href: "/staff/teams", icon: UserCheck, current: pathname === "/staff/teams" },
+    // { name: "Reports", href: "/staff/reports", icon: BarChart3, current: pathname === "/staff/reports" },
     { name: "Settings", href: "/staff/settings", icon: Settings, current: pathname === "/staff/settings" },
   ];
 };

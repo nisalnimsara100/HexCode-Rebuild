@@ -1,7 +1,19 @@
 // Staff Management Components
 
 import { useState } from "react"
-import { Edit, Trash2, Plus, Search, Filter, Users, Mail, Phone, AlertCircle } from "lucide-react"
+import { Edit, Trash2, Plus, Search, Filter, Users, Mail, Phone, AlertCircle, MoreVertical, Shield, UserMinus, UserCheck } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import { database } from "@/lib/firebase"
+import { ref, update, remove } from "firebase/database"
+import { useToast } from "@/components/ui/use-toast"
 
 interface StaffMember {
   id: string
@@ -53,11 +65,11 @@ interface Project {
 }
 
 // Staff Management Component
-export function StaffManagement({ 
-  staffMembers, 
-  setStaffMembers, 
-  setShowModal, 
-  setEditingItem 
+export function StaffManagement({
+  staffMembers,
+  setStaffMembers,
+  setShowModal,
+  setEditingItem
 }: {
   staffMembers: StaffMember[]
   setStaffMembers: (members: StaffMember[]) => void
@@ -67,7 +79,7 @@ export function StaffManagement({
   const [searchTerm, setSearchTerm] = useState('')
   const [filterDepartment, setFilterDepartment] = useState('')
 
-  const filteredStaff = staffMembers.filter(member => 
+  const filteredStaff = staffMembers.filter(member =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (filterDepartment === '' || member.department === filterDepartment)
   )
@@ -155,10 +167,9 @@ export function StaffManagement({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-400">Status:</span>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  member.status === 'active' ? 'bg-green-500' :
+                <span className={`px-2 py-1 text-xs rounded-full ${member.status === 'active' ? 'bg-green-500' :
                   member.status === 'inactive' ? 'bg-red-500' : 'bg-yellow-500'
-                } text-white`}>
+                  } text-white`}>
                   {member.status}
                 </span>
               </div>
@@ -166,11 +177,10 @@ export function StaffManagement({
                 <span className="text-sm text-gray-400">Workload:</span>
                 <div className="flex items-center space-x-2">
                   <div className="w-16 bg-gray-700 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full ${
-                        member.workload >= 90 ? 'bg-red-500' :
+                    <div
+                      className={`h-2 rounded-full ${member.workload >= 90 ? 'bg-red-500' :
                         member.workload >= 70 ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}
+                        }`}
                       style={{ width: `${member.workload}%` }}
                     ></div>
                   </div>
@@ -206,13 +216,53 @@ export function StaffManagement({
                 <Edit className="w-3 h-3" />
                 <span>Edit</span>
               </button>
-              <button
-                onClick={() => handleDelete(member.id)}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center space-x-1"
-              >
-                <Trash2 className="w-3 h-3" />
-                <span>Delete</span>
-              </button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-9 w-9 p-0 hover:bg-gray-800 text-gray-400 hover:text-white">
+                    <span className="sr-only">Open menu</span>
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-gray-900 border-gray-800 text-white">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    className="hover:bg-gray-800 cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // If currently staff, demote to employee. If anything else (active/employee), promote to staff.
+                      const newRole = member.role === 'staff' ? 'employee' : 'staff';
+                      update(ref(database, `users/${member.id}`), { role: newRole });
+                      // Optimistic update handled, but listener will usually catch it
+                    }}
+                  >
+                    {member.role === 'staff' ? (
+                      <>
+                        <UserMinus className="mr-2 h-4 w-4 text-orange-400" />
+                        <span>Demote to Employee</span>
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="mr-2 h-4 w-4 text-green-400" />
+                        <span>Promote to Staff</span>
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-gray-800" />
+                  <DropdownMenuItem
+                    className="hover:bg-gray-800 cursor-pointer text-red-400 focus:text-red-400"
+                    onClick={() => {
+                      if (confirm("Are you sure you want to fire this employee? This will remove their access.")) {
+                        update(ref(database, `users/${member.id}`), { status: 'inactive', role: 'fired' });
+                        setStaffMembers(staffMembers.filter(s => s.id !== member.id)); // Remove from list or update status
+                      }
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    <span>Fire Employee</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         ))}
@@ -230,12 +280,12 @@ export function StaffManagement({
 }
 
 // Ticket System Component
-export function TicketSystem({ 
-  tickets, 
-  setTickets, 
-  staffMembers, 
-  setShowModal, 
-  setEditingItem 
+export function TicketSystem({
+  tickets,
+  setTickets,
+  staffMembers,
+  setShowModal,
+  setEditingItem
 }: {
   tickets: Ticket[]
   setTickets: (tickets: Ticket[]) => void
@@ -246,7 +296,7 @@ export function TicketSystem({
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPriority, setFilterPriority] = useState('')
 
-  const filteredTickets = tickets.filter(ticket => 
+  const filteredTickets = tickets.filter(ticket =>
     (filterStatus === '' || ticket.status === filterStatus) &&
     (filterPriority === '' || ticket.priority === filterPriority)
   )
@@ -258,7 +308,7 @@ export function TicketSystem({
   }
 
   const handleStatusChange = (ticketId: string, newStatus: string) => {
-    setTickets(tickets.map(t => 
+    setTickets(tickets.map(t =>
       t.id === ticketId ? { ...t, status: newStatus as any, updated: new Date().toISOString().split('T')[0] } : t
     ))
   }
@@ -451,12 +501,12 @@ export function TaskAssignments({ staffMembers }: { staffMembers: StaffMember[] 
 }
 
 // Project Management Component
-export function ProjectManagement({ 
-  projects, 
-  setProjects, 
-  staffMembers, 
-  setShowModal, 
-  setEditingItem 
+export function ProjectManagement({
+  projects,
+  setProjects,
+  staffMembers,
+  setShowModal,
+  setEditingItem
 }: {
   projects: Project[]
   setProjects: (projects: Project[]) => void
@@ -538,11 +588,10 @@ export function ProjectManagement({
             </div>
 
             <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
-              <div 
-                className={`h-2 rounded-full ${
-                  project.progress >= 100 ? 'bg-green-500' : 
+              <div
+                className={`h-2 rounded-full ${project.progress >= 100 ? 'bg-green-500' :
                   project.progress >= 50 ? 'bg-blue-500' : 'bg-yellow-500'
-                }`}
+                  }`}
                 style={{ width: `${project.progress}%` }}
               ></div>
             </div>
@@ -562,11 +611,11 @@ export function ProjectManagement({
 }
 
 // Staff Reports Component
-export function StaffReports({ 
-  staffMembers, 
-  tickets, 
-  projects 
-}: { 
+export function StaffReports({
+  staffMembers,
+  tickets,
+  projects
+}: {
   staffMembers: StaffMember[]
   tickets: Ticket[]
   projects: Project[]

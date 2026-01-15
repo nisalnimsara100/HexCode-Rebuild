@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, createContext, useContext } from "react";
+import { useState, createContext, useContext, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { StaffSidebar } from "@/components/staff/staff-sidebar";
 import { StaffHeader } from "@/components/staff/staff-header";
 import { StaffAuthWrapper } from "@/components/auth/staff-auth-wrapper";
+import { useAuth } from "@/components/auth/auth-context";
 
 interface SidebarContextType {
   collapsed: boolean;
@@ -27,9 +29,37 @@ export default function StaffLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const { userProfile } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!userProfile) {
+      router.push("/login?redirect=" + encodeURIComponent(pathname || "/staff/dashboard"));
+      return;
+    }
+
+    // Role enforcement:
+    // Only 'staff', 'admin', or 'manager' are allowed in the staff dashboard.
+    // 'employee' is specifically excluded here to enforce the "pending approval" state.
+    const allowedRoles = ["staff", "admin", "manager"];
+
+    if (!allowedRoles.includes(userProfile.role)) {
+      // If on register or login page, don't redirect (layout typically doesn't wrap them, but safety check)
+      if (!pathname.includes("/register") && !pathname.includes("/login")) {
+        router.push("/unauthorized?reason=pending_approval");
+      }
+    }
+  }, [userProfile, router, pathname]);
+
+  // Don't render layout if user not loaded or not authorized (prevents flash of content)
+  const allowedRoles = ["staff", "admin", "manager"];
+  if (!userProfile || !allowedRoles.includes(userProfile.role)) {
+    return null;
+  }
 
   return (
-    <StaffAuthWrapper allowedRoles={["admin", "manager", "employee"]}>
+    <StaffAuthWrapper allowedRoles={allowedRoles}>
       <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
         <div className="min-h-screen bg-black">
           <StaffSidebar open={sidebarOpen} setOpen={setSidebarOpen} />

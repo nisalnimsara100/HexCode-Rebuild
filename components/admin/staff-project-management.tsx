@@ -79,7 +79,7 @@ export interface StaffProject {
   id: string;
   title: string;
   description: string;
-  status: "planning" | "in-progress" | "completed" | "on-hold";
+  status: "planning" | "researching" | "in-progress" | "completed" | "on-hold";
   priority: "low" | "medium" | "high" | "critical";
   progress: number;
   startDate: string;
@@ -254,6 +254,7 @@ export function StaffProjectManagement() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'planning': return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
+      case 'researching': return 'bg-purple-500/20 text-purple-400 border-purple-500/50';
       case 'in-progress': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
       case 'completed': return 'bg-green-500/20 text-green-400 border-green-500/50';
       case 'on-hold': return 'bg-gray-500/20 text-gray-400 border-gray-500/50';

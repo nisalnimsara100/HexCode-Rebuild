@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { database } from "@/lib/firebase";
-import { ref, update, onValue, push, set } from "firebase/database"; // Added push/set
+import { ref, update, onValue, push, set } from "firebase/database";
 import {
     Card,
     CardContent,
@@ -30,6 +30,13 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import {
     Dialog,
@@ -39,20 +46,27 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from "@/components/ui/dialog"; // Ensure these components exist
-import { Checkbox } from "@/components/ui/checkbox"; // Optional for selection
+} from "@/components/ui/dialog";
 import {
     MoreHorizontal,
     Search,
     UserCog,
     Mail,
     Shield,
-    Activity,
     UserX,
     FileBarChart,
     Users,
     Plus,
-    Check
+    Check,
+    Code2,
+    Palette,
+    Server,
+    Megaphone,
+    DollarSign,
+    Briefcase,
+    Crown,
+    Database,
+    Cpu // For IT
 } from "lucide-react";
 
 interface StaffMember {
@@ -60,29 +74,53 @@ interface StaffMember {
     name: string;
     email: string;
     role: string;
-    phone: string;
-    position: string;
     department: string;
     profilePicture?: string;
     status?: 'online' | 'offline' | 'busy';
     lastActive?: string;
 }
 
+interface Team {
+    id: string;
+    name: string;
+    department: string;
+    members: string[]; // array of UIDs
+    createdAt: string;
+}
+
+const DEPARTMENTS = [
+    { name: "Engineering", icon: Code2 },
+    { name: "Design", icon: Palette },
+    { name: "Infrastructure", icon: Server },
+    { name: "Marketing", icon: Megaphone },
+    { name: "Sales", icon: DollarSign },
+    { name: "HR", icon: Users },
+    { name: "IT", icon: Cpu },
+    { name: "Leadership", icon: Crown },
+    { name: "Data", icon: Database },
+];
+
 export function TeamManagement() {
     const { toast } = useToast();
     const [staff, setStaff] = useState<StaffMember[]>([]);
+    const [teams, setTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
 
-    // --- NEW STATES FOR TEAM CREATION ---
+    // --- NEW STATES FOR TEAM CREATION/EDITING ---
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
     const [teamName, setTeamName] = useState("");
+    const [selectedDepartment, setSelectedDepartment] = useState("");
+    const [customDepartment, setCustomDepartment] = useState("");
     const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const usersRef = ref(database, 'users');
-        const unsubscribe = onValue(usersRef, (snapshot) => {
+        const teamsRef = ref(database, 'teams');
+
+        const unsubscribeUsers = onValue(usersRef, (snapshot) => {
             if (snapshot.exists()) {
                 const usersData = snapshot.val();
                 const staffList = Object.entries(usersData)
@@ -91,14 +129,16 @@ export function TeamManagement() {
                         name: data.name || "Unknown",
                         email: data.email || "",
                         role: data.role || "staff",
-                        phone: data.phone || "N/A",
-                        position: data.position || "Developer",
-                        department: data.department || "Engineering",
+                        department: data.department || "General",
                         profilePicture: data.profilePicture || "",
                         status: data.status || 'offline',
                         lastActive: data.lastActive || new Date().toISOString()
                     }))
-                    .filter(u => u.role !== 'client' && u.role !== 'staff');
+                    .filter(u =>
+                        u.role !== 'client' &&
+                        u.role !== 'admin' &&
+                        u.email !== 'admin@hexcode.lk'
+                    );
 
                 setStaff(staffList);
             } else {
@@ -107,7 +147,27 @@ export function TeamManagement() {
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const teamsData = snapshot.val();
+                const teamsList = Object.entries(teamsData).map(([id, data]: [string, any]) => ({
+                    id,
+                    name: data.name,
+                    department: data.department || "General",
+                    members: data.members || [],
+                    createdAt: data.createdAt
+                }));
+                // Sort by creation date (newest first)
+                setTeams(teamsList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+            } else {
+                setTeams([]);
+            }
+        });
+
+        return () => {
+            unsubscribeUsers();
+            unsubscribeTeams();
+        };
     }, []);
 
     const handleRoleChange = async (uid: string, newRole: string) => {
@@ -119,12 +179,19 @@ export function TeamManagement() {
         }
     };
 
-    // --- NEW HANDLER TO SAVE TEAM ---
-    const handleCreateTeam = async () => {
+    // --- HANDLER TO SAVE TEAM (CREATE OR UPDATE) ---
+    const handleSaveTeam = async () => {
         if (!teamName.trim()) {
             toast({ title: "Error", description: "Please enter a team name", variant: "destructive" });
             return;
         }
+
+        const finalDepartment = selectedDepartment === "other" ? customDepartment : selectedDepartment;
+        if (!finalDepartment) {
+            toast({ title: "Error", description: "Please select or enter a department", variant: "destructive" });
+            return;
+        }
+
         if (selectedMembers.length === 0) {
             toast({ title: "Error", description: "Please select at least one member", variant: "destructive" });
             return;
@@ -132,27 +199,85 @@ export function TeamManagement() {
 
         setIsSaving(true);
         try {
-            const teamsRef = ref(database, 'teams');
-            const newTeamRef = push(teamsRef);
-            await set(newTeamRef, {
-                name: teamName,
-                members: selectedMembers,
-                createdAt: new Date().toISOString(),
-            });
+            if (editingTeamId) {
+                // Update existing team
+                await update(ref(database, `teams/${editingTeamId}`), {
+                    name: teamName,
+                    department: finalDepartment,
+                    members: selectedMembers,
+                    // Keep original createdAt
+                });
+                toast({ title: "Success", description: `Team "${teamName}" updated!` });
+            } else {
+                // Create new team
+                const teamsRef = ref(database, 'teams');
+                const newTeamRef = push(teamsRef);
+                await set(newTeamRef, {
+                    name: teamName,
+                    department: finalDepartment,
+                    members: selectedMembers,
+                    createdAt: new Date().toISOString(),
+                });
+                toast({ title: "Success", description: `Team "${teamName}" created!` });
+            }
 
-            toast({ title: "Success", description: `Team "${teamName}" created!` });
-            setIsDialogOpen(false);
-            setTeamName("");
-            setSelectedMembers([]);
+            handleCloseDialog();
         } catch (error) {
-            toast({ title: "Error", description: "Failed to create team", variant: "destructive" });
+            toast({ title: "Error", description: `Failed to ${editingTeamId ? 'update' : 'create'} team`, variant: "destructive" });
         } finally {
             setIsSaving(false);
         }
     };
 
+    const handleDeleteTeam = async (teamId: string, teamName: string) => {
+        if (confirm(`Are you sure you want to delete the team "${teamName}"? This cannot be undone.`)) {
+            try {
+                await update(ref(database, `teams/${teamId}`), null); // Setting to null deletes the node
+                toast({ title: "Success", description: "Team deleted successfully", variant: "default" });
+            } catch (error) {
+                toast({ title: "Error", description: "Failed to delete team", variant: "destructive" });
+            }
+        }
+    };
+
+    const openCreateDialog = () => {
+        setEditingTeamId(null);
+        setTeamName("");
+        setSelectedDepartment("");
+        setCustomDepartment("");
+        setSelectedMembers([]);
+        setIsDialogOpen(true);
+    };
+
+    const openEditDialog = (team: Team) => {
+        setEditingTeamId(team.id);
+        setTeamName(team.name);
+
+        // Check if department is one of the predefined ones
+        const isPredefined = DEPARTMENTS.some(d => d.name === team.department);
+        if (isPredefined) {
+            setSelectedDepartment(team.department);
+            setCustomDepartment("");
+        } else {
+            setSelectedDepartment("other");
+            setCustomDepartment(team.department);
+        }
+
+        setSelectedMembers(team.members || []);
+        setIsDialogOpen(true);
+    };
+
+    const handleCloseDialog = () => {
+        setIsDialogOpen(false);
+        setEditingTeamId(null);
+        setTeamName("");
+        setSelectedDepartment("");
+        setCustomDepartment("");
+        setSelectedMembers([]);
+    };
+
     const toggleMember = (uid: string) => {
-        setSelectedMembers(prev => 
+        setSelectedMembers(prev =>
             prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
         );
     };
@@ -163,48 +288,90 @@ export function TeamManagement() {
         member.role.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const getDepartmentIcon = (deptName: string) => {
+        const found = DEPARTMENTS.find(d => d.name.toLowerCase() === deptName.toLowerCase());
+        const Icon = found ? found.icon : Briefcase;
+        return <Icon className="h-4 w-4" />;
+    };
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-8">
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-3xl font-bold text-white tracking-tight">Team Management</h2>
-                    <p className="text-gray-400 mt-1">Oversee your staff members, roles, and status.</p>
+                    <p className="text-gray-400 mt-1">Oversee your teams, staff members, roles, and status.</p>
                 </div>
                 <div className="flex gap-2">
-                    {/* --- CREATE TEAM DIALOG --- */}
-                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
                         <DialogTrigger asChild>
-                            <Button className="bg-orange-600 hover:bg-orange-700 text-white">
+                            <Button
+                                onClick={openCreateDialog}
+                                className="bg-orange-600 hover:bg-orange-700 text-white"
+                            >
                                 <Plus className="mr-2 h-4 w-4" /> Create Team
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[425px]">
+                        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[500px]">
                             <DialogHeader>
-                                <DialogTitle>Create Team</DialogTitle>
+                                <DialogTitle>{editingTeamId ? "Edit Team" : "Create Team"}</DialogTitle>
                                 <DialogDescription className="text-gray-400">
-                                    Organize staff into a new functional group.
+                                    {editingTeamId ? "Update team details and members." : "Organize staff into a new functional group."}
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Team Name</label>
-                                    <Input 
-                                        placeholder="e.g. Frontend Squad" 
+                                    <Input
+                                        placeholder="e.g. Frontend Squad"
                                         value={teamName}
                                         onChange={(e) => setTeamName(e.target.value)}
                                         className="bg-gray-800 border-gray-700 text-white"
                                     />
                                 </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Department</label>
+                                    <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                                        <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                                            <SelectValue placeholder="Select department" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                                            {DEPARTMENTS.map((dept) => (
+                                                <SelectItem key={dept.name} value={dept.name}>
+                                                    <div className="flex items-center gap-2">
+                                                        <dept.icon className="h-4 w-4 text-orange-500" />
+                                                        <span>{dept.name}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                            <DropdownMenuSeparator className="bg-gray-700" />
+                                            <SelectItem value="other">
+                                                <div className="flex items-center gap-2">
+                                                    <Plus className="h-4 w-4" />
+                                                    <span>Other (Custom)</span>
+                                                </div>
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {selectedDepartment === "other" && (
+                                        <Input
+                                            placeholder="Enter custom department"
+                                            value={customDepartment}
+                                            onChange={(e) => setCustomDepartment(e.target.value)}
+                                            className="bg-gray-800 border-gray-700 text-white mt-2"
+                                        />
+                                    )}
+                                </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Select Members ({selectedMembers.length})</label>
                                     <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2 border border-gray-800 rounded-md p-2">
                                         {staff.map((member) => (
-                                            <div 
+                                            <div
                                                 key={member.uid}
                                                 onClick={() => toggleMember(member.uid)}
-                                                className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
-                                                    selectedMembers.includes(member.uid) ? 'bg-orange-600/20 border border-orange-600/50' : 'hover:bg-gray-800 border border-transparent'
-                                                }`}
+                                                className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${selectedMembers.includes(member.uid) ? 'bg-orange-600/20 border border-orange-600/50' : 'hover:bg-gray-800 border border-transparent'
+                                                    }`}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <Avatar className="h-7 w-7">
@@ -220,13 +387,13 @@ export function TeamManagement() {
                                 </div>
                             </div>
                             <DialogFooter>
-                                <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="text-gray-400">Cancel</Button>
-                                <Button 
-                                    onClick={handleCreateTeam} 
+                                <Button variant="ghost" onClick={handleCloseDialog} className="text-gray-400">Cancel</Button>
+                                <Button
+                                    onClick={handleSaveTeam}
                                     disabled={isSaving}
                                     className="bg-orange-600 hover:bg-orange-700"
                                 >
-                                    {isSaving ? "Creating..." : "Create Team"}
+                                    {isSaving ? "Saving..." : (editingTeamId ? "Update Team" : "Create Team")}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -234,6 +401,82 @@ export function TeamManagement() {
                 </div>
             </div>
 
+            {/* --- ACTIVE TEAMS SECTION --- */}
+            {teams.length > 0 && (
+                <div className="space-y-4">
+                    <h3 className="text-xl font-semibold text-white">Active Teams</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {teams.map((team) => (
+                            <Card key={team.id} className="bg-gray-900 border-gray-800 hover:border-orange-500/50 transition-all group relative">
+                                <CardHeader className="pb-3">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-2 bg-orange-600/10 rounded-lg">
+                                                {getDepartmentIcon(team.department)}
+                                            </div>
+                                            <div>
+                                                <CardTitle className="text-base text-white">{team.name}</CardTitle>
+                                                <CardDescription className="text-xs">{team.department}</CardDescription>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className="border-gray-700 text-gray-400">
+                                                {team.members ? team.members.length : 0} members
+                                            </Badge>
+
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-6 w-6 p-0 text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <span className="sr-only">Open menu</span>
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="bg-gray-800 border-gray-700 text-white">
+                                                    <DropdownMenuItem
+                                                        onClick={() => openEditDialog(team)}
+                                                        className="cursor-pointer hover:bg-gray-700 focus:bg-gray-700"
+                                                    >
+                                                        <UserCog className="mr-2 h-4 w-4 text-blue-400" /> Edit Team
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleDeleteTeam(team.id, team.name)}
+                                                        className="cursor-pointer hover:bg-gray-700 focus:bg-gray-700 text-red-400 focus:text-red-400"
+                                                    >
+                                                        <UserX className="mr-2 h-4 w-4" /> Delete Team
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex items-center -space-x-2 overflow-hidden">
+                                        {team.members && team.members.slice(0, 5).map((memberId) => {
+                                            const member = staff.find(s => s.uid === memberId);
+                                            return (
+                                                <Avatar key={memberId} className="inline-block h-8 w-8 ring-2 ring-gray-900">
+                                                    <AvatarImage src={member?.profilePicture} />
+                                                    <AvatarFallback className="bg-gray-700 text-xs">
+                                                        {member?.name?.charAt(0) || "?"}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            );
+                                        })}
+                                        {team.members && team.members.length > 5 && (
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-full ring-2 ring-gray-900 bg-gray-800 text-xs font-medium text-white">
+                                                +{team.members.length - 5}
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* --- STAFF DIRECTORY SECTION --- */}
             <Card className="bg-gray-900 border-gray-800">
                 <CardHeader>
                     <div className="flex justify-between items-center">
@@ -321,13 +564,29 @@ export function TeamManagement() {
                                                     <DropdownMenuSeparator className="bg-gray-700" />
                                                     <DropdownMenuLabel className="text-xs text-gray-500">Change Role</DropdownMenuLabel>
                                                     <DropdownMenuItem onClick={() => handleRoleChange(member.uid, 'admin')} className="cursor-pointer hover:bg-gray-700 focus:bg-gray-700">
-                                                        <Shield className="mr-2 h-4 w-4 text-red-400" /> Make Admin
+                                                        <Shield className="mr-2 h-4 w-4 text-red-500" /> Make Admin
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleRoleChange(member.uid, 'manager')} className="cursor-pointer hover:bg-gray-700 focus:bg-gray-700">
                                                         <UserCog className="mr-2 h-4 w-4 text-blue-400" /> Make Manager
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleRoleChange(member.uid, 'staff')} className="cursor-pointer hover:bg-gray-700 focus:bg-gray-700">
                                                         <Users className="mr-2 h-4 w-4 text-green-400" /> Make Staff
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleRoleChange(member.uid, 'employee')} className="cursor-pointer hover:bg-gray-700 focus:bg-gray-700">
+                                                        <UserCog className="mr-2 h-4 w-4 text-orange-400" /> Demote to Employee
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator className="bg-gray-700" />
+                                                    <DropdownMenuItem
+                                                        onClick={() => {
+                                                            if (confirm("Are you sure you want to fire this employee? This will remove their access.")) {
+                                                                handleRoleChange(member.uid, 'fired');
+                                                                // Also update status to inactive
+                                                                update(ref(database, `users/${member.uid}`), { status: 'inactive' });
+                                                            }
+                                                        }}
+                                                        className="cursor-pointer hover:bg-gray-700 focus:bg-gray-700 text-red-400 focus:text-red-400"
+                                                    >
+                                                        <UserX className="mr-2 h-4 w-4" /> Fire Employee
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
