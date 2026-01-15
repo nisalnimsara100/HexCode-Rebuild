@@ -360,8 +360,10 @@ export function StaffProjectManagement() {
                   <span className="text-xs">{project.startDate || 'TBD'} - {project.endDate || 'TBD'}</span>
                 </div>
                 <div className="flex items-center gap-2 justify-end">
-                  <DollarSign className="w-4 h-4 text-green-500" />
-                  <span className="text-white font-medium">{project.budget || '$0'}</span>
+                  <span className="text-xs font-bold text-green-500">LKR</span>
+                  <span className="text-white font-medium">
+                    {project.budget ? project.budget.replace(/[^0-9,.]/g, '') : '0'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 col-span-2">
                   <Briefcase className="w-4 h-4 text-gray-500" />
