@@ -6,11 +6,11 @@ import { useEffect } from "react";
 
 interface StaffAuthWrapperProps {
   children: React.ReactNode;
-  allowedRoles?: ("admin" | "manager" | "employee")[];
+  allowedRoles?: ("admin" | "manager" | "employee" | "staff")[];
 }
 
-export function StaffAuthWrapper({ 
-  children, 
+export function StaffAuthWrapper({
+  children,
   allowedRoles = ["admin", "manager"]
 }: StaffAuthWrapperProps) {
   const { userProfile } = useAuth();

@@ -60,6 +60,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 // --- Types ---
 interface TeamMember {
@@ -96,6 +101,7 @@ export function StaffProjectManagement() {
   const [projects, setProjects] = useState<StaffProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState<TeamMember[]>([]);
+  const [teams, setTeams] = useState<{ id: string, name: string, members: string[] }[]>([]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -131,8 +137,8 @@ export function StaffProjectManagement() {
             role: data.role || "staff",
             avatar: data.profilePicture || ""
           }))
-          // Filter out only staff/devs if needed, or keep all
-          .filter(u => u.role !== 'client');
+          // Filter out clients, admins, and unknown users
+          .filter(u => u.role !== 'client' && u.role !== 'admin' && u.name !== 'Unknown');
         setStaffList(staff);
       }
     });
@@ -154,9 +160,26 @@ export function StaffProjectManagement() {
       setLoading(false);
     });
 
+    // 3. Fetch Teams
+    const teamsRef = ref(database, 'teams');
+    const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const teamsData = snapshot.val();
+        const teamsList = Object.entries(teamsData).map(([id, val]: [string, any]) => ({
+          id,
+          name: val.name,
+          members: val.members || []
+        }));
+        setTeams(teamsList);
+      } else {
+        setTeams([]);
+      }
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeProjects();
+      unsubscribeTeams();
     };
   }, []);
 
@@ -465,7 +488,28 @@ export function StaffProjectManagement() {
               {/* Status and Progress removed as per requirement */}
 
               <div className="col-span-2 space-y-3">
-                <Label>Assign Team</Label>
+                <div className="flex justify-between items-center">
+                  <Label>Assign Team or Members</Label>
+                  <Select onValueChange={(teamId) => {
+                    const team = teams.find(t => t.id === teamId);
+                    if (team) {
+                      setFormData(prev => ({
+                        ...prev,
+                        team: Array.from(new Set([...(prev.team || []), ...team.members]))
+                      }));
+                      toast({ title: "Team Members Added", description: `Added members from ${team.name}` });
+                    }
+                  }}>
+                    <SelectTrigger className="w-[180px] h-8 bg-gray-800 border-gray-700 text-xs text-gray-300">
+                      <SelectValue placeholder="Add Team..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                      {teams.map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex flex-col gap-2 max-h-60 overflow-y-auto p-2 bg-gray-800 rounded border border-gray-700">
                   {staffList.map(user => {
                     // Calculate workload
@@ -500,16 +544,36 @@ export function StaffProjectManagement() {
                           </div>
                         </div>
 
-                        <div className="flex flex-col items-end gap-1">
+                        <div className="flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
                           {isBusy ? (
-                            <div className="text-xs text-right">
-                              <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 mb-1">
-                                {activeProjects.length} Active Project{activeProjects.length !== 1 ? 's' : ''}
-                              </Badge>
-                              <div className="text-[10px] text-gray-500 max-w-[150px] truncate">
-                                {activeProjects.map(p => p.title).join(", ")}
-                              </div>
-                            </div>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <div className="text-xs text-right cursor-pointer group">
+                                  <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30 group-hover:bg-blue-500/30 transition-colors mb-1">
+                                    {activeProjects.length} Active Project{activeProjects.length !== 1 ? 's' : ''}
+                                  </Badge>
+                                </div>
+                              </PopoverTrigger>
+                              <PopoverContent side="left" className="w-72 bg-gray-900 border-gray-700 text-white p-3 shadow-xl z-[9999]">
+                                <h4 className="font-semibold text-sm mb-2 text-gray-300 border-b border-gray-700 pb-1">Current Workload</h4>
+                                <div className="space-y-3 max-h-[200px] overflow-y-auto">
+                                  {activeProjects.map(p => (
+                                    <div key={p.id} className="space-y-1">
+                                      <div className="flex justify-between items-start">
+                                        <span className="text-sm font-medium text-white line-clamp-1">{p.title}</span>
+                                        <span className="text-[10px] text-gray-400 bg-gray-800 px-1 rounded">{p.progress}%</span>
+                                      </div>
+                                      <Progress value={p.progress} className="h-1 bg-gray-800" indicatorClassName="bg-blue-500" />
+                                      {p.team && p.team.length > 1 && (
+                                        <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                                          <Users className="w-3 h-3" /> In a team of {p.team.length}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           ) : (
                             <Badge variant="outline" className="text-xs text-green-400 border-green-500/30 bg-green-500/10">
                               Available

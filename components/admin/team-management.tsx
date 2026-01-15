@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { database } from "@/lib/firebase";
-import { ref, update, onValue, push, set } from "firebase/database";
+import { ref, update, onValue, push, set, remove } from "firebase/database";
 import {
     Card,
     CardContent,
@@ -48,6 +48,16 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
     MoreHorizontal,
     Search,
     UserCog,
@@ -66,7 +76,9 @@ import {
     Briefcase,
     Crown,
     Database,
-    Cpu // For IT
+    Cpu,
+    Pencil,
+    Trash2
 } from "lucide-react";
 
 interface StaffMember {
@@ -115,6 +127,9 @@ export function TeamManagement() {
     const [customDepartment, setCustomDepartment] = useState("");
     const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+
+    // --- DELETE STATE ---
+    const [teamToDelete, setTeamToDelete] = useState<{ id: string, name: string } | null>(null);
 
     useEffect(() => {
         const usersRef = ref(database, 'users');
@@ -229,14 +244,15 @@ export function TeamManagement() {
         }
     };
 
-    const handleDeleteTeam = async (teamId: string, teamName: string) => {
-        if (confirm(`Are you sure you want to delete the team "${teamName}"? This cannot be undone.`)) {
-            try {
-                await update(ref(database, `teams/${teamId}`), null); // Setting to null deletes the node
-                toast({ title: "Success", description: "Team deleted successfully", variant: "default" });
-            } catch (error) {
-                toast({ title: "Error", description: "Failed to delete team", variant: "destructive" });
-            }
+    const confirmDeleteTeam = async () => {
+        if (!teamToDelete) return;
+        try {
+            await remove(ref(database, `teams/${teamToDelete.id}`));
+            toast({ title: "Success", description: "Team deleted successfully", variant: "default" });
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to delete team", variant: "destructive" });
+        } finally {
+            setTeamToDelete(null);
         }
     };
 
@@ -405,71 +421,72 @@ export function TeamManagement() {
             {teams.length > 0 && (
                 <div className="space-y-4">
                     <h3 className="text-xl font-semibold text-white">Active Teams</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {teams.map((team) => (
-                            <Card key={team.id} className="bg-gray-900 border-gray-800 hover:border-orange-500/50 transition-all group relative">
-                                <CardHeader className="pb-3">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex items-center gap-2">
-                                            <div className="p-2 bg-orange-600/10 rounded-lg">
-                                                {getDepartmentIcon(team.department)}
-                                            </div>
-                                            <div>
-                                                <CardTitle className="text-base text-white">{team.name}</CardTitle>
-                                                <CardDescription className="text-xs">{team.department}</CardDescription>
-                                            </div>
+                            <Card key={team.id} className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-all group relative pt-4 pb-12">
+                                {/* EDIT BUTTON - TOP RIGHT */}
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute top-3 right-3 h-8 w-8 text-gray-400 hover:text-white bg-gray-800/50 hover:bg-gray-800 rounded-full"
+                                    onClick={() => openEditDialog(team)}
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+
+                                <CardHeader className="pb-2 pt-2 px-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-2.5 bg-gray-800 rounded-xl border border-gray-700">
+                                            {getDepartmentIcon(team.department)}
                                         </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className="border-gray-700 text-gray-400">
-                                                {team.members ? team.members.length : 0} members
-                                            </Badge>
-
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-6 w-6 p-0 text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <span className="sr-only">Open menu</span>
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="bg-gray-800 border-gray-700 text-white">
-                                                    <DropdownMenuItem
-                                                        onClick={() => openEditDialog(team)}
-                                                        className="cursor-pointer hover:bg-gray-700 focus:bg-gray-700"
-                                                    >
-                                                        <UserCog className="mr-2 h-4 w-4 text-blue-400" /> Edit Team
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() => handleDeleteTeam(team.id, team.name)}
-                                                        className="cursor-pointer hover:bg-gray-700 focus:bg-gray-700 text-red-400 focus:text-red-400"
-                                                    >
-                                                        <UserX className="mr-2 h-4 w-4" /> Delete Team
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                        <div>
+                                            <CardTitle className="text-lg font-bold text-white leading-tight">{team.name}</CardTitle>
+                                            <CardDescription className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
+                                                <Briefcase className="w-3 h-3" />
+                                                {team.department}
+                                            </CardDescription>
                                         </div>
                                     </div>
                                 </CardHeader>
-                                <CardContent>
-                                    <div className="flex items-center -space-x-2 overflow-hidden">
-                                        {team.members && team.members.slice(0, 5).map((memberId) => {
-                                            const member = staff.find(s => s.uid === memberId);
-                                            return (
-                                                <Avatar key={memberId} className="inline-block h-8 w-8 ring-2 ring-gray-900">
-                                                    <AvatarImage src={member?.profilePicture} />
-                                                    <AvatarFallback className="bg-gray-700 text-xs">
-                                                        {member?.name?.charAt(0) || "?"}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                            );
-                                        })}
-                                        {team.members && team.members.length > 5 && (
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-full ring-2 ring-gray-900 bg-gray-800 text-xs font-medium text-white">
-                                                +{team.members.length - 5}
-                                            </div>
-                                        )}
+                                <CardContent className="px-4 pb-2">
+                                    <div className="mt-2">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Badge variant="secondary" className="bg-gray-800 text-gray-400 hover:bg-gray-800 text-[10px] px-2 py-0.5 border border-gray-700">
+                                                {team.members ? team.members.length : 0} members
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center -space-x-2 overflow-hidden pl-1">
+                                            {team.members && team.members.slice(0, 5).map((memberId) => {
+                                                const member = staff.find(s => s.uid === memberId);
+                                                return (
+                                                    <Avatar key={memberId} className="inline-block h-8 w-8 ring-2 ring-gray-900">
+                                                        <AvatarImage src={member?.profilePicture} />
+                                                        <AvatarFallback className="bg-gray-700 text-xs">
+                                                            {member?.name?.charAt(0) || "?"}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                );
+                                            })}
+                                            {team.members && team.members.length > 5 && (
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-full ring-2 ring-gray-900 bg-gray-800 text-xs font-medium text-white">
+                                                    +{team.members.length - 5}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardContent>
+
+                                {/* DELETE BUTTON - BOTTOM RIGHT */}
+                                <div className="absolute bottom-3 right-3">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-gray-500 hover:text-red-400 hover:bg-red-950/30 rounded-full transition-colors"
+                                        onClick={() => setTeamToDelete({ id: team.id, name: team.name })}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </Card>
                         ))}
                     </div>
@@ -598,6 +615,23 @@ export function TeamManagement() {
                     </Table>
                 </CardContent>
             </Card>
+
+            {/* --- DELETE CONFIRMATION DIALOG --- */}
+            <AlertDialog open={!!teamToDelete} onOpenChange={(open) => !open && setTeamToDelete(null)}>
+                <AlertDialogContent className="bg-gray-900 border-gray-800 text-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Team</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-400">
+                            Are you sure you want to delete the team <span className="text-white font-medium">"{teamToDelete?.name}"</span>?
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDeleteTeam} className="bg-red-600 hover:bg-red-700 text-white border-0">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

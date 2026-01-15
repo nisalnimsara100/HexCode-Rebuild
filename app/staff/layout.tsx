@@ -32,6 +32,7 @@ export default function StaffLayout({
   const { userProfile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const allowedRoles: ("staff" | "admin" | "manager")[] = ["staff", "admin", "manager"];
 
   useEffect(() => {
     if (!userProfile) {
@@ -42,9 +43,9 @@ export default function StaffLayout({
     // Role enforcement:
     // Only 'staff', 'admin', or 'manager' are allowed in the staff dashboard.
     // 'employee' is specifically excluded here to enforce the "pending approval" state.
-    const allowedRoles = ["staff", "admin", "manager"];
 
-    if (!allowedRoles.includes(userProfile.role)) {
+
+    if (!(allowedRoles as readonly string[]).includes(userProfile.role)) {
       // If on register or login page, don't redirect (layout typically doesn't wrap them, but safety check)
       if (!pathname.includes("/register") && !pathname.includes("/login")) {
         router.push("/unauthorized?reason=pending_approval");
@@ -53,8 +54,7 @@ export default function StaffLayout({
   }, [userProfile, router, pathname]);
 
   // Don't render layout if user not loaded or not authorized (prevents flash of content)
-  const allowedRoles = ["staff", "admin", "manager"];
-  if (!userProfile || !allowedRoles.includes(userProfile.role)) {
+  if (!userProfile || !(allowedRoles as readonly string[]).includes(userProfile.role)) {
     return null;
   }
 
