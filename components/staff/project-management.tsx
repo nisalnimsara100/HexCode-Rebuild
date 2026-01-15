@@ -23,9 +23,20 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
+  CheckSquare, // Added import
   Edit3,
   Eye,
 } from "lucide-react";
+
+interface Task {
+  id: string
+  title: string
+  status: 'pending' | 'in-progress' | 'completed' | 'overdue'
+  projectId: string
+  priority: string
+  dueDate: string
+  assignedTo: string
+}
 
 interface Project {
   id: string;
@@ -39,7 +50,6 @@ interface Project {
   progress: number;
   team: string[]; // List of UIDs
   clientName: string;
-  tasks: any;
 }
 
 interface TeamMember {
@@ -51,6 +61,7 @@ interface TeamMember {
 export function ProjectManagement() {
   const { toast } = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [staffMap, setStaffMap] = useState<Record<string, TeamMember>>({});
 
@@ -69,7 +80,7 @@ export function ProjectManagement() {
   useEffect(() => {
     setLoading(true);
 
-    // 1. Fetch Staff Details for mapping UIDs to Names
+    // 1. Fetch Staff Details
     const usersRef = ref(database, 'users');
     const unsubscribeUsers = onValue(usersRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -102,8 +113,7 @@ export function ProjectManagement() {
           budget: val.budget || 0,
           progress: Number(val.progress) || 0,
           team: val.team || [],
-          clientName: val.clientName || "Internal",
-          tasks: val.tasks || {}
+          clientName: val.clientName || "Internal"
         }));
 
         // Sort by priority logic
@@ -121,9 +131,25 @@ export function ProjectManagement() {
       setLoading(false);
     });
 
+    // 3. Fetch Tasks
+    const tasksRef = ref(database, 'staffdashboard/tasks');
+    const unsubscribeTasks = onValue(tasksRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const taskList: Task[] = Object.entries(data).map(([id, val]: [string, any]) => ({
+          id,
+          ...val
+        }));
+        setAllTasks(taskList);
+      } else {
+        setAllTasks([]);
+      }
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeProjects();
+      unsubscribeTasks();
     };
   }, []);
 
@@ -387,6 +413,15 @@ export function ProjectManagement() {
                     Client
                   </span>
                   <span className="text-gray-300">{project.clientName}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500 flex items-center gap-2">
+                    <CheckSquare className="h-3.5 w-3.5" />
+                    Tasks
+                  </span>
+                  <span className="text-gray-300 font-mono">
+                    {allTasks.filter(t => t.projectId === project.id && t.status === 'completed').length} / {allTasks.filter(t => t.projectId === project.id).length}
+                  </span>
                 </div>
               </div>
 

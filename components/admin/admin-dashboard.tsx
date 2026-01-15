@@ -12,6 +12,7 @@ import { StaffProjectManagement } from "./staff-project-management"
 import { StaffTicketManagement } from "./staff-ticket-management"
 import { TeamManagement } from "./team-management"
 import { StaffReports } from "./staff-components" // Changed from StaffReportsPanel
+import { StaffTaskAssignments } from "./staff-task-assignments"
 import { StaffSettingsPanel } from "./staff-settings-panel"
 import { fetchPendingApprovalProjects, FirebaseClientProject, approveProject, rejectProject } from "@/lib/client-projects-firebase"
 import {
@@ -385,7 +386,7 @@ export function AdminDashboard() {
           <>
             {activeTab === "staff-overview" && <StaffOverviewDashboard />}
             {activeTab === "tickets" && <StaffTicketManagement />}
-            {activeTab === "assignments" && <TaskAssignmentPanel />}
+            {activeTab === "assignments" && <StaffTaskAssignments />}
             {activeTab === "staff-projects" && <StaffProjectManagement />}
             {activeTab === "team" && <TeamManagement />}
             {activeTab === "reports" && <StaffReports />}

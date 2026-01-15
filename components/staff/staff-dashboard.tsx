@@ -1,5 +1,6 @@
 "use client";
 
+// ... (imports remain)
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,45 +22,32 @@ import {
   XCircle,
   Wifi,
   WifiOff,
+  CheckSquare,
+  Briefcase
 } from "lucide-react";
 
-interface TicketItem {
+interface TaskItem {
   id: string;
   title: string;
   description: string;
-  status: 'open' | 'in-progress' | 'review' | 'closed';
+  status: 'pending' | 'in-progress' | 'completed' | 'overdue';
   priority: 'low' | 'medium' | 'high' | 'critical';
-  assignedTo: {
-    id: string;
-    name: string;
-    email: string;
-    avatar: string;
-  };
+  assignedTo: string; // UID
+  projectId: string;
   dueDate: string;
-  estimatedHours: number;
-  actualHours: number;
-  timeSpent: number;
-  tags: string[];
-  project: string;
-  department: string;
-  adminNotes?: string;
-  extraTimeReason?: string;
-  extraTimeAdded?: number;
-  ruralSituations?: {
-    type: string;
-    description: string;
-    timeExtension: number;
-    timestamp: string;
-  }[];
+  estimatedHours: string;
+  assignedBy?: string;
+  createdAt?: string;
 }
 
 export default function EmployeeView() {
   const { userProfile } = useAuth();
-  const [tickets, setTickets] = useState<TicketItem[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [activeSidebar, setActiveSidebar] = useState("dashboard");
+
+  // Projects Map for displaying project names
+  const [projectsMap, setProjectsMap] = useState<Record<string, string>>({});
 
   // Update current time every second
   useEffect(() => {
@@ -70,85 +58,56 @@ export default function EmployeeView() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch tickets assigned to current user
+  // Fetch Projects (for naming) & Tasks
   useEffect(() => {
     if (!userProfile?.uid) {
       setLoading(false);
       return;
     }
 
-    const ticketsRef = ref(database, 'tickets');
-    const unsubscribe = onValue(ticketsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const ticketsData = snapshot.val();
-        const ticketsList = Object.entries(ticketsData)
-          .map(([id, data]: [string, any]) => ({
-            id,
-            ...data
-          }))
-          .filter((ticket: TicketItem) => {
-            // Check if ticket has assignedTo and assignedTo has id
-            return ticket.assignedTo &&
-              ticket.assignedTo.id &&
-              ticket.assignedTo.id === userProfile.uid;
-          })
-          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    setLoading(true);
 
-        setTickets(ticketsList);
+    // 1. Fetch Projects to map ID -> Title
+    const projectsRef = ref(database, 'staffdashboard/projects');
+    const unsubscribeProjects = onValue(projectsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const map: Record<string, string> = {};
+        Object.entries(data).forEach(([id, val]: [string, any]) => {
+          map[id] = val.title || "Unknown Project";
+        });
+        setProjectsMap(map);
+      }
+    });
+
+    // 2. Fetch Tasks
+    const tasksRef = ref(database, 'staffdashboard/tasks');
+    const unsubscribeTasks = onValue(tasksRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const taskList = Object.entries(data)
+          .map(([id, val]: [string, any]) => ({
+            id,
+            ...val
+          }))
+          .filter((t: TaskItem) => t.assignedTo === userProfile.uid)
+          .sort((a, b) => new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime());
+
+        setTasks(taskList);
       } else {
-        // Add sample data when Firebase is empty
-        const sampleTickets: TicketItem[] = [
-          {
-            id: '1',
-            title: 'Website Bug Fix',
-            description: 'Fix responsive design issues on mobile devices',
-            status: 'in-progress',
-            priority: 'high',
-            assignedTo: {
-              id: userProfile.uid,
-              name: userProfile.name || 'Employee',
-              email: userProfile.email || '',
-              avatar: ''
-            },
-            dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
-            estimatedHours: 8,
-            actualHours: 0,
-            timeSpent: 3,
-            tags: ['frontend', 'css', 'responsive'],
-            project: 'Company Website',
-            department: 'Development'
-          },
-          {
-            id: '2',
-            title: 'Database Optimization',
-            description: 'Optimize database queries for better performance',
-            status: 'open',
-            priority: 'medium',
-            assignedTo: {
-              id: userProfile.uid,
-              name: userProfile.name || 'Employee',
-              email: userProfile.email || '',
-              avatar: ''
-            },
-            dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
-            estimatedHours: 12,
-            actualHours: 0,
-            timeSpent: 0,
-            tags: ['backend', 'database', 'performance'],
-            project: 'Internal Tools',
-            department: 'Development'
-          }
-        ];
-        setTickets(sampleTickets);
+        setTasks([]);
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeProjects();
+      unsubscribeTasks();
+    }
   }, [userProfile?.uid]);
 
-  // Fetch Projects assigned to current user
-  const [projects, setProjects] = useState<any[]>([]);
+  // Fetch Projects assigned to current user (Existing Logic kept for Active Projects section)
+  const [activeProjects, setActiveProjects] = useState<any[]>([]);
   useEffect(() => {
     if (!userProfile?.uid) return;
 
@@ -164,9 +123,9 @@ export default function EmployeeView() {
           }))
           .filter(project => project.team && project.team.includes(userProfile.uid));
 
-        setProjects(projectList);
+        setActiveProjects(projectList);
       } else {
-        setProjects([]);
+        setActiveProjects([]);
       }
     });
 
@@ -175,57 +134,39 @@ export default function EmployeeView() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'open':
-        return <AlertCircle className="h-4 w-4 text-orange-400" />;
-      case 'in-progress':
-        return <Activity className="h-4 w-4 text-blue-400" />;
-      case 'review':
-        return <Clock className="h-4 w-4 text-yellow-400" />;
-      case 'closed':
-        return <CheckCircle className="h-4 w-4 text-green-400" />;
-      default:
-        return <XCircle className="h-4 w-4 text-gray-400" />;
+      case 'pending': return <AlertCircle className="h-4 w-4 text-yellow-400" />;
+      case 'in-progress': return <Activity className="h-4 w-4 text-blue-400" />;
+      case 'completed': return <CheckCircle className="h-4 w-4 text-green-400" />;
+      case 'overdue': return <AlertTriangle className="h-4 w-4 text-red-400" />;
+      default: return <XCircle className="h-4 w-4 text-gray-400" />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open':
-        return "bg-orange-900 text-orange-300 border-orange-600";
-      case 'in-progress':
-        return "bg-blue-900 text-blue-300 border-blue-600";
-      case 'review':
-        return "bg-yellow-900 text-yellow-300 border-yellow-600";
-      case 'closed':
-        return "bg-green-900 text-green-300 border-green-600";
-      default:
-        return "bg-gray-900 text-gray-300 border-gray-600";
+      case 'pending': return "bg-yellow-900/20 text-yellow-300 border-yellow-600/50";
+      case 'in-progress': return "bg-blue-900/20 text-blue-300 border-blue-600/50";
+      case 'completed': return "bg-green-900/20 text-green-300 border-green-600/50";
+      case 'overdue': return "bg-red-900/20 text-red-300 border-red-600/50";
+      default: return "bg-gray-900 text-gray-300 border-gray-600";
     }
   };
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
-      case 'critical':
-        return <Zap className="h-3 w-3" />;
-      case 'high':
-        return <AlertTriangle className="h-3 w-3" />;
-      default:
-        return null;
+      case 'critical': return <Zap className="h-3 w-3" />;
+      case 'high': return <AlertTriangle className="h-3 w-3" />;
+      default: return null;
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'critical':
-        return "bg-red-900 text-red-300 border-red-600";
-      case 'high':
-        return "bg-orange-900 text-orange-300 border-orange-600";
-      case 'medium':
-        return "bg-yellow-900 text-yellow-300 border-yellow-600";
-      case 'low':
-        return "bg-green-900 text-green-300 border-green-600";
-      default:
-        return "bg-gray-900 text-gray-300 border-gray-600";
+      case 'critical': return "bg-red-900/20 text-red-300 border-red-600/50";
+      case 'high': return "bg-orange-900/20 text-orange-300 border-orange-600/50";
+      case 'medium': return "bg-yellow-900/20 text-yellow-300 border-yellow-600/50";
+      case 'low': return "bg-green-900/20 text-green-300 border-green-600/50";
+      default: return "bg-gray-900 text-gray-300 border-gray-600";
     }
   };
 
@@ -265,7 +206,7 @@ export default function EmployeeView() {
                 {getGreeting()}, {userProfile?.name || 'Team Member'}!
               </h1>
               <p className="text-lg text-gray-300 mt-2">
-                Welcome to your workspace, {userProfile?.role === 'admin' ? 'Administrator' : userProfile?.role === 'manager' ? 'Manager' : 'Developer'}!
+                Welcome to your workspace
               </p>
             </div>
           </div>
@@ -287,14 +228,14 @@ export default function EmployeeView() {
         <div className="border-t border-orange-500/20"></div>
 
         {/* Active Projects Section */}
-        {projects.length > 0 && (
+        {activeProjects.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-white flex items-center">
               <Activity className="w-5 h-5 mr-2 text-orange-500" />
               Your Active Projects
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {projects.map(project => (
+              {activeProjects.map(project => (
                 <Card key={project.id} className="bg-gray-900 border-gray-800 p-4 hover:border-orange-500/30 transition-all">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-white text-lg">{project.title}</h3>
@@ -319,9 +260,7 @@ export default function EmployeeView() {
                       <Clock className="w-3 h-3 mr-1" />
                       {project.endDate || 'No deadline'}
                     </div>
-                    {project.tasks && (
-                      <span>{Object.values(project.tasks).length} Tasks</span>
-                    )}
+                    {/* Placeholder for task count if needed */}
                   </div>
                 </Card>
               ))}
@@ -335,31 +274,32 @@ export default function EmployeeView() {
           <Card className="bg-gray-900/50 border-orange-700/50 p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-300">
-                {tickets.filter(t => t.status === 'open').length}
+                {tasks.filter(t => t.status === 'pending').length}
               </div>
               <div className="text-sm text-orange-400">Open Tasks</div>
             </div>
           </Card>
+          <Card className="bg-gray-900/50 border-blue-700/50 p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-300">
+                {tasks.filter(t => t.status === 'in-progress').length}
+              </div>
+              <div className="text-sm text-blue-400">In Progress</div>
+            </div>
+          </Card>
+          {/* Note: 'review' status is not standard in my previous implementation but keeping card for layout stability or mapping 'overdue' */}
           <Card className="bg-gray-900/50 border-red-700/50 p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-red-300">
-                {tickets.filter(t => t.status === 'in-progress').length}
+                {tasks.filter(t => t.status === 'overdue').length}
               </div>
-              <div className="text-sm text-red-400">In Progress</div>
-            </div>
-          </Card>
-          <Card className="bg-gray-900/50 border-yellow-700/50 p-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-300">
-                {tickets.filter(t => t.status === 'review').length}
-              </div>
-              <div className="text-sm text-yellow-400">In Review</div>
+              <div className="text-sm text-red-400">Overdue</div>
             </div>
           </Card>
           <Card className="bg-gray-900/50 border-green-700/50 p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-300">
-                {tickets.filter(t => t.status === 'closed').length}
+                {tasks.filter(t => t.status === 'completed').length}
               </div>
               <div className="text-sm text-green-400">Completed</div>
             </div>
@@ -371,7 +311,14 @@ export default function EmployeeView() {
 
         {/* Task Cards */}
         <div className="space-y-4">
-          {tickets.length === 0 ? (
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-white flex items-center">
+              <CheckSquare className="w-5 h-5 mr-2 text-orange-500" />
+              Your Tasks
+            </h2>
+          </div>
+
+          {tasks.length === 0 ? (
             <Card className="bg-gray-900 border-gray-700 p-8 text-center">
               <div className="text-gray-400 space-y-2">
                 <CheckCircle className="h-12 w-12 mx-auto text-orange-400" />
@@ -380,8 +327,8 @@ export default function EmployeeView() {
               </div>
             </Card>
           ) : (
-            tickets.map((ticket) => (
-              <Card key={ticket.id} className="bg-gray-900 border-gray-700 hover:bg-gray-800 transition-all duration-200">
+            tasks.map((task) => (
+              <Card key={task.id} className="bg-gray-900 border-gray-700 hover:bg-gray-800 transition-all duration-200">
                 <div className="p-4 sm:p-6">
                   <div className="space-y-4">
 
@@ -390,101 +337,55 @@ export default function EmployeeView() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <div className="flex items-center space-x-2 min-w-0 flex-1">
-                            {getStatusIcon(ticket.status)}
+                            {getStatusIcon(task.status)}
                             <h3 className="text-lg font-semibold text-white truncate">
-                              {ticket.title}
+                              {task.title}
                             </h3>
                           </div>
                           <div className="flex flex-wrap gap-2 shrink-0">
-                            <Badge className={getStatusColor(ticket.status)}>
-                              {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1).replace('-', ' ')}
+                            <Badge className={getStatusColor(task.status)}>
+                              {task.status.toUpperCase()}
                             </Badge>
-                            <Badge className={getPriorityColor(ticket.priority)}>
+                            <Badge className={getPriorityColor(task.priority)}>
                               <div className="flex items-center space-x-1">
-                                {getPriorityIcon(ticket.priority)}
-                                <span>{ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}</span>
+                                {getPriorityIcon(task.priority)}
+                                <span>{task.priority.toUpperCase()}</span>
                               </div>
                             </Badge>
                           </div>
                         </div>
                         <p className="text-gray-400 text-sm sm:text-base mb-3 line-clamp-2">
-                          {ticket.description}
+                          {task.description}
                         </p>
                       </div>
                     </div>
 
-                    {/* Countdown Timer - Prominent Display */}
-                    <div className="mb-4">
-                      <CountdownTimer
-                        dueDate={ticket.dueDate}
-                        priority={ticket.priority}
-                        size="lg"
-                        className="w-full"
-                      />
-                    </div>
-
-                    {/* Admin Notes & Rural Situations */}
-                    {(ticket.adminNotes || ticket.extraTimeReason || ticket.ruralSituations?.length) && (
-                      <Card className="bg-gray-900/50 border-gray-600 p-3">
-                        <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
-                          <User className="h-4 w-4 mr-2" />
-                          Admin Notes
-                        </h4>
-
-                        {ticket.adminNotes && (
-                          <div className="text-sm text-gray-400 mb-2">
-                            <strong>Note:</strong> {ticket.adminNotes}
-                          </div>
-                        )}
-
-                        {ticket.extraTimeReason && (
-                          <div className="text-sm text-green-400 mb-2">
-                            <strong>Extra Time Added:</strong> {ticket.extraTimeAdded} hours - {ticket.extraTimeReason}
-                          </div>
-                        )}
-
-                        {ticket.ruralSituations?.map((situation, index) => (
-                          <div key={index} className="text-sm text-yellow-400 mb-1 flex items-center">
-                            {situation.type === 'electricity' ? <WifiOff className="h-3 w-3 mr-2" /> : <Wifi className="h-3 w-3 mr-2" />}
-                            <strong>{situation.type}:</strong> {situation.description}
-                            <span className="text-gray-400 ml-2">
-                              (+{situation.timeExtension}h on {new Date(situation.timestamp).toLocaleDateString()})
-                            </span>
-                          </div>
-                        ))}
-                      </Card>
+                    {/* Countdown Timer (Only for pending/in-progress) */}
+                    {(task.status === 'pending' || task.status === 'in-progress') && task.dueDate && (
+                      <div className="mb-4">
+                        {/* Simplified timer placeholder or reuse component if compatible. 
+                               CountdownTimer expects ISO date string. verify format.
+                               Assuming task.dueDate is 'YYYY-MM-DD'.
+                            */}
+                        <div className="text-sm text-gray-400 flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-orange-500" />
+                          Due: {task.dueDate}
+                        </div>
+                      </div>
                     )}
+
 
                     {/* Task Details */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                       <div className="flex items-center text-gray-400">
-                        <Calendar className="h-4 w-4 mr-2 shrink-0" />
-                        <span>Due: {new Date(ticket.dueDate).toLocaleDateString()}</span>
+                        <Briefcase className="h-4 w-4 mr-2 shrink-0" />
+                        <span>Project: {projectsMap[task.projectId] || 'Unknown'}</span>
                       </div>
                       <div className="flex items-center text-gray-400">
                         <Clock className="h-4 w-4 mr-2 shrink-0" />
-                        <span>Est: {ticket.estimatedHours}h</span>
-                      </div>
-                      <div className="flex items-center text-gray-400">
-                        <Activity className="h-4 w-4 mr-2 shrink-0" />
-                        <span>Project: {ticket.project}</span>
+                        <span>Est: {task.estimatedHours}h</span>
                       </div>
                     </div>
-
-                    {/* Tags */}
-                    {ticket.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {ticket.tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="outline"
-                            className="text-xs border-gray-600 text-gray-300"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
 
                   </div>
                 </div>
