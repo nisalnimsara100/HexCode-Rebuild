@@ -38,6 +38,7 @@ interface TaskItem {
   estimatedHours: string;
   assignedBy?: string;
   createdAt?: string;
+  category?: string;
 }
 
 export default function EmployeeView() {
@@ -200,6 +201,16 @@ export default function EmployeeView() {
     }
   };
 
+  const getCategoryColor = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case 'frontend': return 'bg-purple-900/20 text-purple-300 border-purple-600/50';
+      case 'backend': return 'bg-indigo-900/20 text-indigo-300 border-indigo-600/50';
+      case 'database': return 'bg-cyan-900/20 text-cyan-300 border-cyan-600/50';
+      case 'other': return 'bg-gray-900/20 text-gray-300 border-gray-600/50';
+      default: return 'bg-gray-900 text-gray-300 border-gray-600';
+    }
+  };
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good Morning";
@@ -270,12 +281,12 @@ export default function EmployeeView() {
           </div>
         </div>
 
-                
+
 
         {/* Section Separator */}
         <div className="border-t border-orange-500/20"></div>
-                
-                {/* Tasks Stats */}
+
+        {/* Tasks Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card className="bg-gray-900/50 border-orange-700/50 p-4">
             <div className="text-center">
@@ -310,9 +321,9 @@ export default function EmployeeView() {
               <div className="text-sm text-green-400">Completed</div>
             </div>
           </Card>
-        </div> 
+        </div>
 
-                 {/* Section Separator */}
+        {/* Section Separator */}
         <div className="border-t border-orange-500/20"></div>
         {/* Active Projects Section */}
         {activeProjects.length > 0 && (
@@ -356,9 +367,9 @@ export default function EmployeeView() {
           </div>
         )}
 
-       
 
-       
+
+
         {/* Task Cards */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -402,6 +413,11 @@ export default function EmployeeView() {
                                 <span>{task.priority.toUpperCase()}</span>
                               </div>
                             </Badge>
+                            {task.category && (
+                              <Badge className={getCategoryColor(task.category)}>
+                                {task.category.toUpperCase()}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <p className="text-gray-400 text-sm sm:text-base mb-3 line-clamp-2">

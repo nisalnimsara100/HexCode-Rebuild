@@ -38,6 +38,7 @@ interface Task {
   dueDate: string
   assignedTo: string | string[]
   estimatedHours?: string | number
+  category?: string
 }
 
 
@@ -234,6 +235,16 @@ export function ProjectManagement() {
       case "high": return "bg-orange-500/10 text-orange-400 border-orange-500/30";
       case "critical": return "bg-red-500/10 text-red-400 border-red-500/30";
       default: return "bg-gray-100/10 text-gray-400 border-gray-700";
+    }
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case 'frontend': return 'bg-purple-900/20 text-purple-300 border-purple-600/50';
+      case 'backend': return 'bg-indigo-900/20 text-indigo-300 border-indigo-600/50';
+      case 'database': return 'bg-cyan-900/20 text-cyan-300 border-cyan-600/50';
+      case 'other': return 'bg-gray-900/20 text-gray-300 border-gray-600/50';
+      default: return 'bg-gray-900/20 text-gray-300 border-gray-600/50';
     }
   };
 
@@ -633,6 +644,11 @@ export function ProjectManagement() {
                               <Badge variant="outline" className={`shrink-0 text-[10px] py-0 border-gray-700 capitalize ${task.status === 'completed' ? 'text-gray-500' : 'text-gray-400'}`}>
                                 {task.priority || 'Normal'}
                               </Badge>
+                              {task.category && (
+                                <Badge variant="outline" className={`shrink-0 text-[10px] py-0 capitalize ${task.status === 'completed' ? 'text-gray-500 border-gray-700' : getCategoryColor(task.category)}`}>
+                                  {task.category}
+                                </Badge>
+                              )}
                             </div>
 
                             {/* Task Meta Details */}

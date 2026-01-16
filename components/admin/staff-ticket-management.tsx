@@ -145,7 +145,8 @@ export function StaffTicketManagement() {
                 assignedTo: ticket.assignedTo || [],
                 status: ticket.status,
                 priority: ticket.priority,
-                dueDate: ticket.dueDate,
+                // Ensure format YYYY-MM-DDTHH:MM for datetime-local input
+                dueDate: ticket.dueDate ? new Date(ticket.dueDate).toISOString().slice(0, 16) : "",
                 estimatedHours: ticket.estimatedHours,
                 timeSpent: ticket.timeSpent || 0,
                 category: ticket.category,
@@ -457,106 +458,106 @@ export function StaffTicketManagement() {
                         </div>
                         <div className="space-y-2">
                             <Label>Description</Label>
-                            <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="bg-gray-800 border-gray-700" />
+                            <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="bg-gray-800 border-gray-700 min-h-[100px]" />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Assign To (Multi-Select)</Label>
-                                <div className="border border-gray-700 rounded-lg p-2 max-h-[250px] overflow-y-auto bg-gray-800">
-                                    {/* TEAMS SECTION */}
-                                    {teams.length > 0 && (
-                                        <div className="mb-2">
-                                            <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Teams</p>
-                                            {teams.map(team => {
-                                                const allSelected = team.members.length > 0 && team.members.every(m => formData.assignedTo.includes(m));
-                                                return (
-                                                    <div key={team.id} className="flex items-center space-x-2 py-1 hover:bg-gray-700/50 rounded px-1 cursor-pointer" onClick={() => toggleTeamSelection(team)}>
-                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${allSelected ? 'bg-orange-600 border-orange-600' : 'border-gray-500'}`}>
-                                                            {allSelected && <CheckCircle className="w-3 h-3 text-white" />}
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-medium text-gray-200">{team.name}</span>
-                                                            <span className="text-[10px] text-gray-400">{team.members.length} members</span>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                            <div className="h-px bg-gray-700 my-2"></div>
-                                        </div>
-                                    )}
 
-                                    {/* STAFF SECTION */}
-                                    <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Staff Members</p>
-                                    {staffList.map(u => {
-                                        // Calculate Active Tickets for this user
-                                        const activeUserTickets = tickets.filter(t =>
-                                            (Array.isArray(t.assignedTo) && t.assignedTo.includes(u.uid)) &&
-                                            (t.status !== 'closed' && t.status !== 'completed')
-                                        );
-                                        const isBusy = activeUserTickets.length > 0;
-
-                                        return (
-                                            <div key={u.uid} className="flex items-center justify-between space-x-2 py-1 hover:bg-gray-700/50 rounded px-1 cursor-pointer border border-transparent" onClick={() => toggleStaffSelection(u.uid)}>
-                                                <div className="flex items-center space-x-2">
-                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600 border-orange-600' : 'border-gray-500'}`}>
-                                                        {formData.assignedTo.includes(u.uid) && <CheckCircle className="w-3 h-3 text-white" />}
+                        <div className="space-y-2">
+                            <Label>Assign To (Multi-Select)</Label>
+                            <div className="border border-gray-700 rounded-lg p-2 max-h-[250px] overflow-y-auto bg-gray-800">
+                                {/* TEAMS SECTION */}
+                                {teams.length > 0 && (
+                                    <div className="mb-2">
+                                        <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Teams</p>
+                                        {teams.map(team => {
+                                            const allSelected = team.members.length > 0 && team.members.every(m => formData.assignedTo.includes(m));
+                                            return (
+                                                <div key={team.id} className="flex items-center space-x-2 py-1 hover:bg-gray-700/50 rounded px-1 cursor-pointer" onClick={() => toggleTeamSelection(team)}>
+                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${allSelected ? 'bg-orange-600 border-orange-600' : 'border-gray-500'}`}>
+                                                        {allSelected && <CheckCircle className="w-3 h-3 text-white" />}
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center text-[10px]">
-                                                            {u.profilePicture ? <img src={u.profilePicture} className="w-full h-full" /> : u.name?.charAt(0)}
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-medium text-gray-200">{u.name}</span>
-                                                            <span className="text-[10px] text-gray-400">{u.role || 'Staff'}</span>
-                                                        </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-gray-200">{team.name}</span>
+                                                        <span className="text-[10px] text-gray-400">{team.members.length} members</span>
                                                     </div>
                                                 </div>
+                                            )
+                                        })}
+                                        <div className="h-px bg-gray-700 my-2"></div>
+                                    </div>
+                                )}
 
-                                                {/* Workload Indicator */}
-                                                <div onClick={(e) => e.stopPropagation()}>
-                                                    {isBusy && (
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <div className="cursor-pointer">
-                                                                    <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30 transition-colors">
-                                                                        {activeUserTickets.length} Ticket{activeUserTickets.length !== 1 ? 's' : ''}
-                                                                    </Badge>
-                                                                </div>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent side="left" className="w-64 bg-gray-900 border-gray-700 text-white p-3 shadow-xl z-[9999]">
-                                                                <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">Current Active Tickets</h4>
-                                                                <div className="space-y-2 max-h-[150px] overflow-y-auto">
-                                                                    {activeUserTickets.map(t => (
-                                                                        <div key={t.id} className="space-y-1">
-                                                                            <div className="flex justify-between items-start">
-                                                                                <span className="text-xs font-medium text-white line-clamp-1">{t.title}</span>
-                                                                                <Badge variant="outline" className={`text-[9px] px-1 py-0 h-3 ${getStatusColor(t.status)}`}>
-                                                                                    {t.status}
-                                                                                </Badge>
-                                                                            </div>
-                                                                            <Progress value={Math.min(((t.timeSpent || 0) / parseFloat(t.estimatedHours || '1')) * 100, 100)} className="h-1 bg-gray-800" indicatorClassName="bg-blue-500" />
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                    )}
+                                {/* STAFF SECTION */}
+                                <p className="text-[10px] uppercase text-gray-500 font-semibold mb-1 px-1">Staff Members</p>
+                                {staffList.map(u => {
+                                    // Calculate Active Tickets for this user
+                                    const activeUserTickets = tickets.filter(t =>
+                                        (Array.isArray(t.assignedTo) && t.assignedTo.includes(u.uid)) &&
+                                        (t.status !== 'closed' && t.status !== 'completed')
+                                    );
+                                    const isBusy = activeUserTickets.length > 0;
+
+                                    return (
+                                        <div key={u.uid} className="flex items-center justify-between space-x-2 py-1 hover:bg-gray-700/50 rounded px-1 cursor-pointer border border-transparent" onClick={() => toggleStaffSelection(u.uid)}>
+                                            <div className="flex items-center space-x-2">
+                                                <div className={`w-4 h-4 rounded border flex items-center justify-center ${formData.assignedTo.includes(u.uid) ? 'bg-orange-600 border-orange-600' : 'border-gray-500'}`}>
+                                                    {formData.assignedTo.includes(u.uid) && <CheckCircle className="w-3 h-3 text-white" />}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center text-[10px]">
+                                                        {u.profilePicture ? <img src={u.profilePicture} className="w-full h-full" /> : u.name?.charAt(0)}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-gray-200">{u.name}</span>
+                                                        <span className="text-[10px] text-gray-400">{u.role || 'Staff'}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        )
-                                    })}
-                                </div>
+
+                                            {/* Workload Indicator */}
+                                            <div onClick={(e) => e.stopPropagation()}>
+                                                {isBusy && (
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <div className="cursor-pointer">
+                                                                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30 transition-colors">
+                                                                    {activeUserTickets.length} Ticket{activeUserTickets.length !== 1 ? 's' : ''}
+                                                                </Badge>
+                                                            </div>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent side="left" className="w-64 bg-gray-900 border-gray-700 text-white p-3 shadow-xl z-[9999]">
+                                                            <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">Current Active Tickets</h4>
+                                                            <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                                                                {activeUserTickets.map(t => (
+                                                                    <div key={t.id} className="space-y-1">
+                                                                        <div className="flex justify-between items-start">
+                                                                            <span className="text-xs font-medium text-white line-clamp-1">{t.title}</span>
+                                                                            <Badge variant="outline" className={`text-[9px] px-1 py-0 h-3 ${getStatusColor(t.status)}`}>
+                                                                                {t.status}
+                                                                            </Badge>
+                                                                        </div>
+                                                                        <Progress value={Math.min(((t.timeSpent || 0) / parseFloat(t.estimatedHours || '1')) * 100, 100)} className="h-1 bg-gray-800" indicatorClassName="bg-blue-500" />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
                             </div>
-                            <div className="space-y-2">
-                                <Label>Project</Label>
-                                <Input value={formData.project} onChange={e => setFormData({ ...formData, project: e.target.value })} className="bg-gray-800 border-gray-700" placeholder="Project Name" />
-                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Project</Label>
+                            <Input value={formData.project} onChange={e => setFormData({ ...formData, project: e.target.value })} className="bg-gray-800 border-gray-700" placeholder="Project Name" />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Due Date</Label>
-                                <Input type="date" value={formData.dueDate} onChange={e => setFormData({ ...formData, dueDate: e.target.value })} className="bg-gray-800 border-gray-700" />
+                                <Label>Due Date & Time</Label>
+                                <Input type="datetime-local" value={formData.dueDate} onChange={e => setFormData({ ...formData, dueDate: e.target.value })} className="bg-gray-800 border-gray-700" />
                             </div>
                             <div className="space-y-2">
                                 <Label>Est. Hours</Label>

@@ -74,6 +74,7 @@ interface Task {
     projectName?: string
     assigneeNames?: string[]
     assigneeAvatars?: string[]
+    category?: string
 }
 
 interface Project {
@@ -121,6 +122,7 @@ export function StaffTaskAssignments() {
         dueDate: string
         estimatedHours: string
         progress: number
+        category: string
     }>({
         title: "",
         description: "",
@@ -130,7 +132,8 @@ export function StaffTaskAssignments() {
         priority: "medium",
         dueDate: "",
         estimatedHours: "",
-        progress: 0
+        progress: 0,
+        category: "frontend"
     })
 
     // --- Fetch Data ---
@@ -293,7 +296,8 @@ export function StaffTaskAssignments() {
                 dueDate: formData.dueDate,
                 estimatedHours: formData.estimatedHours,
                 projectId: formData.projectId,
-                assignedTo: formData.assignedTo // Full replacement of array
+                assignedTo: formData.assignedTo, // Full replacement of array
+                category: formData.category
             })
             toast({ title: "Updated", description: "Task details updated." })
             setIsEditModalOpen(false)
@@ -378,7 +382,8 @@ export function StaffTaskAssignments() {
             priority: task.priority,
             dueDate: task.dueDate,
             estimatedHours: task.estimatedHours as string,
-            progress: task.progress
+            progress: task.progress,
+            category: task.category || "frontend"
         })
         setIsEditModalOpen(true)
     }
@@ -386,7 +391,7 @@ export function StaffTaskAssignments() {
     const resetFormData = () => {
         setFormData({
             title: "", description: "", projectId: "", assignedTo: [],
-            status: "pending", priority: "medium", dueDate: "", estimatedHours: "", progress: 0
+            status: "pending", priority: "medium", dueDate: "", estimatedHours: "", progress: 0, category: "frontend"
         })
     }
 
@@ -408,6 +413,16 @@ export function StaffTaskAssignments() {
             case 'completed': return 'bg-green-500/20 text-green-500 border-green-500/50'
             case 'overdue': return 'bg-red-500/20 text-red-500 border-red-500/50'
             default: return 'bg-gray-500/20 text-gray-500'
+        }
+    }
+
+    const getCategoryColor = (category: string) => {
+        switch (category?.toLowerCase()) {
+            case 'frontend': return 'bg-purple-500/20 text-purple-400 border-purple-500/50'
+            case 'backend': return 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50'
+            case 'database': return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50'
+            case 'other': return 'bg-gray-500/20 text-gray-400 border-gray-500/50'
+            default: return 'bg-gray-800 text-gray-400 border-gray-700'
         }
     }
 
@@ -490,6 +505,11 @@ export function StaffTaskAssignments() {
                                                     </Badge>
                                                 )
                                             })()}
+                                            {task.category && (
+                                                <Badge variant="outline" className={`${getCategoryColor(task.category)} uppercase border ml-2.5`}>
+                                                    {task.category}
+                                                </Badge>
+                                            )}
                                             {(task.status !== 'completed') && (
                                                 <CountdownTimer dueDate={task.dueDate} priority={task.priority} showProgress={false} size="sm" className="ml-4 min-w-[200px]" />
                                             )}
@@ -638,6 +658,38 @@ export function StaffTaskAssignments() {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Category</Label>
+                                <Select
+                                    value={['frontend', 'backend', 'database'].includes(formData.category?.toLowerCase() || '') ? formData.category?.toLowerCase() : 'other'}
+                                    onValueChange={(v) => {
+                                        if (v === 'other') {
+                                            setFormData({ ...formData, category: 'Other' })
+                                        } else {
+                                            setFormData({ ...formData, category: v })
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger className="bg-gray-800 border-gray-700">
+                                        <SelectValue placeholder="Select Category" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                                        <SelectItem value="frontend">Frontend</SelectItem>
+                                        <SelectItem value="backend">Backend</SelectItem>
+                                        <SelectItem value="database">Database</SelectItem>
+                                        <SelectItem value="other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {(!['frontend', 'backend', 'database'].includes(formData.category?.toLowerCase() || '') || formData.category === 'Other') && (
+                                    <Input
+                                        placeholder="Type custom category..."
+                                        value={formData.category === 'Other' ? '' : formData.category}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                        className="bg-gray-800 border-gray-700 mt-2"
+                                    />
+                                )}
                             </div>
 
                             <div className="space-y-2 col-span-2">
@@ -818,6 +870,38 @@ export function StaffTaskAssignments() {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Category</Label>
+                                <Select
+                                    value={['frontend', 'backend', 'database'].includes(formData.category?.toLowerCase() || '') ? formData.category?.toLowerCase() : 'other'}
+                                    onValueChange={(v) => {
+                                        if (v === 'other') {
+                                            setFormData({ ...formData, category: 'Other' })
+                                        } else {
+                                            setFormData({ ...formData, category: v })
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger className="bg-gray-800 border-gray-700">
+                                        <SelectValue placeholder="Select Category" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                                        <SelectItem value="frontend">Frontend</SelectItem>
+                                        <SelectItem value="backend">Backend</SelectItem>
+                                        <SelectItem value="database">Database</SelectItem>
+                                        <SelectItem value="other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {(!['frontend', 'backend', 'database'].includes(formData.category?.toLowerCase() || '') || formData.category === 'Other') && (
+                                    <Input
+                                        placeholder="Type custom category..."
+                                        value={formData.category === 'Other' ? '' : formData.category}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                        className="bg-gray-800 border-gray-700 mt-2"
+                                    />
+                                )}
                             </div>
 
                             <div className="space-y-2 col-span-2">

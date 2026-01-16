@@ -560,6 +560,11 @@ export function StaffProjectManagement() {
                             {formData.team?.includes(user.uid) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                           </div>
 
+                          <Avatar className="h-8 w-8 border border-gray-600">
+                            <AvatarImage src={user.avatar} />
+                            <AvatarFallback className="bg-gray-700 text-xs">{user.name?.charAt(0)}</AvatarFallback>
+                          </Avatar>
+
                           <div className="flex flex-col">
                             <span className="text-sm font-medium text-white">{user.name}</span>
                             <span className="text-xs text-gray-400 capitalize">{user.role}</span>
