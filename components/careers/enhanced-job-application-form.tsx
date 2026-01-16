@@ -634,7 +634,7 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[92vw] max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-4">
+      <DialogContent className="w-[95vw] max-w-7xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-4">
         <DialogHeader>
           <div className="flex items-center gap-2 mb-3">
             <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -900,13 +900,13 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
                       <div className="space-y-2 min-w-0">
                         <Label htmlFor="availabilityDate">Available Start Date</Label>
                         <div className="relative w-full">
-                          <Calendar className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+                          <Calendar className="w-4 h-4 absolute left-3 top-3 text-emerald-500" />
                           <Input
                             id="availabilityDate"
                             type="date"
                             value={formData.availabilityDate}
                             onChange={(e) => handleInputChange('availabilityDate', e.target.value)}
-                            className="pl-10 w-full"
+                            className="pl-10 w-full dark:[color-scheme:dark]"
                           />
                         </div>
                       </div>
@@ -1209,6 +1209,7 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
                 )}
 
                 {/* Professional Information */}
+                {/* Professional Information - HIDDEN
                 <Card className="p-3 sm:p-4">
                   <div className="flex items-center gap-2 mb-4">
                     <Award className="w-5 h-5 text-emerald-500" />
@@ -1251,6 +1252,7 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
                     </div>
                   </div>
                 </Card>
+                */}
               </div>
             )}
 
@@ -1373,6 +1375,7 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
                     </div>
 
                     {/* Certifications */}
+                    {/* Certifications - HIDDEN
                     <div>
                       <Label className="text-sm font-medium">Certifications</Label>
                       <p className="text-xs text-muted-foreground mb-2">Professional certifications, licenses, etc.</p>
@@ -1406,6 +1409,7 @@ export function EnhancedJobApplicationForm({ isOpen, onClose, selectedJob }: Job
                         />
                       </div>
                     </div>
+                    */}
                   </div>
                 </Card>
 
