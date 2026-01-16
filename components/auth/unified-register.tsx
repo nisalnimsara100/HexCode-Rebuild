@@ -25,10 +25,16 @@ import {
   ArrowLeft,
   Calendar,
   Camera,
-  Upload
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { storage } from "@/lib/firebase";
+import {
+  ref as refStorage,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage";
 
 export default function UnifiedRegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -48,7 +54,7 @@ export default function UnifiedRegisterPage() {
     department: "",
     dateOfBirth: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
 
   const [profilePic, setProfilePic] = useState<File | null>(null);
@@ -56,9 +62,9 @@ export default function UnifiedRegisterPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -98,27 +104,25 @@ export default function UnifiedRegisterPage() {
 
       // Upload profile picture if selected
       if (profilePic) {
-        const uploadFormData = new FormData();
-        uploadFormData.append("file", profilePic);
+        try {
+          const filename = `${Date.now()}-${profilePic.name.replaceAll(" ", "_")}`;
+          const storageRef = refStorage(storage, `staff_pic/${filename}`);
 
-        const uploadRes = await fetch("/api/upload/staff-pic", {
-          method: "POST",
-          body: uploadFormData,
-        });
-
-        if (!uploadRes.ok) throw new Error("Failed to upload profile picture");
-
-        const data = await uploadRes.json();
-        profilePictureUrl = data.path;
+          const snapshot = await uploadBytes(storageRef, profilePic);
+          profilePictureUrl = await getDownloadURL(snapshot.ref);
+        } catch (uploadError) {
+          console.error("Profile picture upload failed:", uploadError);
+          throw new Error("Failed to upload profile picture");
+        }
       }
 
       // Create employee user profile
       const profile = {
         name: `${formData.firstName} ${formData.lastName}`,
-        department: formData.department || 'General',
+        department: formData.department || "General",
         dateOfBirth: formData.dateOfBirth,
         profilePicture: profilePictureUrl,
-        role: 'employee' as 'employee' // Default role is employee, admin must promote to staff
+        role: "employee" as "employee", // Default role is employee, admin must promote to staff
       };
 
       await signUp(formData.email, formData.password, profile);
@@ -127,7 +131,6 @@ export default function UnifiedRegisterPage() {
       setTimeout(() => {
         router.push("/login");
       }, 2000);
-
     } catch (error: any) {
       console.error(error);
       setError(error.message || "Registration failed. Please try again.");
@@ -162,8 +165,12 @@ export default function UnifiedRegisterPage() {
         {/* Registration Card */}
         <Card className="bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl p-8">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">Employee Registration</h2>
-            <p className="text-slate-300">Register for employee portal access</p>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Employee Registration
+            </h2>
+            <p className="text-slate-300">
+              Register for employee portal access
+            </p>
           </div>
 
           {/* Status Messages */}
@@ -183,7 +190,6 @@ export default function UnifiedRegisterPage() {
 
           {/* Registration Form */}
           <form onSubmit={handleRegister} className="space-y-4">
-
             {/* Profile Picture Upload */}
             <div className="flex justify-center mb-6">
               <div className="relative group cursor-pointer">
@@ -194,10 +200,19 @@ export default function UnifiedRegisterPage() {
                   className="hidden"
                   id="profile-pic-upload"
                 />
-                <Label htmlFor="profile-pic-upload" className="cursor-pointer block">
-                  <div className={`w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center overflow-hidden transition-all duration-300 ${previewUrl ? 'border-orange-500' : 'border-slate-500 hover:border-orange-400'}`}>
+                <Label
+                  htmlFor="profile-pic-upload"
+                  className="cursor-pointer block"
+                >
+                  <div
+                    className={`w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center overflow-hidden transition-all duration-300 ${previewUrl ? "border-orange-500" : "border-slate-500 hover:border-orange-400"}`}
+                  >
                     {previewUrl ? (
-                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <Camera className="w-8 h-8 text-slate-400 group-hover:text-orange-400 transition-colors" />
                     )}
@@ -212,7 +227,12 @@ export default function UnifiedRegisterPage() {
             {/* Name Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-sm font-medium text-slate-300">First Name</Label>
+                <Label
+                  htmlFor="firstName"
+                  className="text-sm font-medium text-slate-300"
+                >
+                  First Name
+                </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                   <Input
@@ -228,7 +248,12 @@ export default function UnifiedRegisterPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-sm font-medium text-slate-300">Last Name</Label>
+                <Label
+                  htmlFor="lastName"
+                  className="text-sm font-medium text-slate-300"
+                >
+                  Last Name
+                </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                   <Input
@@ -247,7 +272,12 @@ export default function UnifiedRegisterPage() {
 
             {/* Email */}
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-slate-300">Email Address</Label>
+              <Label
+                htmlFor="email"
+                className="text-sm font-medium text-slate-300"
+              >
+                Email Address
+              </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
@@ -266,7 +296,12 @@ export default function UnifiedRegisterPage() {
             {/* Phone and Department */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm font-medium text-slate-300">Phone</Label>
+                <Label
+                  htmlFor="phone"
+                  className="text-sm font-medium text-slate-300"
+                >
+                  Phone
+                </Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                   <Input
@@ -282,7 +317,12 @@ export default function UnifiedRegisterPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="department" className="text-sm font-medium text-slate-300">Department</Label>
+                <Label
+                  htmlFor="department"
+                  className="text-sm font-medium text-slate-300"
+                >
+                  Department
+                </Label>
                 <div className="relative">
                   <Building className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                   <Input
@@ -301,7 +341,12 @@ export default function UnifiedRegisterPage() {
 
             {/* Date of Birth and Password */}
             <div className="space-y-2">
-              <Label htmlFor="dateOfBirth" className="text-sm font-medium text-slate-300">Date of Birth</Label>
+              <Label
+                htmlFor="dateOfBirth"
+                className="text-sm font-medium text-slate-300"
+              >
+                Date of Birth
+              </Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
@@ -318,7 +363,12 @@ export default function UnifiedRegisterPage() {
 
             {/* Password */}
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-slate-300">Password</Label>
+              <Label
+                htmlFor="password"
+                className="text-sm font-medium text-slate-300"
+              >
+                Password
+              </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
@@ -336,14 +386,23 @@ export default function UnifiedRegisterPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-3.5 text-slate-400 hover:text-white transition-colors duration-200"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
 
             {/* Confirm Password */}
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-sm font-medium text-slate-300">Confirm Password</Label>
+              <Label
+                htmlFor="confirmPassword"
+                className="text-sm font-medium text-slate-300"
+              >
+                Confirm Password
+              </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
@@ -361,14 +420,22 @@ export default function UnifiedRegisterPage() {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-3.5 text-slate-400 hover:text-white transition-colors duration-200"
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
 
             {/* Terms and Conditions */}
             <div className="flex items-start space-x-3 text-sm">
-              <input type="checkbox" className="rounded border-white/20 bg-white/10 mt-0.5" required />
+              <input
+                type="checkbox"
+                className="rounded border-white/20 bg-white/10 mt-0.5"
+                required
+              />
               <span className="text-slate-300">
                 I agree to the{" "}
                 <a href="#" className="text-orange-400 hover:text-orange-300">
@@ -404,8 +471,15 @@ export default function UnifiedRegisterPage() {
           <div className="mt-8 pt-6 border-t border-white/10">
             <div className="text-center">
               <p className="text-slate-400 mb-4">Already have an account?</p>
-              <Button asChild variant="outline" className="w-full h-12 border-white/20 text-white hover:bg-white/10 rounded-xl transition-all duration-200">
-                <Link href="/login" className="flex items-center justify-center space-x-2">
+              <Button
+                asChild
+                variant="outline"
+                className="w-full h-12 border-white/20 text-white hover:bg-white/10 rounded-xl transition-all duration-200"
+              >
+                <Link
+                  href="/login"
+                  className="flex items-center justify-center space-x-2"
+                >
                   <ArrowLeft className="h-4 w-4" />
                   <span>Back to Sign In</span>
                 </Link>

@@ -5,18 +5,25 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { database } from "@/lib/firebase";
+import { database, storage } from "@/lib/firebase";
 import { ref, get, update } from "firebase/database";
-import { useAuth } from "@/components/auth/auth-context";
 import {
-  User,
-  Save,
-  Upload,
-} from "lucide-react";
+  ref as refStorage,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage";
+import { useAuth } from "@/components/auth/auth-context";
+import { User, Save, Upload } from "lucide-react";
 
 interface UserSettings {
   name: string;
@@ -33,11 +40,9 @@ export function SettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const timezones = ["UTC", ...Intl.supportedValuesOf('timeZone')];
+  const timezones = ["UTC", ...Intl.supportedValuesOf("timeZone")];
 
-  const tabs = [
-    { id: 'profile', label: 'My Profile', icon: User },
-  ];
+  const tabs = [{ id: "profile", label: "My Profile", icon: User }];
 
   useEffect(() => {
     if (userProfile?.uid) {
@@ -60,7 +65,7 @@ export function SettingsPanel() {
           name: data.name || userProfile.name || "",
           avatarUrl: data.profilePicture || userProfile.profilePicture || "",
           timezone: data.timezone || "America/New_York",
-          timeFormat: data.timeFormat || "12h"
+          timeFormat: data.timeFormat || "12h",
         });
       } else {
         setUserSettings({
@@ -68,7 +73,7 @@ export function SettingsPanel() {
           name: userProfile.name || "",
           avatarUrl: userProfile.profilePicture || "",
           timezone: "America/New_York",
-          timeFormat: "12h"
+          timeFormat: "12h",
         });
       }
 
@@ -86,29 +91,27 @@ export function SettingsPanel() {
     try {
       setUploading(true);
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("uid", userProfile.uid);
+      // Create a reference to the storage location
+      const timestamp = Date.now();
+      const ext = file.name.split(".").pop() || "jpg";
+      const filename = `${userProfile.uid}-${timestamp}.${ext}`;
+      const storageRef = refStorage(storage, `staff_pic/${filename}`);
 
-      const response = await fetch("/api/staff/upload-photo", {
-        method: "POST",
-        body: formData,
-      });
+      // Upload the file
+      const snapshot = await uploadBytes(storageRef, file);
 
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
+      // Get the download URL
+      const downloadURL = await getDownloadURL(snapshot.ref);
 
-      const data = await response.json();
-      const downloadURL = `${data.url}?t=${Date.now()}`;
-
-      // Update User Profile in Firebase with the new local URL
+      // Update User Profile in Firebase with the new URL
       await update(ref(database, `users/${userProfile.uid}`), {
-        profilePicture: downloadURL
+        profilePicture: downloadURL,
       });
 
       // Update local state
-      setUserSettings(prev => prev ? { ...prev, avatarUrl: downloadURL } : null);
+      setUserSettings((prev) =>
+        prev ? { ...prev, avatarUrl: downloadURL } : null,
+      );
 
       console.log("Profile picture updated:", downloadURL);
     } catch (error) {
@@ -117,7 +120,7 @@ export function SettingsPanel() {
     } finally {
       setUploading(false);
       // Reset input
-      e.target.value = '';
+      e.target.value = "";
     }
   };
 
@@ -158,16 +161,18 @@ export function SettingsPanel() {
           <h2 className="text-2xl font-bold leading-7 text-white sm:truncate sm:text-3xl sm:tracking-tight">
             Settings
           </h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Manage your preferences.
-          </p>
+          <p className="mt-1 text-sm text-gray-400">Manage your preferences.</p>
         </div>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-8">
         <TabsList className="bg-gray-800 border-gray-700 w-auto inline-flex">
-          {tabs.map(tab => (
-            <TabsTrigger key={tab.id} value={tab.id} className="data-[state=active]:bg-emerald-600">
+          {tabs.map((tab) => (
+            <TabsTrigger
+              key={tab.id}
+              value={tab.id}
+              className="data-[state=active]:bg-emerald-600"
+            >
               <tab.icon className="h-4 w-4 mr-2" />
               {tab.label}
             </TabsTrigger>
@@ -178,22 +183,38 @@ export function SettingsPanel() {
         <TabsContent value="profile" className="space-y-6">
           <Card className="bg-gray-800 border-gray-700">
             <div className="p-6">
-              <h3 className="text-lg font-medium text-white mb-4">Profile Settings</h3>
+              <h3 className="text-lg font-medium text-white mb-4">
+                Profile Settings
+              </h3>
 
               {userSettings && (
                 <div className="space-y-6">
                   {/* Photo Section */}
                   <div className="flex items-center space-x-6">
                     <Avatar className="h-24 w-24 border-2 border-gray-700">
-                      <AvatarImage src={userSettings.avatarUrl || userProfile?.profilePicture || "/placeholder-user.jpg"} className="object-cover" />
+                      <AvatarImage
+                        src={
+                          userSettings.avatarUrl ||
+                          userProfile?.profilePicture ||
+                          "/placeholder-user.jpg"
+                        }
+                        className="object-cover"
+                      />
                       <AvatarFallback className="text-xl">
-                        {userSettings.name?.charAt(0) || userProfile?.name?.charAt(0) || "U"}
+                        {userSettings.name?.charAt(0) ||
+                          userProfile?.name?.charAt(0) ||
+                          "U"}
                       </AvatarFallback>
                     </Avatar>
 
                     <div className="space-y-2">
-                      <Label htmlFor="photo-upload" className="cursor-pointer inline-block">
-                        <div className={`flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <Label
+                        htmlFor="photo-upload"
+                        className="cursor-pointer inline-block"
+                      >
+                        <div
+                          className={`flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
                           <Upload className="h-4 w-4 mr-2" />
                           {uploading ? "Uploading..." : "Change Photo"}
                         </div>
@@ -223,7 +244,10 @@ export function SettingsPanel() {
                       placeholder="Enter your name"
                       value={userSettings.name || ""}
                       onChange={(e) =>
-                        setUserSettings({ ...userSettings, name: e.target.value })
+                        setUserSettings({
+                          ...userSettings,
+                          name: e.target.value,
+                        })
                       }
                       className="bg-gray-700 border-gray-600 text-white"
                     />
@@ -258,7 +282,10 @@ export function SettingsPanel() {
                       <Select
                         value={userSettings.timeFormat}
                         onValueChange={(value) =>
-                          setUserSettings({ ...userSettings, timeFormat: value as "12h" | "24h" })
+                          setUserSettings({
+                            ...userSettings,
+                            timeFormat: value as "12h" | "24h",
+                          })
                         }
                       >
                         <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
