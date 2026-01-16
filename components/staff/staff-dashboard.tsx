@@ -270,9 +270,50 @@ export default function EmployeeView() {
           </div>
         </div>
 
+                
+
         {/* Section Separator */}
         <div className="border-t border-orange-500/20"></div>
+                
+                {/* Tasks Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Card className="bg-gray-900/50 border-orange-700/50 p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-300">
+                {tasks.filter(t => t.status === 'pending').length}
+              </div>
+              <div className="text-sm text-orange-400">Open Tasks</div>
+            </div>
+          </Card>
+          <Card className="bg-gray-900/50 border-blue-700/50 p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-300">
+                {tasks.filter(t => t.status === 'in-progress').length}
+              </div>
+              <div className="text-sm text-blue-400">In Progress</div>
+            </div>
+          </Card>
+          {/* Note: 'review' status is not standard in my previous implementation but keeping card for layout stability or mapping 'overdue' */}
+          <Card className="bg-gray-900/50 border-red-700/50 p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-300">
+                {tasks.filter(t => t.status === 'overdue').length}
+              </div>
+              <div className="text-sm text-red-400">Overdue</div>
+            </div>
+          </Card>
+          <Card className="bg-gray-900/50 border-green-700/50 p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-300">
+                {tasks.filter(t => t.status === 'completed').length}
+              </div>
+              <div className="text-sm text-green-400">Completed</div>
+            </div>
+          </Card>
+        </div> 
 
+                 {/* Section Separator */}
+        <div className="border-t border-orange-500/20"></div>
         {/* Active Projects Section */}
         {activeProjects.length > 0 && (
           <div className="space-y-4">
@@ -315,42 +356,7 @@ export default function EmployeeView() {
           </div>
         )}
 
-        {/* Tasks Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Card className="bg-gray-900/50 border-orange-700/50 p-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-300">
-                {tasks.filter(t => t.status === 'pending').length}
-              </div>
-              <div className="text-sm text-orange-400">Open Tasks</div>
-            </div>
-          </Card>
-          <Card className="bg-gray-900/50 border-blue-700/50 p-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-300">
-                {tasks.filter(t => t.status === 'in-progress').length}
-              </div>
-              <div className="text-sm text-blue-400">In Progress</div>
-            </div>
-          </Card>
-          {/* Note: 'review' status is not standard in my previous implementation but keeping card for layout stability or mapping 'overdue' */}
-          <Card className="bg-gray-900/50 border-red-700/50 p-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-300">
-                {tasks.filter(t => t.status === 'overdue').length}
-              </div>
-              <div className="text-sm text-red-400">Overdue</div>
-            </div>
-          </Card>
-          <Card className="bg-gray-900/50 border-green-700/50 p-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-300">
-                {tasks.filter(t => t.status === 'completed').length}
-              </div>
-              <div className="text-sm text-green-400">Completed</div>
-            </div>
-          </Card>
-        </div>
+       
 
         {/* Section Separator */}
         <div className="border-t border-orange-500/20"></div>
