@@ -358,9 +358,7 @@ export default function EmployeeView() {
 
        
 
-        {/* Section Separator */}
-        <div className="border-t border-orange-500/20"></div>
-
+       
         {/* Task Cards */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
