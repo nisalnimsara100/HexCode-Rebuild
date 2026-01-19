@@ -34,9 +34,11 @@ import {
   ExternalLink,
   Linkedin,
   Globe,
-  AlertTriangle
+  AlertTriangle,
+  GraduationCap
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+
 
 interface Application {
   id: string;
@@ -58,7 +60,13 @@ interface Application {
   availabilityDate?: string;
   linkedinUrl?: string;
   portfolioUrl?: string;
-  education?: any[];
+  education?: Array<{
+    institution: string;
+    degree: string;
+    startDate: string;
+    endDate: string;
+    current: boolean;
+  }>;
   workExperience?: any[];
   technicalSkills?: string[];
   softSkills?: string[];
@@ -93,6 +101,7 @@ export function CareersManagement() {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
   const [showDuplicates, setShowDuplicates] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string>('all');
 
   // Process applications to identify duplicates
   const { processedApplications, duplicateCount } = useMemo(() => {
@@ -117,7 +126,10 @@ export function CareersManagement() {
     return { processedApplications: processed, duplicateCount: count };
   }, [applications]);
 
-  const filteredApplications = processedApplications.filter(app => showDuplicates || !app.isDuplicate);
+  const filteredApplications = processedApplications.filter(app =>
+    (showDuplicates || !app.isDuplicate) &&
+    (selectedJobId === 'all' || app.jobId === selectedJobId)
+  );
 
   const [newCareer, setNewCareer] = useState({
     title: '',
@@ -134,6 +146,8 @@ export function CareersManagement() {
   });
 
   const [newTech, setNewTech] = useState('');
+
+
 
   const departments = ["Engineering", "Design", "Infrastructure", "Marketing", "Sales", "HR", "IT", "Leadership", "Data"];
   const levels = ["Intern", "Associate", "Senior", "Lead", "Manager"];
@@ -439,6 +453,28 @@ export function CareersManagement() {
         </div>
       </div>
 
+      {viewMode === 'applications' && (
+        <div className="flex items-center gap-2 mb-4 bg-muted/30 p-2 rounded-lg border">
+          <span className="text-sm font-medium text-muted-foreground whitespace-nowrap pl-2">Filter by Opportunity:</span>
+          <Select value={selectedJobId} onValueChange={setSelectedJobId}>
+            <SelectTrigger className="w-[300px] h-8 bg-background">
+              <SelectValue placeholder="All Opportunities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Opportunities</SelectItem>
+              {careers.map(career => (
+                <SelectItem key={career.id} value={career.id}>{career.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedJobId !== 'all' && (
+            <Button variant="ghost" size="sm" onClick={() => setSelectedJobId('all')} className="h-8 px-2 text-muted-foreground hover:text-foreground">
+              Clear Filter
+            </Button>
+          )}
+        </div>
+      )}
+
       {viewMode === 'opportunities' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {careers.map((career) => (
@@ -545,9 +581,12 @@ export function CareersManagement() {
                     <p className="text-sm text-muted-foreground">{app.jobTitle}</p>
                   </div>
                   {!app.isDuplicate && (
-                    <Badge variant={app.status === 'pending' ? 'outline' : 'secondary'}>
-                      {app.status || 'Received'}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground border px-2 py-0.5 rounded-full bg-secondary/50 max-w-[180px]">
+                      <GraduationCap className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">
+                        {app.education && app.education.length > 0 ? app.education[0].institution : 'Education Not Listed'}
+                      </span>
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -614,6 +653,15 @@ export function CareersManagement() {
                     <span className="font-medium text-foreground">{selectedApplication.jobTitle}</span>
                     <span>•</span>
                     <span>Applied on {new Date(selectedApplication.appliedAt).toLocaleDateString()}</span>
+                    {selectedApplication.education && selectedApplication.education.length > 0 && (
+                      <>
+                        <span>•</span>
+                        <div className="flex items-center gap-1 text-foreground">
+                          <GraduationCap className="w-4 h-4" />
+                          <span className="font-medium">{selectedApplication.education[0].institution}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-4 mt-4 text-sm">
                     <div className="flex items-center gap-2">
