@@ -7,6 +7,7 @@ import { database } from "@/lib/firebase"
 import { ref, onValue } from "firebase/database"
 import { StaffManagement, TicketSystem, TaskAssignments, ProjectManagement, StaffReports, StaffSettings } from "./staff-components"
 import { WebsiteOverview, ServicesManagement, PortfolioManagement, WebsiteStats, ContentManagement, WebsiteSettings, PricePackagesManagement } from "./website-components-fixed"
+import { CareersManagement } from "./careers-management"
 import { FirebaseClientProjectsAdmin } from "./firebase-client-projects-admin"
 import { Modal } from "./modal"
 import {
@@ -357,6 +358,7 @@ export function AdminDashboard() {
     { id: 'services', label: 'Services', icon: <Briefcase className="w-4 h-4" /> },
     { id: 'portfolio', label: 'Portfolio', icon: <Image className="w-4 h-4" /> },
     { id: 'packages', label: 'Price Packages', icon: <Package className="w-4 h-4" /> },
+    { id: 'careers', label: 'Careers', icon: <Users className="w-4 h-4" /> },
     { id: 'stats', label: 'Statistics', icon: <PieChart className="w-4 h-4" /> },
     { id: 'content', label: 'Content', icon: <FileText className="w-4 h-4" /> },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> }
@@ -390,60 +392,64 @@ export function AdminDashboard() {
       </div>
 
       {/* Main Navigation */}
-      <div className="bg-gray-900 border-b border-gray-800">
+      <div className="bg-gray-900 border-b border-gray-800 w-full overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-8">
-            {mainTabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveMainTab(tab.id as 'staff' | 'website' | 'projects')}
-                className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm ${activeMainTab === tab.id
-                  ? 'border-orange-500 text-orange-500'
-                  : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                  }`}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </nav>
+          <div className="-mx-4 px-4 sm:mx-0 sm:px-0 w-[calc(100%+2rem)] sm:w-full overflow-x-auto no-scrollbar">
+            <nav className="flex space-x-8 min-w-max pb-1 sm:pb-0">
+              {mainTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveMainTab(tab.id as 'staff' | 'website' | 'projects')}
+                  className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${activeMainTab === tab.id
+                    ? 'border-orange-500 text-orange-500'
+                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                    }`}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
         </div>
       </div>
 
       {/* Sub Navigation */}
-      <div className="bg-gray-800 border-b border-gray-700">
+      <div className="bg-gray-800 border-b border-gray-700 w-full overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-8 overflow-x-auto">
-            {activeMainTab === 'staff' ? (
-              staffTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveStaffTab(tab.id)}
-                  className={`flex items-center space-x-2 py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap ${activeStaffTab === tab.id
-                    ? 'border-orange-500 text-orange-500'
-                    : 'border-transparent text-gray-400 hover:text-gray-300'
-                    }`}
-                >
-                  {tab.icon}
-                  <span>{tab.label}</span>
-                </button>
-              ))
-            ) : (
-              websiteTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveWebsiteTab(tab.id)}
-                  className={`flex items-center space-x-2 py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap ${activeWebsiteTab === tab.id
-                    ? 'border-orange-500 text-orange-500'
-                    : 'border-transparent text-gray-400 hover:text-gray-300'
-                    }`}
-                >
-                  {tab.icon}
-                  <span>{tab.label}</span>
-                </button>
-              ))
-            )}
-          </nav>
+          <div className="-mx-4 px-4 sm:mx-0 sm:px-0 w-[calc(100%+2rem)] sm:w-full overflow-x-auto no-scrollbar">
+            <nav className="flex space-x-8 min-w-max pb-1 sm:pb-0">
+              {activeMainTab === 'staff' ? (
+                staffTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveStaffTab(tab.id)}
+                    className={`flex items-center space-x-2 py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${activeStaffTab === tab.id
+                      ? 'border-orange-500 text-orange-500'
+                      : 'border-transparent text-gray-400 hover:text-gray-300'
+                      }`}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                ))
+              ) : (
+                websiteTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveWebsiteTab(tab.id)}
+                    className={`flex items-center space-x-2 py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${activeWebsiteTab === tab.id
+                      ? 'border-orange-500 text-orange-500'
+                      : 'border-transparent text-gray-400 hover:text-gray-300'
+                      }`}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                ))
+              )}
+            </nav>
+          </div>
         </div>
       </div>
 
@@ -476,6 +482,7 @@ export function AdminDashboard() {
             {activeWebsiteTab === 'services' && <ServicesManagement />}
             {activeWebsiteTab === 'portfolio' && <PortfolioManagement />}
             {activeWebsiteTab === 'packages' && <PricePackagesManagement />}
+            {activeWebsiteTab === 'careers' && <CareersManagement />}
             {activeWebsiteTab === 'stats' && <WebsiteStats />}
             {activeWebsiteTab === 'content' && <ContentManagement />}
             {activeWebsiteTab === 'settings' && <WebsiteSettings />}
