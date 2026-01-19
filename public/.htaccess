@@ -1,14 +1,73 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+  Options +FollowSymLinks -MultiViews -Indexes
 
-  # Serve .html files without extensions (e.g., /careers -> /careers.html)
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{REQUEST_FILENAME}\.html -f
-  RewriteRule ^(.*)$ $1.html [L]
+  # 1. Existing files/directories served directly (images, css, js)
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
 
-  # Custom 404 Page of Next.js
-  ErrorDocument 404 /404.html
+  # 2. Explicitly Map HTML Pages
+  # Root Pages
+  RewriteRule ^about/?$ about.html [L]
+  RewriteRule ^admin-firebase-projects/?$ admin-firebase-projects.html [L]
+  RewriteRule ^admin/?$ admin.html [L]
+  RewriteRule ^careers/?$ careers.html [L]
+  RewriteRule ^contact/?$ contact.html [L]
+  RewriteRule ^employee/?$ employee.html [L]
+  RewriteRule ^firebase-setup/?$ firebase-setup.html [L]
+  RewriteRule ^firebase-test/?$ firebase-test.html [L]
+  RewriteRule ^login/?$ login.html [L]
+  RewriteRule ^portfolio-demo/?$ portfolio-demo.html [L]
+  RewriteRule ^projects/?$ projects.html [L]
+  RewriteRule ^register/?$ register.html [L]
+  RewriteRule ^services/?$ services.html [L]
+  RewriteRule ^setup/?$ setup.html [L]
+  RewriteRule ^staff/?$ staff.html [L]
+  RewriteRule ^test-admin-firebase-projects/?$ test-admin-firebase-projects.html [L]
+  RewriteRule ^test-approval/?$ test-approval.html [L]
+  RewriteRule ^test-auth/?$ test-auth.html [L]
+  RewriteRule ^test-countdown/?$ test-countdown.html [L]
+  RewriteRule ^test-firebase-projects/?$ test-firebase-projects.html [L]
+  RewriteRule ^test-login/?$ test-login.html [L]
+  RewriteRule ^unauthorized/?$ unauthorized.html [L]
+
+  # Subdirectory Pages (Nested Routes)
+  # /admin/*
+  RewriteRule ^admin/dashboard/?$ admin/dashboard.html [L]
+  RewriteRule ^admin/login/?$ admin/login.html [L]
+  RewriteRule ^admin/register/?$ admin/register.html [L]
+
+  # /client/*
+  RewriteRule ^client/dashboard/?$ client/dashboard.html [L]
+  RewriteRule ^client/login/?$ client/login.html [L]
+  RewriteRule ^client/register/?$ client/register.html [L]
+
+  # /staff/*
+  RewriteRule ^staff/assignments/?$ staff/assignments.html [L]
+  RewriteRule ^staff/dashboard/?$ staff/dashboard.html [L]
+  RewriteRule ^staff/employees/?$ staff/employees.html [L]
+  RewriteRule ^staff/forgot-password/?$ staff/forgot-password.html [L]
+  RewriteRule ^staff/login/?$ staff/login.html [L]
+  RewriteRule ^staff/projects/?$ staff/projects.html [L]
+  RewriteRule ^staff/register/?$ staff/register.html [L]
+  RewriteRule ^staff/reports/?$ staff/reports.html [L]
+  RewriteRule ^staff/settings/?$ staff/settings.html [L]
+  RewriteRule ^staff/teams/?$ staff/teams.html [L]
+  RewriteRule ^staff/tickets/?$ staff/tickets.html [L]
+
+  # /api/* (if any)
+  # RewriteRule ^api/foo/?$ api/foo.html [L]
+
+  # 3. Trailing Slash Support for Directories acting as Indexes (optional but good)
+  # If /foo/ implies /foo/index.html but is not in above list
+  RewriteCond %{REQUEST_FILENAME}/index.html -f
+  RewriteRule ^(.*)/$ $1/index.html [L]
+
+  # 4. Fallback to index.html (SPA routing for dynamic IDs, e.g. /projects/123)
+  RewriteRule . /index.html [L]
+
+  ErrorDocument 404 /index.html
 </IfModule>
 
 <IfModule mod_headers.c>
