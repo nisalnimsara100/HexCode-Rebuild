@@ -131,6 +131,30 @@ export function CareersManagement() {
     (selectedJobId === 'all' || app.jobId === selectedJobId)
   );
 
+  const availableOpportunityOptions = useMemo(() => {
+    const optionsMap = new Map<string, string>();
+
+    applications.forEach((app) => {
+      if (!app.jobId) return;
+      const matchingCareer = careers.find((career) => career.id === app.jobId);
+      const title = matchingCareer?.title || app.jobTitle || 'Deleted Opportunity';
+
+      if (!optionsMap.has(app.jobId)) {
+        optionsMap.set(app.jobId, title);
+      }
+    });
+
+    return Array.from(optionsMap.entries())
+      .map(([id, title]) => ({ id, title }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [applications, careers]);
+
+  useEffect(() => {
+    if (selectedJobId !== 'all' && !availableOpportunityOptions.some((option) => option.id === selectedJobId)) {
+      setSelectedJobId('all');
+    }
+  }, [availableOpportunityOptions, selectedJobId]);
+
   const [newCareer, setNewCareer] = useState({
     title: '',
     department: '',
@@ -462,8 +486,8 @@ export function CareersManagement() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Opportunities</SelectItem>
-              {careers.map(career => (
-                <SelectItem key={career.id} value={career.id}>{career.title}</SelectItem>
+              {availableOpportunityOptions.map((option) => (
+                <SelectItem key={option.id} value={option.id}>{option.title}</SelectItem>
               ))}
             </SelectContent>
           </Select>
