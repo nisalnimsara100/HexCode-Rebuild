@@ -94,6 +94,8 @@ export function TicketSystem() {
   const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'grid'>('grid'); // Default to grid to match preference
+  const [inlineProgress, setInlineProgress] = useState<Record<string, number>>({});
+  const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
 
   // Minimal edit form for status and time spent
   const [editStatus, setEditStatus] = useState<string>("");
@@ -250,6 +252,72 @@ export function TicketSystem() {
       default:
         return <Flag className="h-4 w-4 text-gray-500" />;
     }
+  };
+
+  const getProgressPercent = (ticket: TicketItem) => {
+    const estimated = parseFloat(ticket.estimatedHours?.toString() || "0");
+    if (!estimated || estimated <= 0) return 0;
+    return Math.min(Math.round(((ticket.timeSpent || 0) / estimated) * 100), 100);
+  };
+
+  const getQuickStatusValue = (status: TicketItem["status"]) => {
+    return ["closed", "completed"].includes(status) ? "done" : "in-progress";
+  };
+
+  const handleQuickStatusUpdate = async (ticket: TicketItem, value: "in-progress" | "done") => {
+    try {
+      const nextStatus = value === "done" ? "completed" : "in-progress";
+      await update(ref(database, `staffdashboard/tickets/${ticket.id}`), {
+        status: nextStatus,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to update ticket status", error);
+    }
+  };
+
+  const commitInlineProgress = async (ticket: TicketItem) => {
+    const percent = inlineProgress[ticket.id];
+    if (percent === undefined) return;
+
+    const estimated = parseFloat(ticket.estimatedHours?.toString() || "0");
+    const safeEstimated = estimated > 0 ? estimated : 0;
+    const timeSpent = Number(((percent / 100) * safeEstimated).toFixed(2));
+
+    const payload: Record<string, any> = {
+      timeSpent,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (percent >= 100) {
+      payload.status = "completed";
+    } else if (["closed", "completed"].includes(ticket.status)) {
+      payload.status = "in-progress";
+    }
+
+    setUpdatingTicketId(ticket.id);
+    try {
+      await update(ref(database, `staffdashboard/tickets/${ticket.id}`), payload);
+    } catch (error) {
+      console.error("Failed to update ticket progress", error);
+    } finally {
+      setUpdatingTicketId(null);
+    }
+  };
+
+  const formatDueDateTime = (dueDate?: string) => {
+    if (!dueDate) return "No due date";
+    const parsed = new Date(dueDate);
+    if (Number.isNaN(parsed.getTime())) return dueDate;
+
+    const hasTime = dueDate.includes("T");
+    return parsed.toLocaleString([], {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: hasTime ? "2-digit" : undefined,
+      minute: hasTime ? "2-digit" : undefined,
+    });
   };
 
   if (loading) {
@@ -423,17 +491,32 @@ export function TicketSystem() {
       <div className={`grid gap-4 ${view === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
         {filteredTickets.map((ticket) => (
           <Card key={ticket.id} className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-all duration-200 overflow-hidden flex flex-col">
-            <div className="p-4 flex-1 flex flex-col">
-              <div className="flex justify-between items-start mb-3">
+            <div className="p-4 flex-1 flex flex-col relative">
+              <div className="absolute top-4 right-4 flex flex-col items-end gap-1">
+                <Select
+                  value={getQuickStatusValue(ticket.status)}
+                  onValueChange={(value: "in-progress" | "done") => handleQuickStatusUpdate(ticket, value)}
+                >
+                  <SelectTrigger className="h-8 w-[130px] bg-gray-800 border-gray-700 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Badge className={getPriorityColor(ticket.priority)}>
+                  {ticket.priority.toUpperCase()}
+                </Badge>
+              </div>
+
+              <div className="flex justify-between items-center mb-2 pr-[150px]">
                 <div className="flex items-center space-x-2">
                   {getStatusIcon(ticket.status)}
                   <Badge className={getStatusColor(ticket.status)}>
                     {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1).replace('-', ' ')}
                   </Badge>
                 </div>
-                <Badge className={getPriorityColor(ticket.priority)}>
-                  {ticket.priority.toUpperCase()}
-                </Badge>
               </div>
 
               <h3 className="text-lg font-semibold text-white mb-2 line-clamp-1" title={ticket.title}>
@@ -453,6 +536,10 @@ export function TicketSystem() {
                     size="md"
                     className="w-full"
                   />
+                  <div className="mt-2 text-xs text-gray-500 flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>Due: {formatDueDateTime(ticket.dueDate)}</span>
+                  </div>
                 </div>
 
                 {/* Progress Section */}
@@ -460,17 +547,32 @@ export function TicketSystem() {
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="text-gray-400">Progress</span>
                     <span className="text-white font-medium">
-                      {Math.min(Math.round(((ticket.timeSpent || 0) / (parseFloat(ticket.estimatedHours.toString()) || 1)) * 100), 100)}%
+                      {(inlineProgress[ticket.id] ?? getProgressPercent(ticket))}%
                     </span>
                   </div>
-                  <Progress
-                    value={Math.min(((ticket.timeSpent || 0) / (parseFloat(ticket.estimatedHours.toString()) || 1)) * 100, 100)}
-                    className="h-2 bg-gray-700"
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={inlineProgress[ticket.id] ?? getProgressPercent(ticket)}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setInlineProgress((prev) => ({ ...prev, [ticket.id]: value }));
+                    }}
+                    onMouseUp={() => void commitInlineProgress(ticket)}
+                    onTouchEnd={() => void commitInlineProgress(ticket)}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>Time Spent: {ticket.timeSpent || 0}h</span>
+                    <span>
+                      Time Spent: {(((inlineProgress[ticket.id] ?? getProgressPercent(ticket)) / 100) * (parseFloat(ticket.estimatedHours.toString()) || 0)).toFixed(1)}h
+                    </span>
                     <span>{ticket.estimatedHours}h Est.</span>
                   </div>
+                  {updatingTicketId === ticket.id && (
+                    <p className="text-[10px] text-gray-500">Updating...</p>
+                  )}
                 </div>
 
                 {/* Assignee Footer */}
@@ -513,15 +615,6 @@ export function TicketSystem() {
                       title="View Details"
                     >
                       <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditClick(ticket)}
-                      className="h-8 w-8 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-gray-800"
-                      title="Update Status"
-                    >
-                      <Edit3 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

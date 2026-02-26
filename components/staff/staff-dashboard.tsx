@@ -35,6 +35,7 @@ interface TaskItem {
   assignedTo: string | string[]; // UID or array of UIDs
   projectId: string;
   dueDate: string;
+  dueTime?: string;
   estimatedHours: string;
   assignedBy?: string;
   createdAt?: string;
@@ -216,6 +217,27 @@ export default function EmployeeView() {
     if (hour < 12) return "Good Morning";
     if (hour < 18) return "Good Afternoon";
     return "Good Evening";
+  };
+
+  const formatDueDateTime = (dueDate?: string, dueTime?: string) => {
+    if (!dueDate) return "No deadline";
+
+    const datePart = dueDate.includes("T") ? dueDate.split("T")[0] : dueDate;
+    const timePart = dueTime || (dueDate.includes("T") ? (dueDate.split("T")[1] || "").slice(0, 5) : "");
+    const composed = timePart ? `${datePart}T${timePart}` : datePart;
+    const parsed = new Date(composed);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return `${datePart}${timePart ? ` ${timePart}` : ""}`;
+    }
+
+    return parsed.toLocaleString([], {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: timePart ? "2-digit" : undefined,
+      minute: timePart ? "2-digit" : undefined,
+    });
   };
 
   if (loading) {
@@ -435,7 +457,7 @@ export default function EmployeeView() {
                             */}
                         <div className="text-sm text-gray-400 flex items-center gap-2">
                           <Clock className="w-4 h-4 text-orange-500" />
-                          Due: {task.dueDate}
+                          Due: {formatDueDateTime(task.dueDate, task.dueTime)}
                         </div>
                       </div>
                     )}

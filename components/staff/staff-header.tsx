@@ -23,7 +23,7 @@ interface StaffHeaderProps {
 }
 
 export function StaffHeader({ setSidebarOpen }: StaffHeaderProps) {
-  const { user, userProfile } = useAuth();
+  const { userProfile } = useAuth();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -108,11 +108,17 @@ export function StaffHeader({ setSidebarOpen }: StaffHeaderProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-gray-700" />
-              <DropdownMenuItem className="text-gray-300 hover:bg-gray-700 cursor-pointer">
+              <DropdownMenuItem
+                className="text-gray-300 hover:bg-gray-700 cursor-pointer"
+                onClick={() => router.push("/staff/profile")}
+              >
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-gray-300 hover:bg-gray-700 cursor-pointer">
+              <DropdownMenuItem
+                className="text-gray-300 hover:bg-gray-700 cursor-pointer"
+                onClick={() => router.push("/staff/settings")}
+              >
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>

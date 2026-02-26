@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CountdownTimer } from "@/components/ui/countdown-timer";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-context";
 import { database } from "@/lib/firebase";
@@ -20,6 +21,7 @@ interface TaskItem {
   assignedTo: string | string[];
   projectId?: string;
   dueDate?: string;
+  dueTime?: string;
   estimatedHours?: number | string;
   progress?: number;
   comments?: unknown[];
@@ -41,6 +43,27 @@ const mapToBoardColumn = (status: TaskStatus): BoardColumn["key"] => {
   if (status === "completed") return "completed";
   if (status === "in-progress") return "in-progress";
   return "planning";
+};
+
+const formatDueDateTime = (dueDate?: string, dueTime?: string) => {
+  if (!dueDate) return "No due date";
+
+  const datePart = dueDate.includes("T") ? dueDate.split("T")[0] : dueDate;
+  const timePart = dueTime || (dueDate.includes("T") ? (dueDate.split("T")[1] || "").slice(0, 5) : "");
+  const composed = timePart ? `${datePart}T${timePart}` : datePart;
+  const parsed = new Date(composed);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return `${datePart}${timePart ? ` ${timePart}` : ""}`;
+  }
+
+  return parsed.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: timePart ? "2-digit" : undefined,
+    minute: timePart ? "2-digit" : undefined,
+  });
 };
 
 export function StaffTasksBoard() {
@@ -286,25 +309,36 @@ export function StaffTasksBoard() {
                         <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
                       )}
 
-                      <div className="space-y-1.5 text-xs text-gray-400">
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="h-3.5 w-3.5" />
-                          <span>{projectsMap[task.projectId || ""] || "Unknown Project"}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-3.5 w-3.5" />
-                          <span>{task.dueDate || "No due date"}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span>Est: {task.estimatedHours || 0}h</span>
-                        </div>
-                        {Array.isArray(task.comments) && task.comments.length > 0 && (
-                          <div className="flex items-center gap-2 text-orange-300">
-                            <MessageSquare className="h-3.5 w-3.5" />
-                            <span>{task.comments.length} comment(s)</span>
+                      <div className="grid grid-cols-1 lg:grid-cols-[1fr_190px] gap-3 items-start">
+                        <div className="space-y-1.5 text-xs text-gray-400">
+                          <div className="flex items-center gap-2">
+                            <Briefcase className="h-3.5 w-3.5" />
+                            <span>{projectsMap[task.projectId || ""] || "Unknown Project"}</span>
                           </div>
-                        )}
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-3.5 w-3.5" />
+                            <span>{formatDueDateTime(task.dueDate, task.dueTime)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3.5 w-3.5" />
+                            <span>Est: {task.estimatedHours || 0}h</span>
+                          </div>
+                          {Array.isArray(task.comments) && task.comments.length > 0 && (
+                            <div className="flex items-center gap-2 text-orange-300">
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              <span>{task.comments.length} comment(s)</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {task.status !== "completed" && task.dueDate ? (
+                          <CountdownTimer
+                            dueDate={task.dueDate}
+                            priority={task.priority || "medium"}
+                            size="sm"
+                            className="w-full"
+                          />
+                        ) : null}
                       </div>
 
                       <div className="text-[11px] text-gray-500">

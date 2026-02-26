@@ -391,55 +391,29 @@ export function StaffTicketManagement() {
                             </div>
 
                             {/* Assignee Footer */}
-                            <div className="flex items-center space-x-2 pt-2">
-                                {(() => {
-                                    // Check if assignedTo strictly matches a team
-                                    const assignedSet = new Set(ticket.assignedTo || []);
-                                    const matchedTeam = teams.find(t =>
-                                        t.members.length > 0 &&
-                                        t.members.length === assignedSet.size &&
-                                        t.members.every(m => assignedSet.has(m))
-                                    );
-
-                                    if (matchedTeam) {
+                            <div className="flex items-center gap-2 pt-2 min-w-0">
+                                <div className="flex -space-x-2">
+                                    {(Array.isArray(ticket.assignedTo) ? ticket.assignedTo : []).map((uid) => {
+                                        const member = staffList.find(s => s.uid === uid)
                                         return (
-                                            <div className="flex items-center space-x-2">
-                                                <div className="w-8 h-8 rounded-full bg-orange-600/20 text-orange-500 border border-orange-600/50 flex items-center justify-center">
-                                                    <Users className="w-4 h-4" />
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-medium text-white">{matchedTeam.name}</span>
-                                                    <span className="text-[10px] text-gray-500">Team</span>
-                                                </div>
+                                            <div key={uid} className="w-7 h-7 rounded-full bg-gray-700 border border-gray-800 flex items-center justify-center text-xs text-white overflow-hidden">
+                                                {member?.profilePicture ? <img src={member.profilePicture} className="w-full h-full object-cover" /> : (member?.name?.charAt(0) || '?')}
                                             </div>
                                         )
-                                    }
+                                    })}
+                                </div>
 
-                                    // Fallback to individual members
-                                    return (
-                                        <>
-                                            {(Array.isArray(ticket.assignedTo) ? ticket.assignedTo : []).slice(0, 1).map((uid) => {
+                                <span className="text-sm text-gray-300 truncate max-w-[230px]">
+                                    {(Array.isArray(ticket.assignedTo) ? ticket.assignedTo : []).length > 0
+                                        ? (Array.isArray(ticket.assignedTo) ? ticket.assignedTo : [])
+                                            .map((uid) => {
                                                 const member = staffList.find(s => s.uid === uid)
-                                                return (
-                                                    <div key={uid} className="flex items-center space-x-2 flex-1">
-                                                        <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white overflow-hidden border border-gray-600">
-                                                            {member?.profilePicture ? <img src={member.profilePicture} className="w-full h-full object-cover" /> : member?.name?.charAt(0)}
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-xs font-medium text-white">{member?.name || 'Unknown'}</span>
-                                                            <span className="text-[10px] text-gray-500">{member?.role || 'Staff'}</span>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                            {(Array.isArray(ticket.assignedTo) && ticket.assignedTo.length > 1) && (
-                                                <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-[10px] text-gray-400 border border-gray-700 font-medium">
-                                                    +{ticket.assignedTo.length - 1}
-                                                </div>
-                                            )}
-                                        </>
-                                    )
-                                })()}
+                                                const name = member?.name || "Unknown"
+                                                return name.trim().split(" ")[0] || name
+                                            })
+                                            .join(", ")
+                                        : "Unassigned"}
+                                </span>
                             </div>
                         </div>
                     </Card>

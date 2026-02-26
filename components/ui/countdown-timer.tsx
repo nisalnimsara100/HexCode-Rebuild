@@ -64,17 +64,16 @@ export function CountdownTimer({
 
     let urgencyLevel: TimeRemaining["urgencyLevel"] = "safe";
 
-    // Determine urgency based on time left and priority
-    if (days === 0) {
-      if (hours < 1) {
-        urgencyLevel = "critical";
-      } else if (hours < 4) {
-        urgencyLevel = "urgent";
-      } else if (hours < 12) {
-        urgencyLevel = "warning";
-      }
-    } else if (days === 1) {
-      urgencyLevel = priority === "critical" || priority === "high" ? "warning" : "safe";
+    // Global rule for both admin/staff task+ticket timers:
+    // - SAFE: more than 20 hours remain
+    // - WARNING: 20 hours to above 6 hours remain
+    // - CRITICAL: 6 hours or less remain
+    // - OVERDUE: expired (handled above)
+    const totalHoursRemaining = diff / (1000 * 60 * 60);
+    if (totalHoursRemaining <= 6) {
+      urgencyLevel = "critical";
+    } else if (totalHoursRemaining <= 20) {
+      urgencyLevel = "warning";
     }
 
     return {

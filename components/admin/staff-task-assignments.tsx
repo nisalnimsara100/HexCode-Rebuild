@@ -66,6 +66,7 @@ interface Task {
     status: 'pending' | 'in-progress' | 'completed' | 'overdue'
     priority: 'low' | 'medium' | 'high' | 'critical'
     dueDate: string
+    dueTime?: string
     estimatedHours: string | number
     assignedBy: string // User UID or Name
     createdAt: string
@@ -120,6 +121,7 @@ export function StaffTaskAssignments() {
         status: 'pending' | 'in-progress' | 'completed' | 'overdue'
         priority: 'low' | 'medium' | 'high' | 'critical'
         dueDate: string
+        dueTime: string
         estimatedHours: string
         progress: number
         category: string
@@ -131,6 +133,7 @@ export function StaffTaskAssignments() {
         status: "pending",
         priority: "medium",
         dueDate: "",
+        dueTime: "",
         estimatedHours: "",
         progress: 0,
         category: "frontend"
@@ -266,8 +269,11 @@ export function StaffTaskAssignments() {
         }
 
         try {
+            const composedDueDate = composeDueDateTime(formData.dueDate, formData.dueTime)
             const newTask = {
                 ...formData,
+                dueDate: composedDueDate,
+                dueTime: formData.dueTime,
                 createdAt: new Date().toISOString(),
                 assignedBy: "Admin",
                 progress: 0,
@@ -288,12 +294,14 @@ export function StaffTaskAssignments() {
     const handleEditTask = async () => {
         if (!selectedTask) return
         try {
+            const composedDueDate = composeDueDateTime(formData.dueDate, formData.dueTime)
             // Update only metadata fields
             await update(ref(database, `staffdashboard/tasks/${selectedTask.id}`), {
                 title: formData.title,
                 description: formData.description,
                 priority: formData.priority,
-                dueDate: formData.dueDate,
+                dueDate: composedDueDate,
+                dueTime: formData.dueTime,
                 estimatedHours: formData.estimatedHours,
                 projectId: formData.projectId,
                 assignedTo: formData.assignedTo, // Full replacement of array
@@ -380,7 +388,8 @@ export function StaffTaskAssignments() {
             assignedTo: task.assignedTo || [],
             status: task.status,
             priority: task.priority,
-            dueDate: task.dueDate,
+            dueDate: extractDatePart(task.dueDate),
+            dueTime: task.dueTime || extractTimePart(task.dueDate),
             estimatedHours: task.estimatedHours as string,
             progress: task.progress,
             category: task.category || "frontend"
@@ -391,7 +400,46 @@ export function StaffTaskAssignments() {
     const resetFormData = () => {
         setFormData({
             title: "", description: "", projectId: "", assignedTo: [],
-            status: "pending", priority: "medium", dueDate: "", estimatedHours: "", progress: 0, category: "frontend"
+            status: "pending", priority: "medium", dueDate: "", dueTime: "", estimatedHours: "", progress: 0, category: "frontend"
+        })
+    }
+
+    const extractDatePart = (dateValue?: string) => {
+        if (!dateValue) return ""
+        if (dateValue.includes("T")) return dateValue.split("T")[0]
+        return dateValue
+    }
+
+    const extractTimePart = (dateValue?: string) => {
+        if (!dateValue || !dateValue.includes("T")) return ""
+        const timePart = dateValue.split("T")[1] || ""
+        return timePart.slice(0, 5)
+    }
+
+    const composeDueDateTime = (datePart: string, timePart: string) => {
+        if (!datePart) return ""
+        if (!timePart) return datePart
+        return `${datePart}T${timePart}`
+    }
+
+    const formatDueDateTime = (dateValue?: string, timeValue?: string) => {
+        if (!dateValue) return "No deadline"
+
+        const datePart = extractDatePart(dateValue)
+        const timePart = timeValue || extractTimePart(dateValue)
+        const composed = timePart ? `${datePart}T${timePart}` : datePart
+        const parsed = new Date(composed)
+
+        if (Number.isNaN(parsed.getTime())) {
+            return `${datePart}${timePart ? ` ${timePart}` : ""}`
+        }
+
+        return parsed.toLocaleString([], {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: timePart ? "2-digit" : undefined,
+            minute: timePart ? "2-digit" : undefined,
         })
     }
 
@@ -518,7 +566,7 @@ export function StaffTaskAssignments() {
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3 mt-4">
                                             <div>
                                                 <span className="text-xs text-gray-500 block mb-1">Assigned To</span>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 min-w-0">
                                                     {/* Avatars Stack */}
                                                     <div className="flex -space-x-2">
                                                         {task.assigneeAvatars && task.assigneeAvatars.length > 0 ? (
@@ -531,15 +579,19 @@ export function StaffTaskAssignments() {
                                                             <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white">?</div>
                                                         )}
                                                     </div>
-                                                    <span className="text-sm text-gray-300 truncate max-w-[150px]">
-                                                        {task.assigneeNames && task.assigneeNames.length > 0 ? task.assigneeNames.slice(0, 2).join(", ") + (task.assigneeNames.length > 2 ? ` +${task.assigneeNames.length - 2}` : "") : "Unassigned"}
+                                                    <span className="text-sm text-gray-300 truncate max-w-[240px]">
+                                                        {task.assigneeNames && task.assigneeNames.length > 0
+                                                            ? task.assigneeNames
+                                                                .map(name => (name || "").trim().split(" ")[0] || name)
+                                                                .join(", ")
+                                                            : "Unassigned"}
                                                     </span>
                                                 </div>
                                             </div>
                                             <div>
                                                 <span className="text-xs text-gray-500 block mb-1">Due Date</span>
                                                 <div className="flex items-center gap-2 text-sm text-gray-300">
-                                                    <Calendar className="w-3 h-3" /> {task.dueDate || "No deadline"}
+                                                    <Calendar className="w-3 h-3" /> {formatDueDateTime(task.dueDate, task.dueTime)}
                                                 </div>
                                             </div>
                                             <div>
@@ -811,6 +863,16 @@ export function StaffTaskAssignments() {
                                 />
                             </div>
 
+                            <div className="space-y-2">
+                                <Label>Due Time</Label>
+                                <Input
+                                    type="time"
+                                    value={formData.dueTime}
+                                    onChange={e => setFormData({ ...formData, dueTime: e.target.value })}
+                                    className="bg-gray-800 border-gray-700"
+                                />
+                            </div>
+
                             <div className="space-y-2 col-span-2">
                                 <Label>Description</Label>
                                 <Textarea
@@ -1019,6 +1081,16 @@ export function StaffTaskAssignments() {
                                     type="date"
                                     value={formData.dueDate}
                                     onChange={e => setFormData({ ...formData, dueDate: e.target.value })}
+                                    className="bg-gray-800 border-gray-700"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Due Time</Label>
+                                <Input
+                                    type="time"
+                                    value={formData.dueTime}
+                                    onChange={e => setFormData({ ...formData, dueTime: e.target.value })}
                                     className="bg-gray-800 border-gray-700"
                                 />
                             </div>
