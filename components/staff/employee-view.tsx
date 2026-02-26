@@ -488,52 +488,52 @@ export default function EmployeeView() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-          <Card className="bg-gradient-to-br from-blue-900 to-blue-800 border-blue-700">
+          <Card className="bg-gray-900 border-gray-800">
             <div className="p-6">
               <div className="flex items-center">
                 <CheckCircle className="h-8 w-8 text-blue-300" />
                 <div className="ml-4">
-                  <p className="text-sm text-blue-200">Tasks Completed</p>
+                  <p className="text-sm text-gray-400">Tasks Completed</p>
                   <p className="text-2xl font-semibold text-white">{completedTasksThisWeek}</p>
-                  <p className="text-xs text-blue-300">This week</p>
+                  <p className="text-xs text-gray-500">This week</p>
                 </div>
               </div>
             </div>
           </Card>
-          <Card className="bg-gradient-to-br from-emerald-900 to-emerald-800 border-emerald-700">
+          <Card className="bg-gray-900 border-gray-800">
             <div className="p-6">
               <div className="flex items-center">
                 <Clock className="h-8 w-8 text-emerald-300" />
                 <div className="ml-4">
-                  <p className="text-sm text-emerald-200">Hours Logged</p>
+                  <p className="text-sm text-gray-400">Hours Logged</p>
                   <p className="text-2xl font-semibold text-white">{totalHoursThisWeek}</p>
-                  <p className="text-xs text-emerald-300">This week</p>
+                  <p className="text-xs text-gray-500">This week</p>
                 </div>
               </div>
             </div>
           </Card>
-          <Card className="bg-gradient-to-br from-orange-900 to-orange-800 border-orange-700">
+          <Card className="bg-gray-900 border-gray-800">
             <div className="p-6">
               <div className="flex items-center">
                 <AlertCircle className="h-8 w-8 text-orange-300" />
                 <div className="ml-4">
-                  <p className="text-sm text-orange-200">Pending Tasks</p>
+                  <p className="text-sm text-gray-400">Pending Tasks</p>
                   <p className="text-2xl font-semibold text-white">
                     {tasks.filter(t => t.status === "pending").length}
                   </p>
-                  <p className="text-xs text-orange-300">Assigned to you</p>
+                  <p className="text-xs text-gray-500">Assigned to you</p>
                 </div>
               </div>
             </div>
           </Card>
-          <Card className="bg-gradient-to-br from-purple-900 to-purple-800 border-purple-700">
+          <Card className="bg-gray-900 border-gray-800">
             <div className="p-6">
               <div className="flex items-center">
                 <Briefcase className="h-8 w-8 text-purple-300" />
                 <div className="ml-4">
-                  <p className="text-sm text-purple-200">Active Projects</p>
+                  <p className="text-sm text-gray-400">Active Projects</p>
                   <p className="text-2xl font-semibold text-white">{projects.length}</p>
-                  <p className="text-xs text-purple-300">Participating</p>
+                  <p className="text-xs text-gray-500">Participating</p>
                 </div>
               </div>
             </div>
@@ -543,7 +543,7 @@ export default function EmployeeView() {
         {/* Current Tasks & Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Current Tasks */}
-          <Card className="bg-gray-800 border-gray-700">
+          <Card className="bg-gray-900 border-gray-800">
             <div className="p-6">
               <h3 className="text-lg font-medium text-white mb-4">Active Tasks</h3>
               <div className="space-y-4">
@@ -599,7 +599,7 @@ export default function EmployeeView() {
           </Card>
 
           {/* Notifications */}
-          <Card className="bg-gray-800 border-gray-700">
+          <Card className="bg-gray-900 border-gray-800">
             <div className="p-6">
               <h3 className="text-lg font-medium text-white mb-4">Recent Notifications</h3>
               <div className="space-y-3">

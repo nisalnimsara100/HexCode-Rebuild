@@ -186,7 +186,7 @@ export function ReportsAnalytics() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="bg-[#1a1f2e] border-gray-800 p-6 relative overflow-hidden group hover:border-blue-500/30 transition-all">
+        <Card className="bg-gray-900 border-gray-800 p-6 relative overflow-hidden group hover:border-blue-500/30 transition-all">
           <div className="flex items-center justify-between z-10 relative">
             <div>
               <p className="text-sm font-medium text-gray-400">Total Hours Logged</p>
@@ -202,7 +202,7 @@ export function ReportsAnalytics() {
           <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-blue-500/5 rounded-full blur-xl group-hover:bg-blue-500/10 transition-all" />
         </Card>
 
-        <Card className="bg-[#1a1f2e] border-gray-800 p-6 relative overflow-hidden group hover:border-green-500/30 transition-all">
+        <Card className="bg-gray-900 border-gray-800 p-6 relative overflow-hidden group hover:border-green-500/30 transition-all">
           <div className="flex items-center justify-between z-10 relative">
             <div>
               <p className="text-sm font-medium text-gray-400">Tasks Completed</p>
@@ -218,7 +218,7 @@ export function ReportsAnalytics() {
           <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-green-500/5 rounded-full blur-xl group-hover:bg-green-500/10 transition-all" />
         </Card>
 
-        <Card className="bg-[#1a1f2e] border-gray-800 p-6 relative overflow-hidden group hover:border-purple-500/30 transition-all">
+        <Card className="bg-gray-900 border-gray-800 p-6 relative overflow-hidden group hover:border-purple-500/30 transition-all">
           <div className="flex items-center justify-between z-10 relative">
             <div>
               <p className="text-sm font-medium text-gray-400">Active Staff</p>
@@ -235,7 +235,7 @@ export function ReportsAnalytics() {
         </Card>
       </div>
 
-      <Card className="bg-[#1a1f2e] border-gray-800 p-6">
+      <Card className="bg-gray-900 border-gray-800 p-6">
         <h3 className="text-lg font-bold text-white mb-4">
           {selectedStaffId === 'all' ? 'Recent Global Activity' : 'User Activity Log'}
         </h3>
@@ -284,7 +284,7 @@ export function ReportsAnalytics() {
       </Card>
 
       {/* Performance Overview Chart Placeholder - Could implement Recharts later if requested */}
-      <Card className="bg-[#1a1f2e] border-gray-800 p-6 min-h-[300px] flex flex-col justify-center items-center text-center">
+      <Card className="bg-gray-900 border-gray-800 p-6 min-h-[300px] flex flex-col justify-center items-center text-center">
         <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-4">
           <TrendingUp className="w-8 h-8 text-gray-600" />
         </div>

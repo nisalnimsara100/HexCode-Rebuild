@@ -288,7 +288,7 @@ export function TicketSystem() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <Ticket className="h-8 w-8 text-emerald-500" />
@@ -299,7 +299,7 @@ export function TicketSystem() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <AlertCircle className="h-8 w-8 text-blue-500" />
@@ -312,7 +312,7 @@ export function TicketSystem() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <Clock className="h-8 w-8 text-yellow-500" />
@@ -325,7 +325,7 @@ export function TicketSystem() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <CheckCircle className="h-8 w-8 text-green-500" />
@@ -341,7 +341,7 @@ export function TicketSystem() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-gray-800 border-gray-700">
+      <Card className="bg-gray-900 border-gray-800">
         <div className="p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
             <div className="relative">
@@ -350,11 +350,11 @@ export function TicketSystem() {
                 placeholder="Search tickets..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-700 border-gray-600 text-white"
+                className="pl-10 bg-gray-800 border-gray-700 text-white"
               />
             </div>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -366,7 +366,7 @@ export function TicketSystem() {
               </SelectContent>
             </Select>
             <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>

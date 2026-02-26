@@ -191,31 +191,31 @@ export function TicketSystem() {
       case "open":
       case "planning":
       case "available":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-blue-900/30 text-blue-300 border-blue-700/40";
       case "in-progress":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-yellow-900/30 text-yellow-300 border-yellow-700/40";
       case "review":
-        return "bg-teal-100 text-teal-800 border-teal-200";
+        return "bg-teal-900/30 text-teal-300 border-teal-700/40";
       case "closed":
       case "completed":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200";
+        return "bg-emerald-900/30 text-emerald-300 border-emerald-700/40";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-slate-900/30 text-slate-300 border-slate-700/40";
     }
   };
 
   const getPriorityColor = (priority: TicketItem["priority"]) => {
     switch (priority) {
       case "low":
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-slate-900/30 text-slate-300 border-slate-700/40";
       case "medium":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-blue-900/30 text-blue-300 border-blue-700/40";
       case "high":
-        return "bg-orange-100 text-orange-800 border-orange-200";
+        return "bg-orange-900/30 text-orange-300 border-orange-700/40";
       case "critical":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-red-900/30 text-red-300 border-red-700/40";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-slate-900/30 text-slate-300 border-slate-700/40";
     }
   };
 
@@ -298,12 +298,12 @@ export function TicketSystem() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-        <Card className="bg-gradient-to-br from-blue-900 to-blue-800 border-blue-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <AlertCircle className="h-8 w-8 text-blue-300" />
               <div className="ml-4">
-                <p className="text-sm text-blue-200">Open Tickets</p>
+                <p className="text-sm text-gray-400">Open Tickets</p>
                 <p className="text-2xl font-semibold text-white">
                   {tickets.filter((t) => ["open", "planning", "available"].includes(t.status) && t.assignedTo.includes(userProfile?.uid || "")).length}
                 </p>
@@ -311,12 +311,12 @@ export function TicketSystem() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gradient-to-br from-yellow-900 to-yellow-800 border-yellow-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <Activity className="h-8 w-8 text-yellow-300" />
               <div className="ml-4">
-                <p className="text-sm text-yellow-200">In Progress</p>
+                <p className="text-sm text-gray-400">In Progress</p>
                 <p className="text-2xl font-semibold text-white">
                   {tickets.filter((t) => t.status === "in-progress" && t.assignedTo.includes(userProfile?.uid || "")).length}
                 </p>
@@ -324,12 +324,12 @@ export function TicketSystem() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gradient-to-br from-teal-900 to-teal-800 border-teal-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <Eye className="h-8 w-8 text-teal-300" />
               <div className="ml-4">
-                <p className="text-sm text-teal-200">In Review</p>
+                <p className="text-sm text-gray-400">In Review</p>
                 <p className="text-2xl font-semibold text-white">
                   {tickets.filter((t) => t.status === "review" && t.assignedTo.includes(userProfile?.uid || "")).length}
                 </p>
@@ -337,12 +337,12 @@ export function TicketSystem() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gradient-to-br from-emerald-900 to-emerald-800 border-emerald-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <CheckCircle className="h-8 w-8 text-emerald-300" />
               <div className="ml-4">
-                <p className="text-sm text-emerald-200">Completed</p>
+                <p className="text-sm text-gray-400">Completed</p>
                 <p className="text-2xl font-semibold text-white">
                   {tickets.filter((t) => ["closed", "completed"].includes(t.status) && t.assignedTo.includes(userProfile?.uid || "")).length}
                 </p>
@@ -354,7 +354,7 @@ export function TicketSystem() {
 
       {/* Staff Workload Overview (Hidden for Staff) */}
       {/* 
-      <Card className="bg-gray-800 border-gray-700 hidden">
+      <Card className="bg-gray-900 border-gray-800 hidden">
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
              <h3 className="text-lg font-semibold text-white flex items-center">
@@ -367,7 +367,7 @@ export function TicketSystem() {
       */}
 
       {/* Filters */}
-      <Card className="bg-gray-800 border-gray-700">
+      <Card className="bg-gray-900 border-gray-800">
         <div className="p-4 sm:p-6">
           <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="relative sm:col-span-1">
@@ -376,11 +376,11 @@ export function TicketSystem() {
                 placeholder="Search tickets..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-700 border-gray-600 text-white placeholder:text-gray-500"
+                className="pl-10 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
               />
             </div>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700 text-white">
@@ -392,7 +392,7 @@ export function TicketSystem() {
               </SelectContent>
             </Select>
             <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                 <SelectValue placeholder="All Priority" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700 text-white">
@@ -405,7 +405,7 @@ export function TicketSystem() {
             </Select>
             <Button
               variant="outline"
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
               onClick={() => {
                 setSearchTerm("");
                 setSelectedStatus("all");
@@ -422,7 +422,7 @@ export function TicketSystem() {
       {/* Tickets List */}
       <div className={`grid gap-4 ${view === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
         {filteredTickets.map((ticket) => (
-          <Card key={ticket.id} className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-all duration-200 overflow-hidden flex flex-col">
+          <Card key={ticket.id} className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-all duration-200 overflow-hidden flex flex-col">
             <div className="p-4 flex-1 flex flex-col">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center space-x-2">
@@ -509,7 +509,7 @@ export function TicketSystem() {
                         setSelectedTicket(ticket);
                         setIsEditStatusModalOpen(false);
                       }}
-                      className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-gray-700"
+                      className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-gray-800"
                       title="View Details"
                     >
                       <Eye className="h-4 w-4" />
@@ -518,7 +518,7 @@ export function TicketSystem() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEditClick(ticket)}
-                      className="h-8 w-8 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-gray-700"
+                      className="h-8 w-8 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-gray-800"
                       title="Update Status"
                     >
                       <Edit3 className="h-4 w-4" />
@@ -538,7 +538,7 @@ export function TicketSystem() {
 
       {/* Edit Status Modal */}
       <Dialog open={isEditStatusModalOpen} onOpenChange={setIsEditStatusModalOpen}>
-        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-sm">
+        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-sm">
           <DialogHeader>
             <DialogTitle>Update Ticket Status</DialogTitle>
           </DialogHeader>
@@ -546,7 +546,7 @@ export function TicketSystem() {
             <div className="space-y-2">
               <Label>Current Status</Label>
               <Select value={editStatus} onValueChange={setEditStatus}>
-                <SelectTrigger className="bg-gray-700 border-gray-600">
+                <SelectTrigger className="bg-gray-800 border-gray-700">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-700 text-white">
@@ -566,7 +566,7 @@ export function TicketSystem() {
                   step="0.5"
                   value={editTimeSpent}
                   onChange={(e) => setEditTimeSpent(parseFloat(e.target.value))}
-                  className="bg-gray-700 border-gray-600 pr-12"
+                  className="bg-gray-800 border-gray-700 pr-12"
                 />
                 <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
                   <span className="text-gray-400 text-xs">
@@ -589,7 +589,7 @@ export function TicketSystem() {
 
       {/* View Ticket Modal - Simplified for Staff */}
       <Dialog open={!!selectedTicket && !isEditStatusModalOpen} onOpenChange={(open) => !open && setSelectedTicket(null)}>
-        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
           {selectedTicket && (
             <>
               <DialogHeader>
@@ -619,7 +619,7 @@ export function TicketSystem() {
                       {selectedTicket.assignedTo?.map((uid) => {
                         const staff = getAssigneeInfo(uid);
                         return (
-                          <div key={uid} className="inline-flex items-center space-x-2 bg-gray-700 pr-3 rounded-full border border-gray-600 p-1">
+                          <div key={uid} className="inline-flex items-center space-x-2 bg-gray-800 pr-3 rounded-full border border-gray-700 p-1">
                             <Avatar className="h-6 w-6">
                               {staff.profilePicture ? <AvatarImage src={staff.profilePicture} /> : null}
                               <AvatarFallback className="text-[10px]">{staff.name?.charAt(0) || '?'}</AvatarFallback>

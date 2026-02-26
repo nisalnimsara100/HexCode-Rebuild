@@ -317,7 +317,7 @@ export function TeamManagement() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <Users className="h-8 w-8 text-emerald-500" />
@@ -328,7 +328,7 @@ export function TeamManagement() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <Activity className="h-8 w-8 text-green-500" />
@@ -341,7 +341,7 @@ export function TeamManagement() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <Users className="h-8 w-8 text-blue-500" />
@@ -354,7 +354,7 @@ export function TeamManagement() {
             </div>
           </div>
         </Card>
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900 border-gray-800">
           <div className="p-6">
             <div className="flex items-center">
               <Target className="h-8 w-8 text-purple-500" />
@@ -370,7 +370,7 @@ export function TeamManagement() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-gray-800 border-gray-700">
+      <Card className="bg-gray-900 border-gray-800">
         <div className="p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <div className="relative">
@@ -379,11 +379,11 @@ export function TeamManagement() {
                 placeholder="Search teams..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-700 border-gray-600 text-white"
+                className="pl-10 bg-gray-800 border-gray-700 text-white"
               />
             </div>
             <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
               <SelectContent>
@@ -396,7 +396,7 @@ export function TeamManagement() {
               </SelectContent>
             </Select>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -405,7 +405,7 @@ export function TeamManagement() {
                 <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700">
+            <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800">
               <Filter className="h-4 w-4 mr-2" />
               More Filters
             </Button>

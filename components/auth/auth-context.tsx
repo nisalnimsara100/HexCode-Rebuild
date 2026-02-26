@@ -20,6 +20,8 @@ interface UserProfile {
   department?: string;
   profilePicture?: string;
   dateOfBirth?: string;
+  timezone?: string;
+  timeFormat?: "12h" | "24h";
 }
 
 interface AuthContextType {
@@ -172,6 +174,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         department: profile.department || "",
         profilePicture: profile.profilePicture || "",
         dateOfBirth: profile.dateOfBirth || "",
+        timezone: (profile as any).timezone || "Asia/Colombo",
+        timeFormat: (profile as any).timeFormat || "12h",
       };
 
       const userRef = ref(database, `users/${user.uid}`);

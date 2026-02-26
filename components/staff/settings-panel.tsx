@@ -15,13 +15,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { database, storage } from "@/lib/firebase";
+import { database } from "@/lib/firebase";
 import { ref, get, update } from "firebase/database";
-import {
-  ref as refStorage,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
+import { uploadFile, validateImageFile } from "@/lib/imageUpload";
 import { useAuth } from "@/components/auth/auth-context";
 import { User, Save, Upload } from "lucide-react";
 
@@ -64,16 +60,26 @@ export function SettingsPanel() {
           id: userProfile.uid,
           name: data.name || userProfile.name || "",
           avatarUrl: data.profilePicture || userProfile.profilePicture || "",
-          timezone: data.timezone || "America/New_York",
+          timezone: data.timezone || "Asia/Colombo",
           timeFormat: data.timeFormat || "12h",
         });
+
+        if (!data.timezone) {
+          await update(ref(database, `users/${userProfile.uid}`), {
+            timezone: "Asia/Colombo",
+          });
+        }
       } else {
         setUserSettings({
           id: userProfile.uid,
           name: userProfile.name || "",
           avatarUrl: userProfile.profilePicture || "",
-          timezone: "America/New_York",
+          timezone: "Asia/Colombo",
           timeFormat: "12h",
+        });
+
+        await update(ref(database, `users/${userProfile.uid}`), {
+          timezone: "Asia/Colombo",
         });
       }
 
@@ -91,17 +97,12 @@ export function SettingsPanel() {
     try {
       setUploading(true);
 
-      // Create a reference to the storage location
-      const timestamp = Date.now();
-      const ext = file.name.split(".").pop() || "jpg";
-      const filename = `${userProfile.uid}-${timestamp}.${ext}`;
-      const storageRef = refStorage(storage, `staff_pic/${filename}`);
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        throw new Error(validation.error || "Invalid image file");
+      }
 
-      // Upload the file
-      const snapshot = await uploadBytes(storageRef, file);
-
-      // Get the download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      const downloadURL = await uploadFile(file, "staff_pic");
 
       // Update User Profile in Firebase with the new URL
       await update(ref(database, `users/${userProfile.uid}`), {
@@ -116,7 +117,7 @@ export function SettingsPanel() {
       console.log("Profile picture updated:", downloadURL);
     } catch (error) {
       console.error("Error uploading image:", error);
-      alert("Failed to upload image. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to upload image. Please try again.");
     } finally {
       setUploading(false);
       // Reset input
@@ -181,7 +182,7 @@ export function SettingsPanel() {
 
         {/* Profile Settings */}
         <TabsContent value="profile" className="space-y-6">
-          <Card className="bg-gray-800 border-gray-700">
+          <Card className="bg-gray-900 border-gray-800">
             <div className="p-6">
               <h3 className="text-lg font-medium text-white mb-4">
                 Profile Settings

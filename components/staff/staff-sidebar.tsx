@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,10 +20,28 @@ import {
   CircleUser
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/auth/auth-context";
 import { useSidebar } from "@/app/staff/layout";
+import { database } from "@/lib/firebase";
+import { onValue, ref } from "firebase/database";
 
-const getNavigationByRole = (role: string, pathname: string) => {
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: any;
+  current: boolean;
+  badgeCount?: number;
+  hasComments?: boolean;
+}
+
+const getNavigationByRole = (
+  role: string,
+  pathname: string,
+  taskBadgeCount: number,
+  hasTaskComments: boolean,
+  ticketBadgeCount: number
+): NavigationItem[] => {
   const baseNavigation = [
     { name: "Dashboard", href: "/staff/dashboard", icon: Home, current: pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard") },
   ];
@@ -32,8 +50,21 @@ const getNavigationByRole = (role: string, pathname: string) => {
     return [
       ...baseNavigation,
       { name: "My Projects", href: "/staff/projects", icon: FolderOpen, current: pathname === "/staff/projects" },
-      { name: "My Tickets", href: "/staff/tickets", icon: Ticket, current: pathname === "/staff/tickets" },
-      // { name: "My Assignments", href: "/staff/assignments", icon: ClipboardList, current: pathname === "/staff/assignments" },
+      {
+        name: "My Tickets",
+        href: "/staff/tickets",
+        icon: Ticket,
+        current: pathname === "/staff/tickets" || pathname.startsWith("/staff/tickets"),
+        badgeCount: ticketBadgeCount,
+      },
+      {
+        name: "Tasks",
+        href: "/staff/tasks",
+        icon: ClipboardList,
+        current: pathname === "/staff/tasks" || pathname.startsWith("/staff/tasks"),
+        badgeCount: taskBadgeCount,
+        hasComments: hasTaskComments,
+      },
       { name: "Settings", href: "/staff/settings", icon: Settings, current: pathname === "/staff/settings" },
     ];
   }
@@ -43,7 +74,21 @@ const getNavigationByRole = (role: string, pathname: string) => {
     ...baseNavigation,
     // { name: "Employees", href: "/staff/employees", icon: Users, current: pathname === "/staff/employees" },
     { name: "Projects", href: "/staff/projects", icon: FolderOpen, current: pathname === "/staff/projects" },
-    { name: "Tickets", href: "/staff/tickets", icon: Ticket, current: pathname === "/staff/tickets" },
+    {
+      name: "Tickets",
+      href: "/staff/tickets",
+      icon: Ticket,
+      current: pathname === "/staff/tickets" || pathname.startsWith("/staff/tickets"),
+      badgeCount: ticketBadgeCount,
+    },
+    {
+      name: "Tasks",
+      href: "/staff/tasks",
+      icon: ClipboardList,
+      current: pathname === "/staff/tasks" || pathname.startsWith("/staff/tasks"),
+      badgeCount: taskBadgeCount,
+      hasComments: hasTaskComments,
+    },
     // { name: "Teams", href: "/staff/teams", icon: UserCheck, current: pathname === "/staff/teams" },
     // { name: "Reports", href: "/staff/reports", icon: BarChart3, current: pathname === "/staff/reports" },
     { name: "Settings", href: "/staff/settings", icon: Settings, current: pathname === "/staff/settings" },
@@ -63,6 +108,9 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
   const pathname = usePathname();
   const { userProfile } = useAuth();
   const [localCollapsed, setLocalCollapsed] = useState(false);
+  const [taskBadgeCount, setTaskBadgeCount] = useState(0);
+  const [hasTaskComments, setHasTaskComments] = useState(false);
+  const [ticketBadgeCount, setTicketBadgeCount] = useState(0);
 
 
 
@@ -78,7 +126,82 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
     // Context not available, use local state
   }
 
-  const navigation = getNavigationByRole(userProfile?.role || "employee", pathname);
+  useEffect(() => {
+    if (!userProfile?.uid) {
+      setTaskBadgeCount(0);
+      setHasTaskComments(false);
+      setTicketBadgeCount(0);
+      return;
+    }
+
+    const tasksRef = ref(database, "staffdashboard/tasks");
+    const ticketsRef = ref(database, "staffdashboard/tickets");
+    const unsubscribeTasks = onValue(tasksRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        setTaskBadgeCount(0);
+        setHasTaskComments(false);
+        return;
+      }
+
+      const taskList = Object.entries(snapshot.val() as Record<string, any>).map(([id, value]) => ({
+        id,
+        ...(value as Record<string, any>),
+      }));
+
+      const assignedTasks = taskList.filter((task) => {
+        if (Array.isArray(task.assignedTo)) {
+          return task.assignedTo.includes(userProfile.uid);
+        }
+        return task.assignedTo === userProfile.uid;
+      });
+
+      const activeTaskCount = assignedTasks.filter((task) => task.status !== "completed").length;
+      const commentExists = assignedTasks.some(
+        (task) => Array.isArray(task.comments) && task.comments.length > 0
+      );
+
+      setTaskBadgeCount(activeTaskCount);
+      setHasTaskComments(commentExists);
+    });
+
+    const unsubscribeTickets = onValue(ticketsRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        setTicketBadgeCount(0);
+        return;
+      }
+
+      const ticketList = Object.entries(snapshot.val() as Record<string, any>).map(([id, value]) => ({
+        id,
+        ...(value as Record<string, any>),
+      }));
+
+      const assignedTickets = ticketList.filter((ticket) => {
+        if (Array.isArray(ticket.assignedTo)) {
+          return ticket.assignedTo.includes(userProfile.uid);
+        }
+        return ticket.assignedTo === userProfile.uid;
+      });
+
+      const activeTicketCount = assignedTickets.filter(
+        (ticket) => !["closed", "completed"].includes(ticket.status)
+      ).length;
+
+      setTicketBadgeCount(activeTicketCount);
+    });
+
+    return () => {
+      unsubscribeTasks();
+      unsubscribeTickets();
+    };
+  }, [userProfile?.uid]);
+
+  const navigation = getNavigationByRole(
+    userProfile?.role || "employee",
+    pathname,
+    taskBadgeCount,
+    hasTaskComments,
+    ticketBadgeCount
+  );
 
   return (
     <>
@@ -147,20 +270,30 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                                     (item.name !== "Dashboard" && pathname === item.href)
                                     ? "bg-orange-700 text-white"
                                     : "text-gray-300 hover:text-white hover:bg-gray-800",
-                                  "group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                                  "group flex items-center justify-between rounded-md p-2 text-sm leading-6 font-semibold"
                                 )}
                               >
-                                <item.icon
-                                  className={classNames(
-                                    (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) ||
-                                      (item.name !== "Dashboard" && pathname === item.href)
-                                      ? "text-white"
-                                      : "text-gray-400 group-hover:text-white",
-                                    "h-6 w-6 shrink-0"
-                                  )}
-                                  aria-hidden="true"
-                                />
-                                {item.name}
+                                <div className="flex items-center gap-x-3">
+                                  <item.icon
+                                    className={classNames(
+                                      (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) ||
+                                        (item.name !== "Dashboard" && pathname === item.href)
+                                        ? "text-white"
+                                        : "text-gray-400 group-hover:text-white",
+                                      "h-6 w-6 shrink-0"
+                                    )}
+                                    aria-hidden="true"
+                                  />
+                                  {item.name}
+                                </div>
+                                {item.badgeCount && item.badgeCount > 0 ? (
+                                  <div className="flex items-center gap-1">
+                                    {item.hasComments && <span className="h-2 w-2 rounded-full bg-orange-400" />}
+                                    <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-orange-600 hover:bg-orange-600 text-white border-0">
+                                      {item.badgeCount}
+                                    </Badge>
+                                  </div>
+                                ) : null}
                               </Link>
                             </li>
                           ))}
@@ -213,22 +346,32 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                             (item.name !== "Dashboard" && pathname === item.href)
                             ? "bg-orange-700 text-white"
                             : "text-gray-300 hover:text-white hover:bg-gray-800",
-                          "group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold",
+                          "group flex items-center justify-between rounded-md p-2 text-sm leading-6 font-semibold",
                           collapsed ? "justify-center" : ""
                         )}
                         title={collapsed ? item.name : undefined}
                       >
-                        <item.icon
-                          className={classNames(
-                            (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) ||
-                              (item.name !== "Dashboard" && pathname === item.href)
-                              ? "text-white"
-                              : "text-gray-400 group-hover:text-white",
-                            "h-6 w-6 shrink-0"
-                          )}
-                          aria-hidden="true"
-                        />
-                        {!collapsed && item.name}
+                        <div className={classNames("flex items-center gap-x-3", collapsed ? "justify-center" : "")}> 
+                          <item.icon
+                            className={classNames(
+                              (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) ||
+                                (item.name !== "Dashboard" && pathname === item.href)
+                                ? "text-white"
+                                : "text-gray-400 group-hover:text-white",
+                              "h-6 w-6 shrink-0"
+                            )}
+                            aria-hidden="true"
+                          />
+                          {!collapsed && item.name}
+                        </div>
+                        {!collapsed && item.badgeCount && item.badgeCount > 0 ? (
+                          <div className="flex items-center gap-1">
+                            {item.hasComments && <span className="h-2 w-2 rounded-full bg-orange-400" />}
+                            <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-orange-600 hover:bg-orange-600 text-white border-0">
+                              {item.badgeCount}
+                            </Badge>
+                          </div>
+                        ) : null}
                       </Link>
                     </li>
                   ))}

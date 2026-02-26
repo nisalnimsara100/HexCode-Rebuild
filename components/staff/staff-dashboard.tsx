@@ -46,7 +46,7 @@ export default function EmployeeView() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [userTimeSettings, setUserTimeSettings] = useState({ timezone: 'America/New_York', timeFormat: '12h' });
+  const [userTimeSettings, setUserTimeSettings] = useState({ timezone: 'Asia/Colombo', timeFormat: '12h' });
 
   // Projects Map for displaying project names
   const [projectsMap, setProjectsMap] = useState<Record<string, string>>({});
@@ -69,7 +69,7 @@ export default function EmployeeView() {
         if (snapshot.exists()) {
           const data = snapshot.val();
           setUserTimeSettings({
-            timezone: data.timezone || 'America/New_York',
+            timezone: data.timezone || 'Asia/Colombo',
             timeFormat: data.timeFormat || '12h'
           });
         }

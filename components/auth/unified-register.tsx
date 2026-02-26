@@ -29,12 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { storage } from "@/lib/firebase";
-import {
-  ref as refStorage,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
+import { uploadFile, validateImageFile } from "@/lib/imageUpload";
 
 export default function UnifiedRegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -71,6 +66,15 @@ export default function UnifiedRegisterPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        setError(validation.error || "Invalid image file");
+        e.target.value = "";
+        return;
+      }
+
+      setError("");
       setProfilePic(file);
       setPreviewUrl(URL.createObjectURL(file));
     }
@@ -105,11 +109,7 @@ export default function UnifiedRegisterPage() {
       // Upload profile picture if selected
       if (profilePic) {
         try {
-          const filename = `${Date.now()}-${profilePic.name.replaceAll(" ", "_")}`;
-          const storageRef = refStorage(storage, `staff_pic/${filename}`);
-
-          const snapshot = await uploadBytes(storageRef, profilePic);
-          profilePictureUrl = await getDownloadURL(snapshot.ref);
+          profilePictureUrl = await uploadFile(profilePic, "staff_pic");
         } catch (uploadError) {
           console.error("Profile picture upload failed:", uploadError);
           throw new Error("Failed to upload profile picture");
