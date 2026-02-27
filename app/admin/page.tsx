@@ -6,10 +6,14 @@ import { useAuth } from "@/components/auth/auth-context"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
 
 export default function AdminPage() {
-  const { userProfile } = useAuth()
+  const { userProfile, isAuthReady } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
+    if (!isAuthReady) {
+      return
+    }
+
     // If not authenticated, redirect to login
     if (!userProfile) {
       router.push("/admin/login")
@@ -21,10 +25,10 @@ export default function AdminPage() {
       router.push("/unauthorized")
       return
     }
-  }, [userProfile, router])
+  }, [userProfile, router, isAuthReady])
 
   // Show loading while checking authentication
-  if (!userProfile) {
+  if (!isAuthReady || !userProfile) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center space-y-4">

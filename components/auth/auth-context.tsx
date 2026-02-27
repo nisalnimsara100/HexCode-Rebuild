@@ -26,6 +26,7 @@ interface UserProfile {
 
 interface AuthContextType {
   userProfile: UserProfile | null;
+  isAuthReady: boolean;
   signIn: (email: string, password: string) => Promise<UserProfile>;
   signUp: (email: string, password: string, profile: Partial<UserProfile>) => Promise<void>;
   logout: () => Promise<void>;
@@ -43,6 +44,31 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+
+  const normalizeUserProfile = (authUser: User, rawData: any): UserProfile | null => {
+    if (!rawData) return null;
+
+    const source = rawData.profile ? { ...rawData, ...rawData.profile } : rawData;
+    const resolvedRole = source.role;
+
+    if (!resolvedRole) {
+      return null;
+    }
+
+    return {
+      uid: authUser.uid,
+      email: source.email || authUser.email || "",
+      name: source.name || "",
+      role: resolvedRole,
+      employeeId: source.employeeId || "",
+      department: source.department || "",
+      profilePicture: source.profilePicture || "",
+      dateOfBirth: source.dateOfBirth || "",
+      timezone: source.timezone,
+      timeFormat: source.timeFormat,
+    };
+  };
 
   useEffect(() => {
     let dbUnsubscribe: (() => void) | undefined;
@@ -69,16 +95,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const snapshot = await get(uidRef);
 
           if (snapshot.exists()) {
+            setUserProfile(normalizeUserProfile(user, snapshot.val()));
             // Listen to users/{uid}
             dbUnsubscribe = onValue(uidRef, (snap) => {
-              setUserProfile(snap.exists() ? snap.val() : null);
+              setUserProfile(snap.exists() ? normalizeUserProfile(user, snap.val()) : null);
             });
           } else if (user.email === "admin@hexcode.lk") {
             // Listen to users/admin
             const adminRef = ref(database, adminPath);
+            const adminSnapshot = await get(adminRef);
+            if (adminSnapshot.exists()) {
+              setUserProfile(normalizeUserProfile(user, adminSnapshot.val()));
+            }
             dbUnsubscribe = onValue(adminRef, (snap) => {
               if (snap.exists()) {
-                setUserProfile({ ...snap.val(), uid: user.uid });
+                setUserProfile(normalizeUserProfile(user, snap.val()));
               } else {
                 setUserProfile(null);
               }
@@ -89,15 +120,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // But the original logic set null if not found.
             // Let's listen to UID path by default if not admin fallback.
             dbUnsubscribe = onValue(uidRef, (snap) => {
-              setUserProfile(snap.exists() ? snap.val() : null);
+              setUserProfile(snap.exists() ? normalizeUserProfile(user, snap.val()) : null);
             });
           }
+          setIsAuthReady(true);
         } catch (error) {
           console.error("Error setting up user listener:", error);
           setUserProfile(null);
+          setIsAuthReady(true);
         }
       } else {
         setUserProfile(null);
+        setIsAuthReady(true);
       }
     });
 
@@ -117,7 +151,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let snapshot = await get(userRef);
 
       if (snapshot.exists()) {
-        const profile = snapshot.val();
+        const profile = normalizeUserProfile(user, snapshot.val());
+        if (!profile) {
+          throw new Error("User profile not found");
+        }
         setUserProfile(profile);
         return profile;
       }
@@ -128,17 +165,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         snapshot = await get(userRef);
 
         if (snapshot.exists()) {
-          const dbData = snapshot.val();
-
-          // The database structure shows the role is under profile.role
-          const profile = {
-            uid: user.uid,
-            email: dbData.email || user.email,
-            name: dbData.profile?.name || "System Administrator",
-            role: dbData.profile?.role || "admin",
-            employeeId: dbData.profile?.employeeId || "ADM001",
-            department: dbData.profile?.department || "IT Administration"
-          };
+          const profile = normalizeUserProfile(user, snapshot.val());
+          if (!profile) {
+            throw new Error("User profile not found");
+          }
 
           setUserProfile(profile);
           return profile;
@@ -198,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     userProfile,
+    isAuthReady,
     signIn,
     signUp,
     logout,

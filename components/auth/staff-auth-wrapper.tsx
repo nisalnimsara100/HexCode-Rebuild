@@ -13,14 +13,18 @@ export function StaffAuthWrapper({
   children,
   allowedRoles = ["admin", "manager"]
 }: StaffAuthWrapperProps) {
-  const { userProfile } = useAuth();
+  const { userProfile, isAuthReady } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    if (!isAuthReady) {
+      return;
+    }
+
     if (userProfile && !allowedRoles.includes(userProfile.role)) {
       router.push("/unauthorized"); // Redirect to an unauthorized page if role is not allowed
     }
-  }, [userProfile, allowedRoles, router]);
+  }, [userProfile, allowedRoles, router, isAuthReady]);
 
   return <>{children}</>;
 }

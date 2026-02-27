@@ -29,20 +29,22 @@ export default function StaffLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const { userProfile } = useAuth();
+  const { userProfile, isAuthReady } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const allowedRoles: ("staff" | "admin" | "manager")[] = ["staff", "admin", "manager"];
+  const allowedRoles: ("staff" | "admin" | "manager" | "employee")[] = ["staff", "admin", "manager", "employee"];
 
   useEffect(() => {
+    if (!isAuthReady) {
+      return;
+    }
+
     if (!userProfile) {
       router.push("/login?redirect=" + encodeURIComponent(pathname || "/staff/dashboard"));
       return;
     }
 
-    // Role enforcement:
-    // Only 'staff', 'admin', or 'manager' are allowed in the staff dashboard.
-    // 'employee' is specifically excluded here to enforce the "pending approval" state.
+    // Role enforcement
 
 
     if (!(allowedRoles as readonly string[]).includes(userProfile.role)) {
@@ -51,9 +53,17 @@ export default function StaffLayout({
         router.push("/unauthorized?reason=pending_approval");
       }
     }
-  }, [userProfile, router, pathname]);
+  }, [userProfile, router, pathname, isAuthReady]);
 
   // Don't render layout if user not loaded or not authorized (prevents flash of content)
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-orange-300/30 border-t-orange-300 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (!userProfile || !(allowedRoles as readonly string[]).includes(userProfile.role)) {
     return null;
   }
