@@ -34,6 +34,7 @@ interface TaskItem {
   progress?: number;
   comments?: unknown[];
   assigneeProgress?: Record<string, AssigneeStage>;
+  isArchived?: boolean;
 }
 
 interface StaffMemberLite {
@@ -243,6 +244,10 @@ export function StaffTasksBoard() {
           };
         })
         .filter((task) => {
+          if (task.isArchived) {
+            return false;
+          }
+
           if (Array.isArray(task.assignedTo)) {
             return task.assignedTo.includes(userProfile.uid);
           }

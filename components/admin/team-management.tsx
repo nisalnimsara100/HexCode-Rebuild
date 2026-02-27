@@ -152,7 +152,8 @@ export function TeamManagement() {
                     .filter(u =>
                         u.role !== 'client' &&
                         u.role !== 'admin' &&
-                        u.email !== 'admin@hexcode.lk'
+                        u.email !== 'admin@hexcode.lk' &&
+                        u.name !== 'Unknown'
                     );
 
                 setStaff(staffList);
@@ -424,6 +425,16 @@ export function TeamManagement() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {teams.map((team) => (
                             <Card key={team.id} className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-all group relative pt-4 pb-12">
+                                {(() => {
+                                    const validMembers = (team.members || [])
+                                        .map((memberId) => staff.find(s => s.uid === memberId))
+                                        .filter(Boolean) as StaffMember[];
+                                    const firstNames = validMembers
+                                        .map((member) => (member.name || "").trim().split(" ")[0])
+                                        .filter(Boolean);
+
+                                    return (
+                                        <>
                                 {/* EDIT BUTTON - TOP RIGHT */}
                                 <Button
                                     variant="ghost"
@@ -452,27 +463,31 @@ export function TeamManagement() {
                                     <div className="mt-2">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Badge variant="secondary" className="bg-gray-800 text-gray-400 hover:bg-gray-800 text-[10px] px-2 py-0.5 border border-gray-700">
-                                                {team.members ? team.members.length : 0} members
+                                                {validMembers.length} members
                                             </Badge>
                                         </div>
                                         <div className="flex items-center -space-x-2 overflow-hidden pl-1">
-                                            {team.members && team.members.slice(0, 5).map((memberId) => {
-                                                const member = staff.find(s => s.uid === memberId);
+                                            {validMembers.slice(0, 5).map((member) => {
                                                 return (
-                                                    <Avatar key={memberId} className="inline-block h-8 w-8 ring-2 ring-gray-900">
-                                                        <AvatarImage src={member?.profilePicture} />
+                                                    <Avatar key={member.uid} className="inline-block h-8 w-8 ring-2 ring-gray-900">
+                                                        <AvatarImage src={member.profilePicture} />
                                                         <AvatarFallback className="bg-gray-700 text-xs">
-                                                            {member?.name?.charAt(0) || "?"}
+                                                            {member.name?.charAt(0) || "?"}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                 );
                                             })}
-                                            {team.members && team.members.length > 5 && (
+                                            {validMembers.length > 5 && (
                                                 <div className="flex h-8 w-8 items-center justify-center rounded-full ring-2 ring-gray-900 bg-gray-800 text-xs font-medium text-white">
-                                                    +{team.members.length - 5}
+                                                    +{validMembers.length - 5}
                                                 </div>
                                             )}
                                         </div>
+                                        {firstNames.length > 0 && (
+                                            <p className="text-xs text-gray-400 mt-3 truncate">
+                                                {firstNames.slice(0, 4).join(', ')}{firstNames.length > 4 ? ` +${firstNames.length - 4}` : ''}
+                                            </p>
+                                        )}
                                     </div>
                                 </CardContent>
 
@@ -487,6 +502,9 @@ export function TeamManagement() {
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
+                                        </>
+                                    )
+                                })()}
                             </Card>
                         ))}
                     </div>

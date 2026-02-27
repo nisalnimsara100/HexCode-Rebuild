@@ -41,6 +41,7 @@ interface TaskItem {
   createdAt?: string;
   category?: string;
   progress?: number;
+  isArchived?: boolean;
 }
 
 interface StaffProfile {
@@ -48,6 +49,15 @@ interface StaffProfile {
   name: string;
   avatar?: string;
 }
+
+const STATUS_PROGRESS_MAP: Record<string, number> = {
+  planning: 0,
+  researching: 25,
+  "in-progress": 60,
+  review: 85,
+  completed: 100,
+  "on-hold": 0,
+};
 
 export default function EmployeeView() {
   const { userProfile } = useAuth();
@@ -127,6 +137,7 @@ export default function EmployeeView() {
 
         const taskList = fullTaskList
           .filter((t: TaskItem) => {
+            if (t.isArchived) return false;
             if (Array.isArray(t.assignedTo)) {
               return t.assignedTo.includes(userProfile.uid);
             }
@@ -239,28 +250,17 @@ export default function EmployeeView() {
     return 0;
   };
 
+  const getProgressFromStatus = (status?: string) => {
+    if (!status) return 0;
+    return STATUS_PROGRESS_MAP[status] ?? 0;
+  };
+
   const getProjectSummary = (project: any) => {
     const tasksForProject = allProjectTasks.filter(task => task.projectId === project.id);
-    if (tasksForProject.length === 0) {
-      return {
-        progress: Number(project.progress) || 0,
-        status: project.status || 'planning',
-        completedTasks: 0,
-        totalTasks: 0,
-      };
-    }
-
+    const status = project.status || 'planning';
     const totalTasks = tasksForProject.length;
     const completedTasks = tasksForProject.filter(task => task.status === 'completed').length;
-    const totalProgress = tasksForProject.reduce((sum, task) => sum + getTaskProgressValue(task), 0);
-    const progress = Math.round((totalProgress / totalTasks) * 10) / 10;
-
-    let status = 'planning';
-    if (completedTasks === totalTasks) {
-      status = 'completed';
-    } else if (completedTasks > 0 || tasksForProject.some(task => task.status === 'in-progress' || task.status === 'overdue' || getTaskProgressValue(task) > 0)) {
-      status = 'in-progress';
-    }
+    const progress = getProgressFromStatus(status);
 
     return {
       progress,

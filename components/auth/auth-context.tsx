@@ -46,11 +46,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
+  const resolveRole = (authUser: User, source: any): UserProfile["role"] | null => {
+    const roleFromData = source?.role;
+    if (roleFromData === "admin" || roleFromData === "manager" || roleFromData === "employee" || roleFromData === "staff") {
+      return roleFromData;
+    }
+
+    if (authUser.email === "admin@hexcode.lk") {
+      return "admin";
+    }
+
+    return null;
+  };
+
   const normalizeUserProfile = (authUser: User, rawData: any): UserProfile | null => {
     if (!rawData) return null;
 
     const source = rawData.profile ? { ...rawData, ...rawData.profile } : rawData;
-    const resolvedRole = source.role;
+    const resolvedRole = resolveRole(authUser, source);
 
     if (!resolvedRole) {
       return null;
@@ -59,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {
       uid: authUser.uid,
       email: source.email || authUser.email || "",
-      name: source.name || "",
+      name: source.name || (resolvedRole === "admin" ? "Administrator" : ""),
       role: resolvedRole,
       employeeId: source.employeeId || "",
       department: source.department || "",
@@ -170,6 +183,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw new Error("User profile not found");
           }
 
+          // Ensure admin has a UID-based profile for stable future sign-ins
+          const uidProfileRef = ref(database, `users/${user.uid}`);
+          const uidProfileSnapshot = await get(uidProfileRef);
+          if (!uidProfileSnapshot.exists()) {
+            await set(uidProfileRef, {
+              uid: user.uid,
+              email: profile.email,
+              name: profile.name,
+              role: profile.role,
+              employeeId: profile.employeeId || "",
+              department: profile.department || "",
+              profilePicture: profile.profilePicture || "",
+              dateOfBirth: profile.dateOfBirth || "",
+              timezone: profile.timezone || "Asia/Colombo",
+              timeFormat: profile.timeFormat || "12h",
+            });
+          }
+
           setUserProfile(profile);
           return profile;
         }
@@ -177,6 +208,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       throw new Error("User profile not found");
     } catch (error: any) {
+      // Legacy recovery path: users/admin credentials exist in Realtime DB but Firebase Auth user is missing
+      if (
+        email === "admin@hexcode.lk" &&
+        (error?.code === "auth/user-not-found" || error?.code === "auth/invalid-credential")
+      ) {
+        try {
+          const legacyAdminRef = ref(database, "users/admin");
+          const legacySnapshot = await get(legacyAdminRef);
+
+          if (legacySnapshot.exists()) {
+            const legacyData = legacySnapshot.val() || {};
+            const storedEmail = String(legacyData.email || "").trim().toLowerCase();
+            const storedPassword = String(legacyData.password || "");
+
+            if (storedEmail === email.trim().toLowerCase() && storedPassword === password) {
+              const created = await createUserWithEmailAndPassword(auth, email, password);
+              const createdUser = created.user;
+
+              const recoveredProfile: UserProfile = {
+                uid: createdUser.uid,
+                email: createdUser.email || email,
+                name: legacyData.name || "Administrator",
+                role: "admin",
+                employeeId: legacyData.employeeId || "",
+                department: legacyData.department || "",
+                profilePicture: legacyData.profilePicture || "",
+                dateOfBirth: legacyData.dateOfBirth || "",
+                timezone: legacyData.timezone || "Asia/Colombo",
+                timeFormat: legacyData.timeFormat || "12h",
+              };
+
+              await set(ref(database, `users/${createdUser.uid}`), recoveredProfile);
+              setUserProfile(recoveredProfile);
+              return recoveredProfile;
+            }
+          }
+        } catch (recoveryError: any) {
+          if (recoveryError?.code !== "auth/email-already-in-use") {
+            console.error("Legacy admin recovery failed:", recoveryError);
+          }
+        }
+      }
+
       // Re-throw if it's already an Error with a custom message (like "User profile not found")
       if (error instanceof Error && error.message === "User profile not found") {
         throw error;

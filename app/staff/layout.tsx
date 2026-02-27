@@ -6,6 +6,8 @@ import { StaffSidebar } from "@/components/staff/staff-sidebar";
 import { StaffHeader } from "@/components/staff/staff-header";
 import { StaffAuthWrapper } from "@/components/auth/staff-auth-wrapper";
 import { useAuth } from "@/components/auth/auth-context";
+import { database } from "@/lib/firebase";
+import { ref, update, onDisconnect, serverTimestamp } from "firebase/database";
 
 interface SidebarContextType {
   collapsed: boolean;
@@ -54,6 +56,73 @@ export default function StaffLayout({
       }
     }
   }, [userProfile, router, pathname, isAuthReady]);
+
+  useEffect(() => {
+    if (!userProfile?.uid) {
+      return;
+    }
+
+    const userRef = ref(database, `users/${userProfile.uid}`);
+    let disconnectRef: ReturnType<typeof onDisconnect> | null = null;
+
+    const setOnline = async () => {
+      await update(userRef, {
+        status: "online",
+        lastActive: serverTimestamp(),
+      });
+    };
+
+    const setOffline = async () => {
+      await update(userRef, {
+        status: "offline",
+        lastActive: serverTimestamp(),
+      });
+    };
+
+    const setupPresence = async () => {
+      try {
+        disconnectRef = onDisconnect(userRef);
+        await disconnectRef.update({
+          status: "offline",
+          lastActive: serverTimestamp(),
+        });
+        await setOnline();
+      } catch (error) {
+        console.error("Failed to setup presence:", error);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        void setOffline();
+      } else {
+        void setOnline();
+      }
+    };
+
+    const handleWindowOffline = () => {
+      void setOffline();
+    };
+
+    const handleWindowOnline = () => {
+      void setOnline();
+    };
+
+    void setupPresence();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("offline", handleWindowOffline);
+    window.addEventListener("online", handleWindowOnline);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("offline", handleWindowOffline);
+      window.removeEventListener("online", handleWindowOnline);
+      void setOffline();
+      if (disconnectRef) {
+        void disconnectRef.cancel();
+      }
+    };
+  }, [userProfile?.uid]);
 
   // Don't render layout if user not loaded or not authorized (prevents flash of content)
   if (!isAuthReady) {

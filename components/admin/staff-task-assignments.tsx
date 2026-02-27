@@ -39,6 +39,8 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import {
     Plus,
+    History,
+    RotateCcw,
     Calendar,
     AlertTriangle,
     ArrowUp,
@@ -77,6 +79,10 @@ interface Task {
     assigneeAvatars?: string[]
     category?: string
     assigneeProgress?: Record<string, 'planning' | 'in-progress' | 'completed'>
+    isArchived?: boolean
+    archivedAt?: string
+    archivedBy?: string
+    archiveReason?: string
 }
 
 interface Project {
@@ -107,6 +113,7 @@ export function StaffTaskAssignments() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [isAssignExistingOpen, setIsAssignExistingOpen] = useState(false)
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false)
 
     // Selection State
     const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -309,13 +316,16 @@ export function StaffTaskAssignments() {
         return `${value.toFixed(1)}%`
     }
 
+    const activeTasks = tasks.filter(task => !task.isArchived)
+    const archivedTasks = tasks.filter(task => !!task.isArchived)
+
     const getStaffStatus = (member: StaffMember) => {
         // Priority 1: DB Status 'on_leave' override
         if (member.dbStatus === 'on_leave') return 'on_leave'
 
         // Priority 2: Workload Calculation
         // Count ACTIVE tasks (pending/in-progress) assigned to this user
-        const activeTaskCount = tasks.filter(t =>
+        const activeTaskCount = activeTasks.filter(t =>
             (t.status === 'pending' || t.status === 'in-progress' || t.status === 'overdue') &&
             t.assignedTo.includes(member.uid)
         ).length
@@ -324,8 +334,8 @@ export function StaffTaskAssignments() {
         return 'available'
     }
 
-    const getEnrichedTasks = () => {
-        return tasks.map(task => {
+    const getEnrichedTasks = (taskSource: Task[]) => {
+        return taskSource.map(task => {
             const project = projects.find(p => p.id === task.projectId)
             const assignees = task.assignedTo.map(uid => staffList.find(s => s.uid === uid)).filter(Boolean) as StaffMember[]
 
@@ -338,7 +348,13 @@ export function StaffTaskAssignments() {
         }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     }
 
-    const enrichedTasks = getEnrichedTasks()
+    const enrichedTasks = getEnrichedTasks(activeTasks)
+    const archivedEnrichedTasks = getEnrichedTasks(archivedTasks)
+        .sort((a, b) => {
+            const timeA = new Date((a as Task).archivedAt || a.createdAt).getTime()
+            const timeB = new Date((b as Task).archivedAt || b.createdAt).getTime()
+            return timeB - timeA
+        })
 
     // Get ALL tasks for assignment modal (even if already assigned to others)
     // We filter out tasks ALREADY assigned to the Selected Staff Member
@@ -421,12 +437,31 @@ export function StaffTaskAssignments() {
     const confirmDeleteTask = async () => {
         if (!taskToDelete) return
         try {
-            await remove(ref(database, `staffdashboard/tasks/${taskToDelete}`))
-            toast({ title: "Deleted", description: "Task removed" })
+            await update(ref(database, `staffdashboard/tasks/${taskToDelete}`), {
+                isArchived: true,
+                archivedAt: new Date().toISOString(),
+                archivedBy: "Admin",
+                archiveReason: "Deleted from Task Assignment dashboard"
+            })
+            toast({ title: "Moved to History", description: "Task was archived and removed from active assignments." })
         } catch (e) {
             toast({ title: "Error", description: "Failed to delete task", variant: "destructive" })
         } finally {
             setTaskToDelete(null)
+        }
+    }
+
+    const handleRestoreTask = async (taskId: string) => {
+        try {
+            await update(ref(database, `staffdashboard/tasks/${taskId}`), {
+                isArchived: false,
+                archivedAt: null,
+                archivedBy: null,
+                archiveReason: null,
+            })
+            toast({ title: "Restored", description: "Task moved back to active assignments." })
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to restore task.", variant: "destructive" })
         }
     }
 
@@ -579,9 +614,9 @@ export function StaffTaskAssignments() {
     }
 
     // Stats
-    const pendingCount = tasks.filter(t => t.status === 'pending').length
-    const inProgressCount = tasks.filter(t => t.status === 'in-progress').length
-    const completedCount = tasks.filter(t => t.status === 'completed').length
+    const pendingCount = activeTasks.filter(t => t.status === 'pending').length
+    const inProgressCount = activeTasks.filter(t => t.status === 'in-progress').length
+    const completedCount = activeTasks.filter(t => t.status === 'completed').length
 
     return (
         <div className="space-y-8">
@@ -592,6 +627,9 @@ export function StaffTaskAssignments() {
                     <p className="text-sm text-gray-400">Delegate and track task assignments across your team</p>
                 </div>
                 <div className="flex space-x-3">
+                    <Button onClick={() => setIsHistoryOpen(true)} variant="outline" className="border-gray-700 text-gray-200 hover:bg-gray-800">
+                        <History className="w-4 h-4 mr-2" /> Task History ({archivedTasks.length})
+                    </Button>
                     <Button onClick={() => { resetFormData(); setIsCreateModalOpen(true); }} className="bg-orange-600 hover:bg-orange-700 text-white">
                         <Plus className="w-4 h-4 mr-2" /> Create Task
                     </Button>
@@ -1077,6 +1115,93 @@ export function StaffTaskAssignments() {
                 </DialogContent>
             </Dialog>
 
+            <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+                <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[900px] max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Task History</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        {archivedEnrichedTasks.length === 0 ? (
+                            <div className="text-gray-400">No archived tasks.</div>
+                        ) : (
+                            archivedEnrichedTasks.map(task => {
+                                const progressSummary = calculateTaskProgressSummary(task as Task)
+                                return (
+                                    <div key={task.id} className="bg-gray-800/80 p-4 rounded-lg border border-gray-700 space-y-3">
+                                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <h4 className="text-white font-semibold text-lg truncate">{task.title}</h4>
+                                                <p className="text-xs text-gray-400 mt-1">{task.projectName}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className={`${getStatusColor(task.status)} uppercase border`}>{task.status}</Badge>
+                                                {task.category && (
+                                                    <Badge variant="outline" className={`${getCategoryColor(task.category)} uppercase border`}>
+                                                        {task.category}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <p className="text-sm text-gray-300">{task.description || "No description"}</p>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+                                            <div>
+                                                <p className="text-xs text-gray-500 mb-1">Due Date</p>
+                                                <p className="text-gray-300">{formatDueDateTime(task.dueDate, task.dueTime)}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 mb-1">Estimated Hours</p>
+                                                <p className="text-gray-300">{task.estimatedHours || 0}h</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 mb-1">Assigned To</p>
+                                                <p className="text-gray-300 truncate">{task.assigneeNames?.length ? task.assigneeNames.join(", ") : "Unassigned"}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 mb-1">Archived</p>
+                                                <p className="text-gray-300">{task.archivedAt ? new Date(task.archivedAt).toLocaleString() : "-"}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-xs text-gray-400">
+                                                <span>Progress</span>
+                                                <span>{formatPercent(progressSummary.overallPercent)}</span>
+                                            </div>
+                                            <Progress value={progressSummary.overallPercent} className="h-2 bg-gray-700" indicatorClassName="bg-green-500" />
+                                            <div className="flex flex-wrap gap-2">
+                                                <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                                                    Completed {progressSummary.completedCount}/{progressSummary.totalMembers}
+                                                </Badge>
+                                                <Badge variant="outline" className="bg-blue-500/20 text-blue-300 border-blue-500/40">
+                                                    In Progress {progressSummary.inProgressCount}/{progressSummary.totalMembers}
+                                                </Badge>
+                                                <Badge variant="outline" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/40">
+                                                    Planning {progressSummary.planningCount}/{progressSummary.totalMembers}
+                                                </Badge>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-end">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="border-emerald-600 text-emerald-300 hover:bg-emerald-900/30"
+                                                onClick={() => handleRestoreTask(task.id)}
+                                            >
+                                                <RotateCcw className="w-4 h-4 mr-2" /> Restore
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )
+                            })
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* 2. Edit Task Modal (Admin Edit) */}
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
                 <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
@@ -1335,7 +1460,7 @@ export function StaffTaskAssignments() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription className="text-gray-400">
-                            This action cannot be undone. This will permanently delete the task.
+                            This will move the task to history instead of permanently deleting it.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

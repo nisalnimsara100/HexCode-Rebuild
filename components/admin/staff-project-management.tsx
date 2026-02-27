@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { database } from "@/lib/firebase";
-import { ref, push, update, remove, onValue } from "firebase/database";
+import { ref, push, update, remove, onValue, get } from "firebase/database";
 import {
   Card,
   CardContent,
@@ -84,7 +84,7 @@ export interface StaffProject {
   id: string;
   title: string;
   description: string;
-  status: "planning" | "researching" | "in-progress" | "completed" | "on-hold";
+  status: "planning" | "researching" | "in-progress" | "review" | "completed" | "on-hold";
   priority: "low" | "medium" | "high" | "critical";
   progress: number;
   startDate: string;
@@ -95,10 +95,27 @@ export interface StaffProject {
   tasks: Record<string, ProjectTask>; // Firebase object
 }
 
+interface ProjectTaskRecord {
+  id: string;
+  projectId?: string;
+  status?: "pending" | "in-progress" | "completed" | "overdue";
+  progress?: number;
+}
+
+const STATUS_PROGRESS_MAP: Record<StaffProject["status"], number> = {
+  planning: 0,
+  researching: 25,
+  "in-progress": 60,
+  review: 85,
+  completed: 100,
+  "on-hold": 0,
+};
+
 // --- Component ---
 export function StaffProjectManagement() {
   const { toast } = useToast();
   const [projects, setProjects] = useState<StaffProject[]>([]);
+  const [projectTasks, setProjectTasks] = useState<ProjectTaskRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState<TeamMember[]>([]);
   const [teams, setTeams] = useState<{ id: string, name: string, members: string[] }[]>([]);
@@ -123,6 +140,10 @@ export function StaffProjectManagement() {
     clientName: "",
     team: [],
   });
+
+  const getProgressFromStatus = (status: StaffProject["status"]) => {
+    return STATUS_PROGRESS_MAP[status] ?? 0;
+  };
 
   const isValidStaffMember = (uid: string) => {
     return staffList.some(member => member.uid === uid && member.name?.trim() && member.name !== "Unknown")
@@ -207,10 +228,28 @@ export function StaffProjectManagement() {
       }
     });
 
+    // 4. Fetch Tasks for project progress/status calculation
+    const tasksRef = ref(database, 'staffdashboard/tasks');
+    const unsubscribeTasks = onValue(tasksRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const tasksData = snapshot.val();
+        const taskList = Object.entries(tasksData).map(([id, val]: [string, any]) => ({
+          id,
+          projectId: val.projectId,
+          status: val.status,
+          progress: typeof val.progress === 'number' ? val.progress : undefined,
+        }));
+        setProjectTasks(taskList);
+      } else {
+        setProjectTasks([]);
+      }
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeProjects();
       unsubscribeTeams();
+      unsubscribeTasks();
     };
   }, []);
 
@@ -247,7 +286,7 @@ export function StaffProjectManagement() {
         description: formData.description || "",
         status: formData.status,
         priority: formData.priority,
-        progress: Number(formData.progress) || 0,
+        progress: getProgressFromStatus((formData.status as StaffProject["status"]) || "planning"),
         startDate: formData.startDate,
         endDate: formData.endDate,
         budget: formData.budget,
@@ -283,6 +322,23 @@ export function StaffProjectManagement() {
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
+      const tasksRef = ref(database, 'staffdashboard/tasks');
+      const tasksSnapshot = await get(tasksRef);
+
+      if (tasksSnapshot.exists()) {
+        const tasksData = tasksSnapshot.val();
+        const taskEntries = Object.entries(tasksData) as [string, any][];
+        const relatedTaskIds = taskEntries
+          .filter(([, task]) => task?.projectId === deleteId)
+          .map(([taskId]) => taskId);
+
+        if (relatedTaskIds.length > 0) {
+          await Promise.all(
+            relatedTaskIds.map((taskId) => remove(ref(database, `staffdashboard/tasks/${taskId}`)))
+          );
+        }
+      }
+
       await remove(ref(database, `staffdashboard/projects/${deleteId}`));
       toast({ title: "Deleted", description: "Project removed successfully" });
     } catch (error) {
@@ -310,6 +366,7 @@ export function StaffProjectManagement() {
       case 'planning': return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
       case 'researching': return 'bg-purple-500/20 text-purple-400 border-purple-500/50';
       case 'in-progress': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
+      case 'review': return 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50';
       case 'completed': return 'bg-green-500/20 text-green-400 border-green-500/50';
       case 'on-hold': return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
       default: return 'bg-gray-800 text-gray-400';
@@ -323,6 +380,40 @@ export function StaffProjectManagement() {
       case 'medium': return 'bg-blue-500 text-white';
       case 'low': return 'bg-green-500 text-white';
       default: return 'bg-gray-500';
+    }
+  };
+
+  const getProjectTaskSummary = (project: StaffProject) => {
+    const tasksForProject = projectTasks.filter(task => task.projectId === project.id);
+
+    if (tasksForProject.length === 0) {
+      return {
+        progress: getProgressFromStatus(project.status),
+        totalTasks: 0,
+        completedTasks: 0,
+      };
+    }
+
+    const totalTasks = tasksForProject.length;
+    const completedTasks = tasksForProject.filter(task => task.status === 'completed').length;
+    const progress = getProgressFromStatus(project.status);
+
+    return {
+      progress,
+      totalTasks,
+      completedTasks,
+    };
+  };
+
+  const handleQuickStatusChange = async (projectId: string, status: StaffProject["status"]) => {
+    try {
+      await update(ref(database, `staffdashboard/projects/${projectId}`), {
+        status,
+        progress: getProgressFromStatus(status),
+      });
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error", description: "Failed to update project status", variant: "destructive" });
     }
   };
 
@@ -347,9 +438,11 @@ export function StaffProjectManagement() {
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects.map((project) => {
+          const summary = getProjectTaskSummary(project)
           const validTeamMembers = sanitizeTeam(project.team)
             .map(uid => staffList.find(u => u.uid === uid))
             .filter(Boolean) as TeamMember[]
+          const firstNames = validTeamMembers.map(member => (member.name || "").trim().split(" ")[0]).filter(Boolean)
 
           return (
           <Card key={project.id} className="bg-[#1a1f2e] border-gray-800 text-white flex flex-col hover:border-orange-500/30 transition-all duration-300 shadow-xl">
@@ -372,6 +465,25 @@ export function StaffProjectManagement() {
                   {project.priority}
                 </Badge>
               </div>
+
+              <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                <Select
+                  value={project.status}
+                  onValueChange={(value) => handleQuickStatusChange(project.id, value as StaffProject["status"])}
+                >
+                  <SelectTrigger className="h-8 bg-gray-800 border-gray-700 text-white">
+                    <SelectValue placeholder="Update status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                    <SelectItem value="planning">Planning</SelectItem>
+                    <SelectItem value="researching">Researching</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="on-hold">On Hold</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
 
             <CardContent className="flex-1 space-y-5 pb-4">
@@ -379,9 +491,9 @@ export function StaffProjectManagement() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm font-medium">
                   <span className="text-gray-400">Progress</span>
-                  <span className="text-white">{project.progress}%</span>
+                  <span className="text-white">{summary.progress}%</span>
                 </div>
-                <Progress value={project.progress} className="h-2 bg-gray-700" indicatorClassName="bg-orange-500" />
+                <Progress value={summary.progress} className="h-2 bg-gray-700" indicatorClassName="bg-orange-500" />
               </div>
 
               {/* Details Grid */}
@@ -402,6 +514,10 @@ export function StaffProjectManagement() {
                   <Briefcase className="w-4 h-4 text-gray-500" />
                   <span>Client: <span className="text-gray-300">{project.clientName || 'Internal'}</span></span>
                 </div>
+                <div className="flex items-center gap-2 col-span-2">
+                  <CheckCircle2 className="w-4 h-4 text-gray-500" />
+                  <span>Tasks: <span className="text-gray-300">{summary.completedTasks}/{summary.totalTasks}</span></span>
+                </div>
               </div>
 
               {/* Team Avatars */}
@@ -411,16 +527,16 @@ export function StaffProjectManagement() {
                   <div className="flex -space-x-2 overflow-hidden">
                     {validTeamMembers.map(user => {
                       return (
-                        <div key={user.uid} title={user.name} className="inline-block h-8 w-8 rounded-full ring-2 ring-[#1a1f2e] bg-gray-700 flex items-center justify-center text-xs font-bold relative">
-                          {user.avatar ? (
-                            <img src={user.avatar} className="h-full w-full rounded-full object-cover" />
-                          ) : (
-                            <span className="text-gray-300">{user.name?.charAt(0) || '?'}</span>
-                          )}
-                        </div>
+                        <Avatar key={user.uid} title={user.name} className="h-8 w-8 ring-2 ring-[#1a1f2e] border border-gray-700">
+                          <AvatarImage src={user.avatar} />
+                          <AvatarFallback className="bg-gray-700 text-[10px] text-gray-200">{user.name?.charAt(0) || '?'}</AvatarFallback>
+                        </Avatar>
                       )
                     })}
                   </div>
+                  <p className="text-xs text-gray-400 truncate">
+                    {firstNames.slice(0, 4).join(', ')}{firstNames.length > 4 ? ` +${firstNames.length - 4}` : ''}
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -719,9 +835,9 @@ export function StaffProjectManagement() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Completion</span>
-                <span className="text-white font-medium">{viewProject?.progress || 0}%</span>
+                <span className="text-white font-medium">{viewProject ? getProjectTaskSummary(viewProject).progress : 0}%</span>
               </div>
-              <Progress value={viewProject?.progress} className="h-2 bg-gray-700" indicatorClassName="bg-orange-500" />
+              <Progress value={viewProject ? getProjectTaskSummary(viewProject).progress : 0} className="h-2 bg-gray-700" indicatorClassName="bg-orange-500" />
             </div>
 
             {/* Assigned Team */}

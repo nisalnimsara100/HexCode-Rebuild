@@ -64,6 +64,15 @@ interface TeamMember {
   avatar?: string;
 }
 
+const STATUS_PROGRESS_MAP: Record<Project["status"], number> = {
+  planning: 0,
+  researching: 25,
+  "in-progress": 60,
+  review: 85,
+  completed: 100,
+  "on-hold": 0,
+};
+
 export function ProjectManagement() {
   const { userProfile } = useAuth();
   const { toast } = useToast();
@@ -84,14 +93,8 @@ export function ProjectManagement() {
   const [loading, setLoading] = useState(true);
   const [hideBudget, setHideBudget] = useState(false); // New State
 
-  const getTaskProgressValue = (task: Task) => {
-    if (typeof task.progress === "number" && !Number.isNaN(task.progress)) {
-      return Math.max(0, Math.min(100, task.progress));
-    }
-
-    if (task.status === "completed") return 100;
-    if (task.status === "in-progress") return 50;
-    return 0;
+  const getProgressFromStatus = (status: Project["status"]) => {
+    return STATUS_PROGRESS_MAP[status] ?? 0;
   };
 
   // Fetch Data from Firebase
@@ -185,7 +188,7 @@ export function ProjectManagement() {
   }, [userProfile?.uid]);
 
   const projectMetrics = useMemo(() => {
-    const metrics: Record<string, { totalTasks: number; completedTasks: number; progress: number; status: Project["status"] }> = {};
+    const metrics: Record<string, { totalTasks: number; completedTasks: number }> = {};
 
     projects.forEach((project) => {
       const tasksForProject = allTasks.filter(task => task.projectId === project.id);
@@ -194,29 +197,16 @@ export function ProjectManagement() {
         metrics[project.id] = {
           totalTasks: 0,
           completedTasks: 0,
-          progress: Number(project.progress) || 0,
-          status: project.status,
         };
         return;
       }
 
       const totalTasks = tasksForProject.length;
       const completedTasks = tasksForProject.filter(task => task.status === "completed").length;
-      const totalProgress = tasksForProject.reduce((sum, task) => sum + getTaskProgressValue(task), 0);
-      const progress = Math.round((totalProgress / totalTasks) * 10) / 10;
-
-      let status: Project["status"] = "planning";
-      if (completedTasks === totalTasks) {
-        status = "completed";
-      } else if (completedTasks > 0 || tasksForProject.some(task => task.status === "in-progress" || task.status === "overdue" || getTaskProgressValue(task) > 0)) {
-        status = "in-progress";
-      }
 
       metrics[project.id] = {
         totalTasks,
         completedTasks,
-        progress,
-        status,
       };
     });
 
@@ -251,22 +241,30 @@ export function ProjectManagement() {
     const currentMetrics = projectMetrics[project.id];
     setEditingProject(project);
     setEditForm({
-      status: currentMetrics?.status || project.status,
-      progress: currentMetrics?.progress ?? project.progress
+      status: project.status,
+      progress: getProgressFromStatus(project.status)
     });
     setIsEditModalOpen(true);
+  };
+
+  const handleQuickStatusChange = async (projectId: string, status: Project["status"]) => {
+    try {
+      await update(ref(database, `staffdashboard/projects/${projectId}`), {
+        status,
+        progress: getProgressFromStatus(status),
+      });
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error", description: "Failed to update project status.", variant: "destructive" });
+    }
   };
 
   const handleUpdateProject = async () => {
     if (!editingProject) return;
 
     try {
-      const currentMetrics = projectMetrics[editingProject.id];
-      const hasTasks = (currentMetrics?.totalTasks || 0) > 0;
-      const progressToSave = hasTasks ? (currentMetrics?.progress ?? 0) : Number(editForm.progress);
-      const statusToSave = hasTasks
-        ? ((currentMetrics?.status === "completed") ? "completed" : editForm.status)
-        : editForm.status;
+      const statusToSave = editForm.status as Project["status"];
+      const progressToSave = getProgressFromStatus(statusToSave);
 
       await update(ref(database, `staffdashboard/projects/${editingProject.id}`), {
         status: statusToSave,
@@ -446,11 +444,9 @@ export function ProjectManagement() {
           const metrics = projectMetrics[project.id] || {
             totalTasks: 0,
             completedTasks: 0,
-            progress: Number(project.progress) || 0,
-            status: project.status,
           };
-          const cardStatus = metrics.status;
-          const cardProgress = metrics.progress;
+          const cardStatus = project.status;
+          const cardProgress = getProgressFromStatus(cardStatus);
           const teamMembers = (project.team || []).map(uid => staffMap[uid]).filter(Boolean);
           const firstNames = teamMembers.map(member => (member.name || "").trim().split(" ")[0]).filter(Boolean);
 
@@ -480,6 +476,25 @@ export function ProjectManagement() {
                 <Badge variant="outline" className={`${getPriorityColor(project.priority)} uppercase text-[10px] tracking-wider px-2 py-0.5 border`}>
                   {project.priority}
                 </Badge>
+              </div>
+
+              <div className="mb-4" onClick={(e) => e.stopPropagation()}>
+                <Select
+                  value={cardStatus}
+                  onValueChange={(value) => handleQuickStatusChange(project.id, value as Project["status"])}
+                >
+                  <SelectTrigger className="h-8 bg-gray-800 border-gray-700 text-white">
+                    <SelectValue placeholder="Update status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                    <SelectItem value="planning">Planning</SelectItem>
+                    <SelectItem value="researching">Researching</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="on-hold">On Hold</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Progress */}
@@ -633,11 +648,9 @@ export function ProjectManagement() {
                 value={editForm.progress}
                 onChange={(e) => setEditForm(prev => ({ ...prev, progress: Number(e.target.value) }))}
                 className="accent-emerald-500 h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer"
-                disabled={!!editingProject && (projectMetrics[editingProject.id]?.totalTasks || 0) > 0}
+                disabled={true}
               />
-              {!!editingProject && (projectMetrics[editingProject.id]?.totalTasks || 0) > 0 && (
-                <p className="text-xs text-gray-500">Progress is automatically calculated from project tasks.</p>
-              )}
+              <p className="text-xs text-gray-500">Progress is automatically synced from project status.</p>
             </div>
           </div>
           <DialogFooter>
@@ -653,8 +666,8 @@ export function ProjectManagement() {
           <DialogHeader className="mb-2 shrink-0">
             <DialogTitle className="text-xl flex items-center justify-between">
               {viewProject?.title}
-              <Badge className={viewProject ? getStatusColor((projectMetrics[viewProject.id]?.status || viewProject.status)) : ''}>
-                {viewProject ? (projectMetrics[viewProject.id]?.status || viewProject.status) : ''}
+              <Badge className={viewProject ? getStatusColor(viewProject.status) : ''}>
+                {viewProject ? viewProject.status : ''}
               </Badge>
             </DialogTitle>
           </DialogHeader>
