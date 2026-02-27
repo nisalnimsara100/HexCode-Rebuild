@@ -76,6 +76,7 @@ interface Task {
     assigneeNames?: string[]
     assigneeAvatars?: string[]
     category?: string
+    assigneeProgress?: Record<string, 'planning' | 'in-progress' | 'completed'>
 }
 
 interface Project {
@@ -204,7 +205,12 @@ export function StaffTaskAssignments() {
                     return {
                         id,
                         ...val,
-                        assignedTo
+                        assignedTo,
+                        assigneeProgress: normalizeAssigneeProgress({
+                            assignedTo,
+                            assigneeProgress: val.assigneeProgress,
+                            status: val.status
+                        })
                     }
                 })
                 setTasks(taskList)
@@ -222,6 +228,86 @@ export function StaffTaskAssignments() {
     }, [])
 
     // --- Logic / Calculations ---
+
+    const getInitialAssigneeStageFromStatus = (status?: Task['status']): 'planning' | 'in-progress' | 'completed' => {
+        if (status === 'completed') return 'completed'
+        if (status === 'in-progress') return 'in-progress'
+        return 'planning'
+    }
+
+    const getAssignedToArray = (task: Pick<Task, 'assignedTo'>): string[] => {
+        if (Array.isArray(task.assignedTo)) return task.assignedTo.filter(Boolean)
+        return []
+    }
+
+    const normalizeAssigneeProgress = (task: Pick<Task, 'assignedTo' | 'assigneeProgress' | 'status'>) => {
+        const assignedTo = getAssignedToArray(task)
+        const fallback = getInitialAssigneeStageFromStatus(task.status)
+        const source = task.assigneeProgress || {}
+        const normalized: Record<string, 'planning' | 'in-progress' | 'completed'> = {}
+
+        assignedTo.forEach(uid => {
+            const stage = source[uid]
+            normalized[uid] = stage === 'planning' || stage === 'in-progress' || stage === 'completed' ? stage : fallback
+        })
+
+        return normalized
+    }
+
+    const calculateTaskProgressSummary = (task: Task) => {
+        const assignedTo = getAssignedToArray(task)
+        const totalMembers = assignedTo.length
+
+        if (totalMembers === 0) {
+            return {
+                totalMembers: 0,
+                completedCount: 0,
+                inProgressCount: 0,
+                planningCount: 0,
+                memberUnit: 0,
+                completedPercent: 0,
+                inProgressPercent: 0,
+                overallPercent: 0,
+                completedMemberNames: [] as string[],
+                inProgressMemberNames: [] as string[],
+                planningMemberNames: [] as string[],
+            }
+        }
+
+        const map = normalizeAssigneeProgress(task)
+        const completedMemberIds = assignedTo.filter(uid => map[uid] === 'completed')
+        const inProgressMemberIds = assignedTo.filter(uid => map[uid] === 'in-progress')
+        const planningMemberIds = assignedTo.filter(uid => map[uid] !== 'completed' && map[uid] !== 'in-progress')
+        const inProgressCount = inProgressMemberIds.length
+        const completedCount = completedMemberIds.length
+        const planningCount = planningMemberIds.length
+        const memberUnit = 100 / totalMembers
+        const completedPercent = completedCount * memberUnit
+        const inProgressPercent = inProgressCount * (memberUnit / 2)
+        const overallPercent = Math.round((completedPercent + inProgressPercent) * 10) / 10
+        const completedMemberNames = completedMemberIds.map(uid => staffList.find(s => s.uid === uid)?.name || uid)
+        const inProgressMemberNames = inProgressMemberIds.map(uid => staffList.find(s => s.uid === uid)?.name || uid)
+        const planningMemberNames = planningMemberIds.map(uid => staffList.find(s => s.uid === uid)?.name || uid)
+
+        return {
+            totalMembers,
+            completedCount,
+            inProgressCount,
+            planningCount,
+            memberUnit,
+            completedPercent,
+            inProgressPercent,
+            overallPercent,
+            completedMemberNames,
+            inProgressMemberNames,
+            planningMemberNames,
+        }
+    }
+
+    const formatPercent = (value: number) => {
+        if (Number.isInteger(value)) return `${value}%`
+        return `${value.toFixed(1)}%`
+    }
 
     const getStaffStatus = (member: StaffMember) => {
         // Priority 1: DB Status 'on_leave' override
@@ -270,6 +356,10 @@ export function StaffTaskAssignments() {
 
         try {
             const composedDueDate = composeDueDateTime(formData.dueDate, formData.dueTime)
+            const assigneeProgress = formData.assignedTo.reduce((acc, uid) => {
+                acc[uid] = 'planning'
+                return acc
+            }, {} as Record<string, 'planning' | 'in-progress' | 'completed'>)
             const newTask = {
                 ...formData,
                 dueDate: composedDueDate,
@@ -277,7 +367,8 @@ export function StaffTaskAssignments() {
                 createdAt: new Date().toISOString(),
                 assignedBy: "Admin",
                 progress: 0,
-                status: "pending"
+                status: "pending",
+                assigneeProgress
             }
 
             await push(ref(database, 'staffdashboard/tasks'), newTask)
@@ -295,6 +386,12 @@ export function StaffTaskAssignments() {
         if (!selectedTask) return
         try {
             const composedDueDate = composeDueDateTime(formData.dueDate, formData.dueTime)
+            const existingProgress = selectedTask.assigneeProgress || {}
+            const updatedAssigneeProgress = formData.assignedTo.reduce((acc, uid) => {
+                const current = existingProgress[uid]
+                acc[uid] = current === 'planning' || current === 'in-progress' || current === 'completed' ? current : 'planning'
+                return acc
+            }, {} as Record<string, 'planning' | 'in-progress' | 'completed'>)
             // Update only metadata fields
             await update(ref(database, `staffdashboard/tasks/${selectedTask.id}`), {
                 title: formData.title,
@@ -305,7 +402,8 @@ export function StaffTaskAssignments() {
                 estimatedHours: formData.estimatedHours,
                 projectId: formData.projectId,
                 assignedTo: formData.assignedTo, // Full replacement of array
-                category: formData.category
+                category: formData.category,
+                assigneeProgress: updatedAssigneeProgress
             })
             toast({ title: "Updated", description: "Task details updated." })
             setIsEditModalOpen(false)
@@ -341,10 +439,16 @@ export function StaffTaskAssignments() {
 
         // Add user to existing array
         const newAssignedTo = [...(task.assignedTo || []), selectedStaffId]
+        const existingProgress = task.assigneeProgress || {}
+        const newAssigneeProgress = {
+            ...existingProgress,
+            [selectedStaffId]: existingProgress[selectedStaffId] || 'planning'
+        }
 
         try {
             await update(ref(database, `staffdashboard/tasks/${taskToAssignId}`), {
-                assignedTo: newAssignedTo
+                assignedTo: newAssignedTo,
+                assigneeProgress: newAssigneeProgress
             })
             toast({ title: "Assigned", description: "Task assigned to staff member." })
             setIsAssignExistingOpen(false)
@@ -531,7 +635,9 @@ export function StaffTaskAssignments() {
                 <h3 className="text-lg font-semibold text-white mb-4">Active Assignments</h3>
                 <div className="space-y-4">
                     {loading ? <div className="text-white">Loading assignments...</div> : enrichedTasks.length === 0 ? <div className="text-gray-400">No active assignments found.</div> :
-                        enrichedTasks.map(task => (
+                        enrichedTasks.map(task => {
+                            const progressSummary = calculateTaskProgressSummary(task as Task)
+                            return (
                             <div key={task.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors group">
                                 <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
                                     <div className="flex-1 min-w-0">
@@ -561,6 +667,75 @@ export function StaffTaskAssignments() {
                                             {(task.status !== 'completed') && (
                                                 <CountdownTimer dueDate={task.dueDate} priority={task.priority} showProgress={false} size="sm" className="ml-4 min-w-[200px]" />
                                             )}
+                                        </div>
+
+                                        <div className="space-y-2 mb-3 mt-3">
+                                            <Progress value={progressSummary.overallPercent} className="h-2 bg-gray-700" indicatorClassName="bg-green-500" />
+                                            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                                                <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/40">
+                                                    Total {formatPercent(progressSummary.overallPercent)}
+                                                </Badge>
+
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Badge variant="outline" className="cursor-pointer bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                                                            Completed {progressSummary.completedCount}/{progressSummary.totalMembers} ({formatPercent(progressSummary.completedPercent)})
+                                                        </Badge>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent side="top" className="w-72 bg-gray-900 border-gray-700 text-white p-3 z-[9999]">
+                                                        <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">Completed By</h4>
+                                                        {progressSummary.completedMemberNames.length === 0 ? (
+                                                            <p className="text-xs text-gray-400">No staff member has completed this task yet.</p>
+                                                        ) : (
+                                                            <div className="space-y-1">
+                                                                {progressSummary.completedMemberNames.map((name, idx) => (
+                                                                    <p key={`${name}-${idx}`} className="text-xs text-gray-200">• {name}</p>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </PopoverContent>
+                                                </Popover>
+
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Badge variant="outline" className="cursor-pointer bg-blue-500/20 text-blue-300 border-blue-500/40">
+                                                            In Progress {progressSummary.inProgressCount}/{progressSummary.totalMembers} ({formatPercent(progressSummary.inProgressPercent)})
+                                                        </Badge>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent side="top" className="w-72 bg-gray-900 border-gray-700 text-white p-3 z-[9999]">
+                                                        <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">In Progress By</h4>
+                                                        {progressSummary.inProgressMemberNames.length === 0 ? (
+                                                            <p className="text-xs text-gray-400">No staff member is in progress for this task yet.</p>
+                                                        ) : (
+                                                            <div className="space-y-1">
+                                                                {progressSummary.inProgressMemberNames.map((name, idx) => (
+                                                                    <p key={`${name}-${idx}`} className="text-xs text-gray-200">• {name}</p>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </PopoverContent>
+                                                </Popover>
+
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Badge variant="outline" className="cursor-pointer bg-yellow-500/20 text-yellow-300 border-yellow-500/40">
+                                                            Planning {progressSummary.planningCount}/{progressSummary.totalMembers}
+                                                        </Badge>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent side="top" className="w-72 bg-gray-900 border-gray-700 text-white p-3 z-[9999]">
+                                                        <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">Planning By</h4>
+                                                        {progressSummary.planningMemberNames.length === 0 ? (
+                                                            <p className="text-xs text-gray-400">No staff member is in planning for this task.</p>
+                                                        ) : (
+                                                            <div className="space-y-1">
+                                                                {progressSummary.planningMemberNames.map((name, idx) => (
+                                                                    <p key={`${name}-${idx}`} className="text-xs text-gray-200">• {name}</p>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3 mt-4">
@@ -624,7 +799,7 @@ export function StaffTaskAssignments() {
                                     </div>
                                 </div>
                             </div>
-                        ))
+                        )})
                     }
                 </div>
             </div>

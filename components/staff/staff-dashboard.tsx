@@ -40,17 +40,26 @@ interface TaskItem {
   assignedBy?: string;
   createdAt?: string;
   category?: string;
+  progress?: number;
+}
+
+interface StaffProfile {
+  uid: string;
+  name: string;
+  avatar?: string;
 }
 
 export default function EmployeeView() {
   const { userProfile } = useAuth();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [allProjectTasks, setAllProjectTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userTimeSettings, setUserTimeSettings] = useState({ timezone: 'Asia/Colombo', timeFormat: '12h' });
 
   // Projects Map for displaying project names
   const [projectsMap, setProjectsMap] = useState<Record<string, string>>({});
+  const [staffProfiles, setStaffProfiles] = useState<Record<string, StaffProfile>>({});
 
   // Update current time every second
   useEffect(() => {
@@ -108,11 +117,15 @@ export default function EmployeeView() {
     const unsubscribeTasks = onValue(tasksRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
-        const taskList = Object.entries(data)
+        const fullTaskList = Object.entries(data)
           .map(([id, val]: [string, any]) => ({
             id,
             ...val
-          }))
+          }));
+
+        setAllProjectTasks(fullTaskList as TaskItem[]);
+
+        const taskList = fullTaskList
           .filter((t: TaskItem) => {
             if (Array.isArray(t.assignedTo)) {
               return t.assignedTo.includes(userProfile.uid);
@@ -127,6 +140,7 @@ export default function EmployeeView() {
 
         setTasks(taskList);
       } else {
+        setAllProjectTasks([]);
         setTasks([]);
       }
       setLoading(false);
@@ -140,6 +154,34 @@ export default function EmployeeView() {
 
   // Fetch Projects assigned to current user (Existing Logic kept for Active Projects section)
   const [activeProjects, setActiveProjects] = useState<any[]>([]);
+
+  useEffect(() => {
+    const usersRef = ref(database, 'users');
+    const unsubscribeUsers = onValue(usersRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        setStaffProfiles({});
+        return;
+      }
+
+      const map: Record<string, StaffProfile> = {};
+      Object.entries(snapshot.val() as Record<string, any>).forEach(([uid, value]) => {
+        const data = value as Record<string, any>;
+        const name = (data.name || data.profile?.name || "").trim();
+        if (!name) return;
+
+        map[uid] = {
+          uid,
+          name,
+          avatar: data.profilePicture || data.profile?.profilePicture || "",
+        };
+      });
+
+      setStaffProfiles(map);
+    });
+
+    return () => unsubscribeUsers();
+  }, []);
+
   useEffect(() => {
     if (!userProfile?.uid) return;
 
@@ -177,11 +219,55 @@ export default function EmployeeView() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return "bg-yellow-900/20 text-yellow-300 border-yellow-600/50";
+      case 'planning': return "bg-blue-900/20 text-blue-300 border-blue-600/50";
+      case 'researching': return "bg-purple-900/20 text-purple-300 border-purple-600/50";
       case 'in-progress': return "bg-blue-900/20 text-blue-300 border-blue-600/50";
+      case 'review': return "bg-indigo-900/20 text-indigo-300 border-indigo-600/50";
       case 'completed': return "bg-green-900/20 text-green-300 border-green-600/50";
+      case 'on-hold': return "bg-red-900/20 text-red-300 border-red-600/50";
       case 'overdue': return "bg-red-900/20 text-red-300 border-red-600/50";
       default: return "bg-gray-900 text-gray-300 border-gray-600";
     }
+  };
+
+  const getTaskProgressValue = (task: TaskItem) => {
+    if (typeof task.progress === 'number' && !Number.isNaN(task.progress)) {
+      return Math.max(0, Math.min(100, task.progress));
+    }
+    if (task.status === 'completed') return 100;
+    if (task.status === 'in-progress') return 50;
+    return 0;
+  };
+
+  const getProjectSummary = (project: any) => {
+    const tasksForProject = allProjectTasks.filter(task => task.projectId === project.id);
+    if (tasksForProject.length === 0) {
+      return {
+        progress: Number(project.progress) || 0,
+        status: project.status || 'planning',
+        completedTasks: 0,
+        totalTasks: 0,
+      };
+    }
+
+    const totalTasks = tasksForProject.length;
+    const completedTasks = tasksForProject.filter(task => task.status === 'completed').length;
+    const totalProgress = tasksForProject.reduce((sum, task) => sum + getTaskProgressValue(task), 0);
+    const progress = Math.round((totalProgress / totalTasks) * 10) / 10;
+
+    let status = 'planning';
+    if (completedTasks === totalTasks) {
+      status = 'completed';
+    } else if (completedTasks > 0 || tasksForProject.some(task => task.status === 'in-progress' || task.status === 'overdue' || getTaskProgressValue(task) > 0)) {
+      status = 'in-progress';
+    }
+
+    return {
+      progress,
+      status,
+      completedTasks,
+      totalTasks,
+    };
   };
 
   const getPriorityIcon = (priority: string) => {
@@ -355,35 +441,68 @@ export default function EmployeeView() {
               Your Projects
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {activeProjects.map(project => (
+              {activeProjects.map(project => {
+                const summary = getProjectSummary(project);
+                const projectTeam = Array.isArray(project.team) ? project.team : [];
+                const validTeam = projectTeam
+                  .map((uid: string) => staffProfiles[uid])
+                  .filter(Boolean) as StaffProfile[];
+                const firstNames = validTeam
+                  .map(member => member.name.split(' ')[0])
+                  .filter(Boolean);
+
+                return (
                 <Card key={project.id} className="bg-gray-900 border-gray-800 p-4 hover:border-orange-500/30 transition-all">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-white text-lg">{project.title}</h3>
-                    <Badge variant="outline" className="border-gray-600 text-gray-400 capitalize">
-                      {project.status}
+                    <Badge variant="outline" className={`${getStatusColor(summary.status)} capitalize`}>
+                      {summary.status}
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-400 mb-4 line-clamp-2">{project.description}</p>
+
+                  {project.description ? (
+                    <p className="text-sm text-gray-400 mb-4 line-clamp-2">{project.description}</p>
+                  ) : null}
 
                   <div className="space-y-2 mb-4">
                     <div className="flex justify-between text-xs text-gray-500">
                       <span>Progress</span>
-                      <span>{project.progress}%</span>
+                      <span>{summary.progress}%</span>
                     </div>
                     <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-orange-500" style={{ width: `${project.progress}%` }}></div>
+                      <div className="h-full bg-orange-500" style={{ width: `${summary.progress}%` }}></div>
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center text-xs text-gray-500">
-                    <div className="flex items-center">
-                      <Clock className="w-3 h-3 mr-1" />
-                      {project.endDate || 'No deadline'}
+                  <div className="space-y-2 mb-3 text-xs text-gray-500">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {project.endDate || 'No deadline'}
+                      </div>
+                      <span className="font-mono text-gray-300">{summary.completedTasks}/{summary.totalTasks} Tasks</span>
                     </div>
-                    {/* Placeholder for task count if needed */}
+
+                    {firstNames.length > 0 && (
+                      <div className="text-gray-400 truncate">{firstNames.slice(0, 3).join(', ')}{firstNames.length > 3 ? ` +${firstNames.length - 3}` : ''}</div>
+                    )}
+
+                    {validTeam.length > 0 && (
+                      <div className="flex -space-x-2 overflow-hidden pt-1">
+                        {validTeam.slice(0, 4).map((member) => (
+                          <div key={member.uid} title={member.name} className="w-6 h-6 rounded-full bg-gray-700 border border-gray-800 flex items-center justify-center overflow-hidden">
+                            {member.avatar ? (
+                              <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-[10px] text-white font-semibold">{member.name.charAt(0)}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </Card>
-              ))}
+              )})}
             </div>
             <div className="border-t border-orange-500/20 my-6"></div>
           </div>

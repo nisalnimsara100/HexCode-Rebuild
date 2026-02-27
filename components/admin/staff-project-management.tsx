@@ -124,6 +124,21 @@ export function StaffProjectManagement() {
     team: [],
   });
 
+  const isValidStaffMember = (uid: string) => {
+    return staffList.some(member => member.uid === uid && member.name?.trim() && member.name !== "Unknown")
+  }
+
+  const sanitizeTeam = (team?: string[]) => {
+    const source = Array.isArray(team) ? team : []
+    const unique = Array.from(new Set(source))
+
+    if (staffList.length === 0) {
+      return unique
+    }
+
+    return unique.filter(uid => isValidStaffMember(uid))
+  }
+
   // Fetch Projects & Staff
   useEffect(() => {
     // 0. Fetch Settings
@@ -204,7 +219,7 @@ export function StaffProjectManagement() {
   const handleOpenModal = (project?: StaffProject) => {
     if (project) {
       setEditingProject(project);
-      setFormData({ ...project });
+      setFormData({ ...project, team: sanitizeTeam(project.team) });
     } else {
       setEditingProject(null);
       setFormData({
@@ -237,7 +252,7 @@ export function StaffProjectManagement() {
         endDate: formData.endDate,
         budget: formData.budget,
         clientName: formData.clientName,
-        team: formData.team || [],
+        team: sanitizeTeam(formData.team || []),
         updatedAt: new Date().toISOString(),
       };
 
@@ -311,6 +326,10 @@ export function StaffProjectManagement() {
     }
   };
 
+  const validViewProjectMembers = sanitizeTeam(viewProject?.team || [])
+    .map(uid => staffList.find(u => u.uid === uid))
+    .filter(Boolean) as TeamMember[]
+
   if (loading) return <div className="text-white p-8">Loading Projects...</div>;
 
   return (
@@ -327,7 +346,12 @@ export function StaffProjectManagement() {
 
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.map((project) => (
+        {projects.map((project) => {
+          const validTeamMembers = sanitizeTeam(project.team)
+            .map(uid => staffList.find(u => u.uid === uid))
+            .filter(Boolean) as TeamMember[]
+
+          return (
           <Card key={project.id} className="bg-[#1a1f2e] border-gray-800 text-white flex flex-col hover:border-orange-500/30 transition-all duration-300 shadow-xl">
             <CardHeader className="pb-3 relative">
               <div className="flex justify-between items-start mb-2">
@@ -381,18 +405,17 @@ export function StaffProjectManagement() {
               </div>
 
               {/* Team Avatars */}
-              {project.team && project.team.length > 0 && (
+              {validTeamMembers.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Team ({project.team.length})</p>
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Team ({validTeamMembers.length})</p>
                   <div className="flex -space-x-2 overflow-hidden">
-                    {project.team.map(uid => {
-                      const user = staffList.find(u => u.uid === uid);
+                    {validTeamMembers.map(user => {
                       return (
-                        <div key={uid} title={user?.name} className="inline-block h-8 w-8 rounded-full ring-2 ring-[#1a1f2e] bg-gray-700 flex items-center justify-center text-xs font-bold relative">
-                          {user?.avatar ? (
+                        <div key={user.uid} title={user.name} className="inline-block h-8 w-8 rounded-full ring-2 ring-[#1a1f2e] bg-gray-700 flex items-center justify-center text-xs font-bold relative">
+                          {user.avatar ? (
                             <img src={user.avatar} className="h-full w-full rounded-full object-cover" />
                           ) : (
-                            <span className="text-gray-300">{user?.name?.charAt(0) || '?'}</span>
+                            <span className="text-gray-300">{user.name?.charAt(0) || '?'}</span>
                           )}
                         </div>
                       )
@@ -418,7 +441,7 @@ export function StaffProjectManagement() {
               </Button>
             </CardFooter>
           </Card>
-        ))}
+        )})}
       </div>
 
       {/* Create/Edit Modal */}
@@ -515,9 +538,10 @@ export function StaffProjectManagement() {
                   <Select onValueChange={(teamId) => {
                     const team = teams.find(t => t.id === teamId);
                     if (team) {
+                      const validTeamMembers = team.members.filter(memberId => isValidStaffMember(memberId));
                       setFormData(prev => ({
                         ...prev,
-                        team: Array.from(new Set([...(prev.team || []), ...team.members]))
+                        team: Array.from(new Set([...(prev.team || []), ...validTeamMembers]))
                       }));
                       toast({ title: "Team Members Added", description: `Added members from ${team.name}` });
                     }
@@ -703,25 +727,24 @@ export function StaffProjectManagement() {
             {/* Assigned Team */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                <Users className="w-4 h-4" /> Assigned Team ({viewProject?.team?.length || 0})
+                <Users className="w-4 h-4" /> Assigned Team ({validViewProjectMembers.length})
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto">
-                {viewProject?.team && viewProject.team.map(uid => {
-                  const user = staffList.find(u => u.uid === uid);
+                {validViewProjectMembers.map(user => {
                   return (
-                    <div key={uid} className="flex items-center gap-3 p-2 bg-gray-800 rounded border border-gray-700">
+                    <div key={user.uid} className="flex items-center gap-3 p-2 bg-gray-800 rounded border border-gray-700">
                       <Avatar className="h-8 w-8 border border-gray-600">
-                        <AvatarImage src={user?.avatar} />
-                        <AvatarFallback className="bg-gray-700 text-xs">{user?.name?.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={user.avatar} />
+                        <AvatarFallback className="bg-gray-700 text-xs">{user.name?.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="overflow-hidden">
-                        <p className="text-sm font-medium text-white truncate">{user?.name || "Unknown User"}</p>
-                        <p className="text-xs text-gray-500 truncate">{user?.role || "Staff"}</p>
+                        <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.role || "Staff"}</p>
                       </div>
                     </div>
                   )
                 })}
-                {(!viewProject?.team || viewProject.team.length === 0) && (
+                {validViewProjectMembers.length === 0 && (
                   <p className="text-gray-500 text-sm italic col-span-2">No team members assigned yet.</p>
                 )}
               </div>

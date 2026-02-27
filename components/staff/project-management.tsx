@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { database } from "@/lib/firebase";
 import { ref, onValue, update } from "firebase/database";
 import { Card } from "@/components/ui/card";
@@ -39,6 +39,7 @@ interface Task {
   assignedTo: string | string[]
   estimatedHours?: string | number
   category?: string
+  progress?: number
 }
 
 
@@ -82,6 +83,16 @@ export function ProjectManagement() {
   const [viewProject, setViewProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [hideBudget, setHideBudget] = useState(false); // New State
+
+  const getTaskProgressValue = (task: Task) => {
+    if (typeof task.progress === "number" && !Number.isNaN(task.progress)) {
+      return Math.max(0, Math.min(100, task.progress));
+    }
+
+    if (task.status === "completed") return 100;
+    if (task.status === "in-progress") return 50;
+    return 0;
+  };
 
   // Fetch Data from Firebase
   useEffect(() => {
@@ -137,7 +148,14 @@ export function ProjectManagement() {
           return pA - pB;
         });
 
-        setProjects(projectList);
+        if (!userProfile?.uid) {
+          setProjects([]);
+        } else {
+          const assignedProjects = projectList.filter(project =>
+            Array.isArray(project.team) && project.team.includes(userProfile.uid)
+          );
+          setProjects(assignedProjects);
+        }
       } else {
         setProjects([]);
       }
@@ -164,7 +182,46 @@ export function ProjectManagement() {
       unsubscribeProjects();
       unsubscribeTasks();
     };
-  }, []);
+  }, [userProfile?.uid]);
+
+  const projectMetrics = useMemo(() => {
+    const metrics: Record<string, { totalTasks: number; completedTasks: number; progress: number; status: Project["status"] }> = {};
+
+    projects.forEach((project) => {
+      const tasksForProject = allTasks.filter(task => task.projectId === project.id);
+
+      if (tasksForProject.length === 0) {
+        metrics[project.id] = {
+          totalTasks: 0,
+          completedTasks: 0,
+          progress: Number(project.progress) || 0,
+          status: project.status,
+        };
+        return;
+      }
+
+      const totalTasks = tasksForProject.length;
+      const completedTasks = tasksForProject.filter(task => task.status === "completed").length;
+      const totalProgress = tasksForProject.reduce((sum, task) => sum + getTaskProgressValue(task), 0);
+      const progress = Math.round((totalProgress / totalTasks) * 10) / 10;
+
+      let status: Project["status"] = "planning";
+      if (completedTasks === totalTasks) {
+        status = "completed";
+      } else if (completedTasks > 0 || tasksForProject.some(task => task.status === "in-progress" || task.status === "overdue" || getTaskProgressValue(task) > 0)) {
+        status = "in-progress";
+      }
+
+      metrics[project.id] = {
+        totalTasks,
+        completedTasks,
+        progress,
+        status,
+      };
+    });
+
+    return metrics;
+  }, [projects, allTasks]);
 
   // Filtering
   useEffect(() => {
@@ -191,10 +248,11 @@ export function ProjectManagement() {
   }, [projects, searchTerm, selectedStatus, selectedPriority]);
 
   const openEditModal = (project: Project) => {
+    const currentMetrics = projectMetrics[project.id];
     setEditingProject(project);
     setEditForm({
-      status: project.status,
-      progress: project.progress
+      status: currentMetrics?.status || project.status,
+      progress: currentMetrics?.progress ?? project.progress
     });
     setIsEditModalOpen(true);
   };
@@ -203,9 +261,16 @@ export function ProjectManagement() {
     if (!editingProject) return;
 
     try {
+      const currentMetrics = projectMetrics[editingProject.id];
+      const hasTasks = (currentMetrics?.totalTasks || 0) > 0;
+      const progressToSave = hasTasks ? (currentMetrics?.progress ?? 0) : Number(editForm.progress);
+      const statusToSave = hasTasks
+        ? ((currentMetrics?.status === "completed") ? "completed" : editForm.status)
+        : editForm.status;
+
       await update(ref(database, `staffdashboard/projects/${editingProject.id}`), {
-        status: editForm.status,
-        progress: Number(editForm.progress)
+        status: statusToSave,
+        progress: progressToSave
       });
 
       toast({ title: "Updated", description: "Project status updated successfully." });
@@ -377,22 +442,40 @@ export function ProjectManagement() {
 
       {/* Project Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        {filteredProjects.map((project) => (
-          <Card key={project.id} className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-all duration-300 shadow-lg">
+        {filteredProjects.map((project) => {
+          const metrics = projectMetrics[project.id] || {
+            totalTasks: 0,
+            completedTasks: 0,
+            progress: Number(project.progress) || 0,
+            status: project.status,
+          };
+          const cardStatus = metrics.status;
+          const cardProgress = metrics.progress;
+          const teamMembers = (project.team || []).map(uid => staffMap[uid]).filter(Boolean);
+          const firstNames = teamMembers.map(member => (member.name || "").trim().split(" ")[0]).filter(Boolean);
+
+          return (
+          <Card
+            key={project.id}
+            className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-all duration-300 shadow-lg cursor-pointer"
+            onClick={() => setViewProject(project)}
+          >
             <div className="p-6">
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-white mb-1">{project.title}</h3>
-                  <p className="text-sm text-gray-400 line-clamp-2 min-h-[40px]">{project.description}</p>
+                  {project.description ? (
+                    <p className="text-sm text-gray-400 line-clamp-2">{project.description}</p>
+                  ) : null}
                 </div>
                 {/* Actions Menu removed, handled by buttons below */}
               </div>
 
               {/* Status and Priority */}
               <div className="flex items-center gap-2 mb-6">
-                <Badge variant="outline" className={`${getStatusColor(project.status)} uppercase text-[10px] tracking-wider px-2 py-0.5 border`}>
-                  {project.status.replace('-', ' ')}
+                <Badge variant="outline" className={`${getStatusColor(cardStatus)} uppercase text-[10px] tracking-wider px-2 py-0.5 border`}>
+                  {cardStatus.replace('-', ' ')}
                 </Badge>
                 <Badge variant="outline" className={`${getPriorityColor(project.priority)} uppercase text-[10px] tracking-wider px-2 py-0.5 border`}>
                   {project.priority}
@@ -403,12 +486,12 @@ export function ProjectManagement() {
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-400 font-medium">Progress</span>
-                  <span className="text-sm font-bold text-white">{project.progress}%</span>
+                  <span className="text-sm font-bold text-white">{cardProgress}%</span>
                 </div>
                 <Progress
-                  value={project.progress}
+                  value={cardProgress}
                   className="h-1.5 bg-gray-800"
-                  indicatorClassName={project.progress === 100 ? "bg-emerald-500" : "bg-white"}
+                  indicatorClassName={cardProgress === 100 ? "bg-emerald-500" : "bg-white"}
                 />
               </div>
 
@@ -445,7 +528,7 @@ export function ProjectManagement() {
                     Tasks
                   </span>
                   <span className="text-gray-300 font-mono">
-                    {allTasks.filter(t => t.projectId === project.id && t.status === 'completed' && (Array.isArray(t.assignedTo) ? t.assignedTo.includes(userProfile?.uid || '') : t.assignedTo === userProfile?.uid)).length} / {allTasks.filter(t => t.projectId === project.id && (Array.isArray(t.assignedTo) ? t.assignedTo.includes(userProfile?.uid || '') : t.assignedTo === userProfile?.uid)).length}
+                    {metrics.completedTasks} / {metrics.totalTasks}
                   </span>
                 </div>
               </div>
@@ -453,36 +536,43 @@ export function ProjectManagement() {
               {/* Team */}
               <div className="mb-6">
                 <p className="text-xs text-gray-500 font-medium mb-3 uppercase tracking-wider">Assigned Team</p>
-                <div className="flex -space-x-2">
-                  {project.team && project.team.length > 0 ? (
-                    project.team.slice(0, 4).map((uid) => {
-                      const member = staffMap[uid];
+                <div className="flex -space-x-2 items-center">
+                  {teamMembers.length > 0 ? (
+                    teamMembers.slice(0, 4).map((member) => {
                       return (
                         <div
-                          key={uid}
+                          key={member.uid}
                           className="h-8 w-8 rounded-full ring-2 ring-gray-900 bg-gray-700 flex items-center justify-center text-xs font-bold text-white overflow-hidden"
-                          title={member?.name || "Unknown"}
+                          title={member.name}
                         >
-                          {member?.avatar ? <img src={member.avatar} alt={member.name} className="h-full w-full object-cover" /> : member?.name?.charAt(0)}
+                          {member.avatar ? <img src={member.avatar} alt={member.name} className="h-full w-full object-cover" /> : member.name?.charAt(0)}
                         </div>
                       )
                     })
                   ) : (
                     <span className="text-gray-500 text-xs italic">No team assigned</span>
                   )}
-                  {project.team && project.team.length > 4 && (
+                  {teamMembers.length > 4 && (
                     <div className="h-8 w-8 rounded-full ring-2 ring-gray-900 bg-gray-800 flex items-center justify-center text-xs font-medium text-gray-400">
-                      +{project.team.length - 4}
+                      +{teamMembers.length - 4}
                     </div>
                   )}
                 </div>
+                {firstNames.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-2 truncate">
+                    {firstNames.slice(0, 3).join(", ")}{firstNames.length > 3 ? ` +${firstNames.length - 3}` : ""}
+                  </p>
+                )}
               </div>
 
               {/* Actions */}
               <div className="flex gap-3">
                 <Button
                   className="flex-1 bg-gray-800 hover:bg-gray-700 text-white border border-gray-700"
-                  onClick={() => setViewProject(project)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setViewProject(project);
+                  }}
                 >
                   <Eye className="h-4 w-4 mr-2 text-gray-400" />
                   View
@@ -490,14 +580,17 @@ export function ProjectManagement() {
                 <Button
                   size="icon"
                   className="bg-gray-800 hover:bg-gray-700 text-white border border-gray-700"
-                  onClick={() => openEditModal(project)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditModal(project);
+                  }}
                 >
                   <Edit3 className="h-4 w-4 text-emerald-500" />
                 </Button>
               </div>
             </div>
           </Card>
-        ))}
+        )})}
       </div>
 
       {/* Edit Status/Progress Modal */}
@@ -540,7 +633,11 @@ export function ProjectManagement() {
                 value={editForm.progress}
                 onChange={(e) => setEditForm(prev => ({ ...prev, progress: Number(e.target.value) }))}
                 className="accent-emerald-500 h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer"
+                disabled={!!editingProject && (projectMetrics[editingProject.id]?.totalTasks || 0) > 0}
               />
+              {!!editingProject && (projectMetrics[editingProject.id]?.totalTasks || 0) > 0 && (
+                <p className="text-xs text-gray-500">Progress is automatically calculated from project tasks.</p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -556,7 +653,9 @@ export function ProjectManagement() {
           <DialogHeader className="mb-2 shrink-0">
             <DialogTitle className="text-xl flex items-center justify-between">
               {viewProject?.title}
-              <Badge className={viewProject ? getStatusColor(viewProject.status) : ''}>{viewProject?.status}</Badge>
+              <Badge className={viewProject ? getStatusColor((projectMetrics[viewProject.id]?.status || viewProject.status)) : ''}>
+                {viewProject ? (projectMetrics[viewProject.id]?.status || viewProject.status) : ''}
+              </Badge>
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -588,7 +687,7 @@ export function ProjectManagement() {
             <div className="space-y-2">
               <span className="text-sm text-gray-400 uppercase tracking-wider font-bold">Assigned Team</span>
               <div className="flex gap-2 flex-wrap">
-                {viewProject?.team?.map(uid => (
+                {(viewProject?.team || []).filter(uid => !!staffMap[uid]).map(uid => (
                   <div key={uid} className="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
                     <div className="w-5 h-5 rounded-full bg-emerald-900/50 flex items-center justify-center text-[10px] text-emerald-400 border border-emerald-900">
                       {staffMap[uid]?.name?.charAt(0)}
@@ -604,7 +703,7 @@ export function ProjectManagement() {
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">My Project Tasks</h4>
                 <span className="text-xs text-emerald-500 font-mono">
-                  {allTasks.filter(t => t.projectId === viewProject?.id && t.status === 'completed' && (Array.isArray(t.assignedTo) ? t.assignedTo.includes(userProfile?.uid || '') : t.assignedTo === userProfile?.uid)).length} / {allTasks.filter(t => t.projectId === viewProject?.id && (Array.isArray(t.assignedTo) ? t.assignedTo.includes(userProfile?.uid || '') : t.assignedTo === userProfile?.uid)).length} Completed
+                  {(viewProject && projectMetrics[viewProject.id]?.completedTasks) || 0} / {(viewProject && projectMetrics[viewProject.id]?.totalTasks) || 0} Completed
                 </span>
               </div>
 

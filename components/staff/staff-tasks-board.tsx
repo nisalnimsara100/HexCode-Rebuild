@@ -3,14 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { CountdownTimer } from "@/components/ui/countdown-timer";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-context";
 import { database } from "@/lib/firebase";
 import { onValue, ref, update } from "firebase/database";
-import { Briefcase, Calendar, Clock, MessageSquare } from "lucide-react";
+import { Briefcase, Calendar, Clock, MessageSquare, Users } from "lucide-react";
 
 type TaskStatus = "pending" | "in-progress" | "completed" | "overdue";
+type AssigneeStage = "planning" | "in-progress" | "completed";
 
 interface TaskItem {
   id: string;
@@ -25,6 +33,13 @@ interface TaskItem {
   estimatedHours?: number | string;
   progress?: number;
   comments?: unknown[];
+  assigneeProgress?: Record<string, AssigneeStage>;
+}
+
+interface StaffMemberLite {
+  uid: string;
+  name: string;
+  role?: string;
 }
 
 interface BoardColumn {
@@ -39,10 +54,90 @@ const BOARD_COLUMNS: BoardColumn[] = [
   { key: "completed", title: "Completed", subtitle: "Finished tasks" },
 ];
 
-const mapToBoardColumn = (status: TaskStatus): BoardColumn["key"] => {
+const mapStatusToStage = (status: TaskStatus): AssigneeStage => {
   if (status === "completed") return "completed";
   if (status === "in-progress") return "in-progress";
   return "planning";
+};
+
+const mapStageToTaskStatus = (stage: AssigneeStage): TaskStatus => {
+  if (stage === "completed") return "completed";
+  if (stage === "in-progress") return "in-progress";
+  return "pending";
+};
+
+const getAssignedMemberIds = (task: TaskItem): string[] => {
+  if (Array.isArray(task.assignedTo)) {
+    return task.assignedTo.filter(Boolean);
+  }
+  return task.assignedTo ? [task.assignedTo] : [];
+};
+
+const getAssigneeProgressMap = (task: TaskItem): Record<string, AssigneeStage> => {
+  const assigned = getAssignedMemberIds(task);
+  const baseStage = mapStatusToStage(task.status || "pending");
+  const source = task.assigneeProgress || {};
+  const normalized: Record<string, AssigneeStage> = {};
+
+  assigned.forEach((uid) => {
+    const stage = source[uid];
+    normalized[uid] = stage === "planning" || stage === "in-progress" || stage === "completed" ? stage : baseStage;
+  });
+
+  return normalized;
+};
+
+const getCurrentUserColumn = (task: TaskItem, userId?: string): BoardColumn["key"] => {
+  if (!userId) return "planning";
+  const stage = getAssigneeProgressMap(task)[userId] || mapStatusToStage(task.status || "pending");
+  return stage;
+};
+
+const roundPercent = (value: number) => {
+  return Math.round(value * 10) / 10;
+};
+
+const getAggregateFromProgressMap = (progressMap: Record<string, AssigneeStage>, assignedMemberIds: string[]) => {
+  const totalMembers = assignedMemberIds.length;
+  if (totalMembers === 0) {
+    return {
+      completedCount: 0,
+      inProgressCount: 0,
+      planningCount: 0,
+      overallPercent: 0,
+      status: "pending" as TaskStatus,
+      allCompleted: false,
+    };
+  }
+
+  let completedCount = 0;
+  let inProgressCount = 0;
+
+  assignedMemberIds.forEach((uid) => {
+    const stage = progressMap[uid] || "planning";
+    if (stage === "completed") completedCount += 1;
+    if (stage === "in-progress") inProgressCount += 1;
+  });
+
+  const planningCount = Math.max(0, totalMembers - completedCount - inProgressCount);
+  const weight = 100 / totalMembers;
+  const overallPercent = roundPercent(completedCount * weight + inProgressCount * (weight / 2));
+
+  let status: TaskStatus = "pending";
+  if (completedCount === totalMembers) {
+    status = "completed";
+  } else if (completedCount > 0 || inProgressCount > 0) {
+    status = "in-progress";
+  }
+
+  return {
+    completedCount,
+    inProgressCount,
+    planningCount,
+    overallPercent,
+    status,
+    allCompleted: completedCount === totalMembers,
+  };
 };
 
 const formatDueDateTime = (dueDate?: string, dueTime?: string) => {
@@ -72,10 +167,12 @@ export function StaffTasksBoard() {
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [projectsMap, setProjectsMap] = useState<Record<string, string>>({});
+  const [staffMap, setStaffMap] = useState<Record<string, StaffMemberLite>>({});
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [activeDropColumn, setActiveDropColumn] = useState<BoardColumn["key"] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userProfile?.uid) {
@@ -99,6 +196,30 @@ export function StaffTasksBoard() {
     });
 
     const tasksRef = ref(database, "staffdashboard/tasks");
+    const usersRef = ref(database, "users");
+
+    const unsubscribeUsers = onValue(usersRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        setStaffMap({});
+        return;
+      }
+
+      const mappedStaff: Record<string, StaffMemberLite> = {};
+      Object.entries(snapshot.val() as Record<string, any>).forEach(([uid, value]) => {
+        const record = value as Record<string, any>;
+        const name = (record.name || record.profile?.name || "").trim();
+        if (!name) return;
+
+        mappedStaff[uid] = {
+          uid,
+          name,
+          role: record.role || record.profile?.role || "staff",
+        };
+      });
+
+      setStaffMap(mappedStaff);
+    });
+
     const unsubscribeTasks = onValue(tasksRef, (snapshot) => {
       if (!snapshot.exists()) {
         setTasks([]);
@@ -107,10 +228,20 @@ export function StaffTasksBoard() {
       }
 
       const taskList = Object.entries(snapshot.val() as Record<string, any>)
-        .map(([taskId, taskValue]) => ({
-          id: taskId,
-          ...(taskValue as Record<string, any>),
-        }))
+        .map(([taskId, taskValue]) => {
+          const rawTask = taskValue as Record<string, any>;
+          const assignedTo = Array.isArray(rawTask.assignedTo)
+            ? rawTask.assignedTo
+            : rawTask.assignedTo
+              ? [rawTask.assignedTo]
+              : [];
+
+          return {
+            id: taskId,
+            ...rawTask,
+            assignedTo,
+          };
+        })
         .filter((task) => {
           if (Array.isArray(task.assignedTo)) {
             return task.assignedTo.includes(userProfile.uid);
@@ -129,14 +260,48 @@ export function StaffTasksBoard() {
 
     return () => {
       unsubscribeProjects();
+      unsubscribeUsers();
       unsubscribeTasks();
     };
   }, [userProfile?.uid]);
 
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId) return null;
+    return tasks.find((task) => task.id === selectedTaskId) || null;
+  }, [selectedTaskId, tasks]);
+
+  const getTaskProgressSummary = (task: TaskItem) => {
+    const assignedMemberIds = getAssignedMemberIds(task);
+    const totalMembers = assignedMemberIds.length;
+    const map = getAssigneeProgressMap(task);
+
+    const completedIds = assignedMemberIds.filter((uid) => map[uid] === "completed");
+    const inProgressIds = assignedMemberIds.filter((uid) => map[uid] === "in-progress");
+    const planningIds = assignedMemberIds.filter((uid) => map[uid] !== "completed" && map[uid] !== "in-progress");
+
+    const memberUnit = totalMembers > 0 ? 100 / totalMembers : 0;
+    const overallPercent = roundPercent((completedIds.length * memberUnit) + (inProgressIds.length * (memberUnit / 2)));
+
+    return {
+      totalMembers,
+      memberUnit,
+      overallPercent,
+      completedIds,
+      inProgressIds,
+      planningIds,
+      map,
+    };
+  };
+
+  const formatPercent = (value: number) => {
+    if (Number.isInteger(value)) return `${value}%`;
+    return `${value.toFixed(1)}%`;
+  };
+
   const tasksByColumn = useMemo(() => {
     return BOARD_COLUMNS.reduce<Record<BoardColumn["key"], TaskItem[]>>(
       (accumulator, column) => {
-        accumulator[column.key] = tasks.filter((task) => mapToBoardColumn(task.status) === column.key);
+        accumulator[column.key] = tasks.filter((task) => getCurrentUserColumn(task, userProfile?.uid) === column.key);
         return accumulator;
       },
       {
@@ -148,33 +313,33 @@ export function StaffTasksBoard() {
   }, [tasks]);
 
   const handleMoveTask = async (task: TaskItem, destination: BoardColumn["key"]) => {
-    let nextStatus: TaskStatus = "pending";
-    if (destination === "in-progress") nextStatus = "in-progress";
-    if (destination === "completed") nextStatus = "completed";
-
-    if (task.status === nextStatus) {
+    if (!userProfile?.uid) {
       return;
     }
+
+    const currentColumn = getCurrentUserColumn(task, userProfile.uid);
+    if (currentColumn === destination) {
+      return;
+    }
+
+    const assignedMemberIds = getAssignedMemberIds(task);
+    const nextProgressMap = {
+      ...getAssigneeProgressMap(task),
+      [userProfile.uid]: destination,
+    };
+    const aggregate = getAggregateFromProgressMap(nextProgressMap, assignedMemberIds);
 
     setSavingTaskId(task.id);
     try {
       const payload: Record<string, any> = {
-        status: nextStatus,
+        assigneeProgress: nextProgressMap,
+        progress: aggregate.overallPercent,
+        status: aggregate.status,
+        completedDate: aggregate.allCompleted ? new Date().toISOString().split("T")[0] : null,
       };
 
-      if (nextStatus === "completed") {
-        payload.progress = 100;
-        payload.completedDate = new Date().toISOString().split("T")[0];
-      } else if (nextStatus === "pending") {
-        payload.progress = 0;
-        payload.completedDate = null;
-      } else if (nextStatus === "in-progress") {
-        payload.progress = typeof task.progress === "number" && task.progress > 0 && task.progress < 100 ? task.progress : 50;
-        payload.completedDate = null;
-      }
-
       await update(ref(database, `staffdashboard/tasks/${task.id}`), payload);
-      toast({ title: "Task Updated", description: `${task.title} moved to ${destination}.` });
+      toast({ title: "Task Updated", description: `${task.title} moved to ${mapStageToTaskStatus(destination)}.` });
     } catch (error) {
       toast({
         title: "Update Failed",
@@ -295,6 +460,7 @@ export function StaffTasksBoard() {
                         isDragging ? "opacity-50" : "opacity-100"
                       }`}
                       draggable
+                      onClick={() => setSelectedTaskId(task.id)}
                       onDragStart={() => handleDragStart(task.id)}
                       onDragEnd={handleDragEnd}
                     >
@@ -352,6 +518,135 @@ export function StaffTasksBoard() {
           </Card>
         ))}
       </div>
+
+      <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTaskId(null)}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[760px]">
+          {selectedTask && (() => {
+            const details = getTaskProgressSummary(selectedTask);
+            const memberRows = getAssignedMemberIds(selectedTask).map((uid) => {
+              const stage = details.map[uid] || "planning";
+              const displayName = staffMap[uid]?.name || "Assigned Staff";
+              const role = staffMap[uid]?.role || "staff";
+              const contribution = stage === "completed"
+                ? details.memberUnit
+                : stage === "in-progress"
+                  ? details.memberUnit / 2
+                  : 0;
+
+              return {
+                uid,
+                displayName,
+                role,
+                stage,
+                contribution,
+              };
+            });
+
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold">{selectedTask.title}</DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-5 py-2">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className={getPriorityClass(selectedTask.priority)}>
+                      {(selectedTask.priority || "other").toUpperCase()}
+                    </Badge>
+                    <Badge variant="outline" className="bg-blue-500/20 text-blue-300 border-blue-500/40 uppercase">
+                      {selectedTask.status}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-xs uppercase tracking-wider text-gray-400">Description</h4>
+                    <div className="rounded-lg border border-gray-700 bg-gray-800/60 p-3 text-sm text-gray-200">
+                      {selectedTask.description || "No description provided."}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    <div className="rounded border border-gray-700 bg-gray-800/40 p-3">
+                      <p className="text-gray-500 text-xs mb-1">Project</p>
+                      <p className="text-gray-200">{projectsMap[selectedTask.projectId || ""] || "Unknown Project"}</p>
+                    </div>
+                    <div className="rounded border border-gray-700 bg-gray-800/40 p-3">
+                      <p className="text-gray-500 text-xs mb-1">Due</p>
+                      <p className="text-gray-200">{formatDueDateTime(selectedTask.dueDate, selectedTask.dueTime)}</p>
+                    </div>
+                    <div className="rounded border border-gray-700 bg-gray-800/40 p-3">
+                      <p className="text-gray-500 text-xs mb-1">Est. Hours</p>
+                      <p className="text-gray-200">{selectedTask.estimatedHours || 0}h</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400">Overall Progress</span>
+                      <span className="text-white font-medium">{formatPercent(details.overallPercent)}</span>
+                    </div>
+                    <Progress value={details.overallPercent} className="h-2 bg-gray-700" indicatorClassName="bg-orange-500" />
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/40">
+                        Completed {details.completedIds.length}/{details.totalMembers}
+                      </Badge>
+                      <Badge variant="outline" className="bg-blue-500/20 text-blue-300 border-blue-500/40">
+                        In Progress {details.inProgressIds.length}/{details.totalMembers}
+                      </Badge>
+                      <Badge variant="outline" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/40">
+                        Planning {details.planningIds.length}/{details.totalMembers}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-xs uppercase tracking-wider text-gray-400 flex items-center gap-2">
+                      <Users className="h-3.5 w-3.5" /> Assigned Staff ({details.totalMembers})
+                    </h4>
+
+                    {memberRows.length === 0 ? (
+                      <div className="rounded border border-gray-700 bg-gray-800/40 p-3 text-sm text-gray-400">
+                        No assigned staff members.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                        {memberRows.map((member) => (
+                          <div key={member.uid} className="rounded border border-gray-700 bg-gray-800/40 p-3 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-white truncate">
+                                {member.displayName}
+                                {member.uid === userProfile?.uid ? " (You)" : ""}
+                              </p>
+                              <p className="text-xs text-gray-500 capitalize">{member.role}</p>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Badge
+                                variant="outline"
+                                className={member.stage === "completed"
+                                  ? "bg-green-500/20 text-green-300 border-green-500/40"
+                                  : member.stage === "in-progress"
+                                    ? "bg-blue-500/20 text-blue-300 border-blue-500/40"
+                                    : "bg-yellow-500/20 text-yellow-300 border-yellow-500/40"
+                                }
+                              >
+                                {member.stage === "in-progress" ? "In Progress" : member.stage === "completed" ? "Completed" : "Planning"}
+                              </Badge>
+                              <Badge variant="outline" className="bg-orange-500/10 text-orange-300 border-orange-500/30">
+                                {formatPercent(roundPercent(member.contribution))}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
