@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   X,
   Users,
@@ -106,6 +106,7 @@ interface StaffSidebarProps {
 
 export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { userProfile } = useAuth();
   const [localCollapsed, setLocalCollapsed] = useState(false);
   const [taskBadgeCount, setTaskBadgeCount] = useState(0);
@@ -203,6 +204,24 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
     ticketBadgeCount
   );
 
+  const handleNavigate = (event: React.MouseEvent<HTMLAnchorElement>, href: string, closeMobile?: boolean) => {
+    event.preventDefault();
+    if (!href) return;
+
+    const isDashboardHref = href === "/staff/dashboard";
+    const alreadyOnTarget = isDashboardHref
+      ? pathname === "/staff" || pathname === "/staff/dashboard" || pathname.startsWith("/staff/dashboard")
+      : pathname === href || pathname.startsWith(`${href}/`);
+
+    if (alreadyOnTarget) {
+      if (closeMobile) setOpen(false);
+      return;
+    }
+
+    router.push(href);
+    if (closeMobile) setOpen(false);
+  };
+
   return (
     <>
       <Transition.Root show={open} as={Fragment}>
@@ -265,6 +284,7 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                             <li key={item.name}>
                               <Link
                                 href={item.href}
+                                onClick={(event) => handleNavigate(event, item.href, true)}
                                 className={classNames(
                                   (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) ||
                                     (item.name !== "Dashboard" && pathname === item.href)
@@ -341,6 +361,7 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
                     <li key={item.name}>
                       <Link
                         href={item.href}
+                        onClick={(event) => handleNavigate(event, item.href)}
                         className={classNames(
                           (item.name === "Dashboard" && (pathname === "/staff/dashboard" || pathname === "/staff" || pathname.startsWith("/staff/dashboard"))) ||
                             (item.name !== "Dashboard" && pathname === item.href)
