@@ -100,6 +100,9 @@ export function TicketSystem() {
   const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
   const [imageViewerSrc, setImageViewerSrc] = useState<string | null>(null);
   const [imageZoom, setImageZoom] = useState(1);
+  const [imagePan, setImagePan] = useState({ x: 0, y: 0 });
+  const [isPanningImage, setIsPanningImage] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
   // Minimal edit form for status and time spent
   const [editStatus, setEditStatus] = useState<string>("");
@@ -327,11 +330,33 @@ export function TicketSystem() {
   const openImageViewer = (imagePath: string) => {
     setImageViewerSrc(imagePath);
     setImageZoom(1);
+    setImagePan({ x: 0, y: 0 });
+    setIsPanningImage(false);
   };
 
   const closeImageViewer = () => {
     setImageViewerSrc(null);
     setImageZoom(1);
+    setImagePan({ x: 0, y: 0 });
+    setIsPanningImage(false);
+  };
+
+  const handleImagePanStart = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (imageZoom <= 1) return;
+    setIsPanningImage(true);
+    setPanStart({ x: event.clientX - imagePan.x, y: event.clientY - imagePan.y });
+  };
+
+  const handleImagePanMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isPanningImage || imageZoom <= 1) return;
+    setImagePan({
+      x: event.clientX - panStart.x,
+      y: event.clientY - panStart.y,
+    });
+  };
+
+  const handleImagePanEnd = () => {
+    setIsPanningImage(false);
   };
 
   if (loading) {
@@ -773,43 +798,58 @@ export function TicketSystem() {
         <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[96vw] max-h-[92vh] p-4">
           {imageViewerSrc && (
             <div className="space-y-3">
-              <div className="flex items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
-                  onClick={() => setImageZoom((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))))}
+              <div className="relative w-full h-[72vh] overflow-hidden rounded border border-gray-700 bg-gray-950/70">
+                <div
+                  className={`w-full h-full flex items-center justify-center ${imageZoom > 1 ? (isPanningImage ? "cursor-grabbing" : "cursor-grab") : "cursor-default"}`}
+                  onMouseDown={handleImagePanStart}
+                  onMouseMove={handleImagePanMove}
+                  onMouseUp={handleImagePanEnd}
+                  onMouseLeave={handleImagePanEnd}
                 >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
-                  onClick={() => setImageZoom((prev) => Math.min(3, Number((prev + 0.25).toFixed(2))))}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
-                  onClick={closeImageViewer}
-                >
-                  <XCircle className="h-4 w-4" />
-                </Button>
-              </div>
+                  <img
+                    src={imageViewerSrc}
+                    alt="Description full view"
+                    draggable={false}
+                    className="max-w-full max-h-full select-none pointer-events-none transition-transform duration-150"
+                    style={{
+                      transform: `translate(${imagePan.x}px, ${imagePan.y}px) scale(${imageZoom})`,
+                      transformOrigin: "center center",
+                    }}
+                  />
+                </div>
 
-              <div className="w-full max-h-[78vh] overflow-auto rounded border border-gray-700 bg-gray-950/70 p-4 flex items-center justify-center">
-                <img
-                  src={imageViewerSrc}
-                  alt="Description full view"
-                  className="max-w-none transition-transform duration-150"
-                  style={{ transform: `scale(${imageZoom})` }}
-                />
+                <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-md border border-gray-700 bg-gray-900/85 p-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                    onClick={() => setImageZoom((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))))}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                    onClick={() => setImageZoom((prev) => Math.min(3, Number((prev + 0.25).toFixed(2))))}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                    onClick={() => {
+                      setImageZoom(1);
+                      setImagePan({ x: 0, y: 0 });
+                    }}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           )}
