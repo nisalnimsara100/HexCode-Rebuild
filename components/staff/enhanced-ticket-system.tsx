@@ -23,6 +23,7 @@ import { useAuth } from "@/components/auth/auth-context";
 import {
   Ticket,
   Plus,
+  Minus,
   Search,
   Filter,
   User,
@@ -61,6 +62,7 @@ interface TicketItem {
   project?: string; // Added project field support
   dueDate: string;
   estimatedHours: string | number;
+  descriptionImage?: string;
   createdAt: string;
   // Extras for UI compatibility if needed, or mapped
   reporter?: any;
@@ -96,6 +98,8 @@ export function TicketSystem() {
   const [view, setView] = useState<'list' | 'grid'>('grid'); // Default to grid to match preference
   const [inlineProgress, setInlineProgress] = useState<Record<string, number>>({});
   const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
+  const [imageViewerSrc, setImageViewerSrc] = useState<string | null>(null);
+  const [imageZoom, setImageZoom] = useState(1);
 
   // Minimal edit form for status and time spent
   const [editStatus, setEditStatus] = useState<string>("");
@@ -318,6 +322,16 @@ export function TicketSystem() {
       hour: hasTime ? "2-digit" : undefined,
       minute: hasTime ? "2-digit" : undefined,
     });
+  };
+
+  const openImageViewer = (imagePath: string) => {
+    setImageViewerSrc(imagePath);
+    setImageZoom(1);
+  };
+
+  const closeImageViewer = () => {
+    setImageViewerSrc(null);
+    setImageZoom(1);
   };
 
   if (loading) {
@@ -682,7 +696,7 @@ export function TicketSystem() {
 
       {/* View Ticket Modal - Simplified for Staff */}
       <Dialog open={!!selectedTicket && !isEditStatusModalOpen} onOpenChange={(open) => !open && setSelectedTicket(null)}>
-        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-4xl max-h-[88vh] overflow-hidden">
           {selectedTicket && (
             <>
               <DialogHeader>
@@ -699,11 +713,28 @@ export function TicketSystem() {
                 </div>
               </DialogHeader>
 
-              <div className="space-y-6">
+              <div className="space-y-6 pr-1 max-h-[74vh] overflow-y-auto custom-scrollbar">
                 <div>
                   <h4 className="text-sm font-medium text-gray-400 mb-2">Description</h4>
                   <p className="text-gray-300">{selectedTicket.description}</p>
                 </div>
+
+                {selectedTicket.descriptionImage && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">Description Image</h4>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-700 bg-gray-800/50 p-2 hover:border-emerald-500/60 transition-colors"
+                      onClick={() => openImageViewer(selectedTicket.descriptionImage as string)}
+                    >
+                      <img
+                        src={selectedTicket.descriptionImage}
+                        alt="Ticket description"
+                        className="max-h-56 w-auto rounded object-contain"
+                      />
+                    </button>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-6">
                   <div>
@@ -734,6 +765,53 @@ export function TicketSystem() {
                 <p className="text-gray-500 italic text-sm">Comments & Activity logs are view-only in this beta version.</p>
               </div>
             </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!imageViewerSrc} onOpenChange={(open) => !open && closeImageViewer()}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[96vw] max-h-[92vh] p-4">
+          {imageViewerSrc && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                  onClick={() => setImageZoom((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))))}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                  onClick={() => setImageZoom((prev) => Math.min(3, Number((prev + 0.25).toFixed(2))))}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                  onClick={closeImageViewer}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="w-full max-h-[78vh] overflow-auto rounded border border-gray-700 bg-gray-950/70 p-4 flex items-center justify-center">
+                <img
+                  src={imageViewerSrc}
+                  alt="Description full view"
+                  className="max-w-none transition-transform duration-150"
+                  style={{ transform: `scale(${imageZoom})` }}
+                />
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

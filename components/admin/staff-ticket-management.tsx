@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { database } from "@/lib/firebase"
 import { ref, push, update, remove, onValue, set } from "firebase/database"
 import { Card } from "@/components/ui/card"
@@ -18,6 +18,7 @@ import { CountdownTimer } from "@/components/ui/countdown-timer"
 import { CheckCircle, Clock, AlertCircle, Plus, Search, Filter, MoreVertical, Edit2, Trash2, User, Calendar as CalendarIcon, PlayCircle, Eye, Activity, Pencil, Users } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { createImagePreview, deleteUploadedFile, uploadFile, validateImageFile } from "@/lib/imageUpload"
 
 interface Ticket {
     id: string
@@ -31,6 +32,7 @@ interface Ticket {
     timeSpent?: number
     category: string
     project: string
+    descriptionImage?: string
 }
 
 interface TeamMember {
@@ -62,6 +64,10 @@ export function StaffTicketManagement() {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingTicket, setEditingTicket] = useState<Ticket | null>(null)
     const [ticketToDelete, setTicketToDelete] = useState<string | null>(null) // State for delete confirmation
+    const [descriptionImageFile, setDescriptionImageFile] = useState<File | null>(null)
+    const [descriptionImagePreview, setDescriptionImagePreview] = useState<string>("")
+    const [removeDescriptionImage, setRemoveDescriptionImage] = useState(false)
+    const descriptionImageInputRef = useRef<HTMLInputElement | null>(null)
 
     const [formData, setFormData] = useState({
         title: "",
@@ -73,7 +79,8 @@ export function StaffTicketManagement() {
         estimatedHours: "",
         timeSpent: 0,
         category: "",
-        project: ""
+        project: "",
+        descriptionImage: ""
     })
 
     // Fetch Data
@@ -150,8 +157,15 @@ export function StaffTicketManagement() {
                 estimatedHours: ticket.estimatedHours,
                 timeSpent: ticket.timeSpent || 0,
                 category: ticket.category,
-                project: ticket.project
+                project: ticket.project,
+                descriptionImage: ticket.descriptionImage || ""
             })
+            setDescriptionImageFile(null)
+            setDescriptionImagePreview(ticket.descriptionImage || "")
+            setRemoveDescriptionImage(false)
+            if (descriptionImageInputRef.current) {
+                descriptionImageInputRef.current.value = ""
+            }
         } else {
             setEditingTicket(null)
             setFormData({
@@ -164,10 +178,49 @@ export function StaffTicketManagement() {
                 estimatedHours: "",
                 timeSpent: 0,
                 category: "",
-                project: ""
+                project: "",
+                descriptionImage: ""
             })
+            setDescriptionImageFile(null)
+            setDescriptionImagePreview("")
+            setRemoveDescriptionImage(false)
+            if (descriptionImageInputRef.current) {
+                descriptionImageInputRef.current.value = ""
+            }
         }
         setIsModalOpen(true)
+    }
+
+    const handleDescriptionImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (!file) return
+
+        const validation = validateImageFile(file)
+        if (!validation.isValid) {
+            toast({ title: "Invalid image", description: validation.error || "Please select a valid image file.", variant: "destructive" })
+            event.target.value = ""
+            return
+        }
+
+        try {
+            const preview = await createImagePreview(file)
+            setDescriptionImageFile(file)
+            setDescriptionImagePreview(preview)
+            setRemoveDescriptionImage(false)
+        } catch {
+            toast({ title: "Error", description: "Failed to preview image", variant: "destructive" })
+        }
+    }
+
+    const handleRemoveDescriptionImage = () => {
+        const hasPersistedImage = !!(editingTicket?.descriptionImage || formData.descriptionImage)
+        setDescriptionImageFile(null)
+        setDescriptionImagePreview("")
+        setFormData(prev => ({ ...prev, descriptionImage: "" }))
+        setRemoveDescriptionImage(hasPersistedImage)
+        if (descriptionImageInputRef.current) {
+            descriptionImageInputRef.current.value = ""
+        }
     }
 
     const toggleStaffSelection = (uid: string) => {
@@ -203,6 +256,30 @@ export function StaffTicketManagement() {
         }
 
         try {
+            let nextDescriptionImage = editingTicket?.descriptionImage || ""
+
+            if (removeDescriptionImage) {
+                nextDescriptionImage = ""
+            }
+
+            if (descriptionImageFile) {
+                const uploadedDescriptionImage = await uploadFile(descriptionImageFile, "description_image")
+                if (editingTicket?.descriptionImage && editingTicket.descriptionImage !== uploadedDescriptionImage) {
+                    try {
+                        await deleteUploadedFile(editingTicket.descriptionImage)
+                    } catch (deleteError) {
+                        console.warn("Failed to delete previous ticket description image", deleteError)
+                    }
+                }
+                nextDescriptionImage = uploadedDescriptionImage
+            } else if (editingTicket?.descriptionImage && removeDescriptionImage) {
+                try {
+                    await deleteUploadedFile(editingTicket.descriptionImage)
+                } catch (deleteError) {
+                    console.warn("Failed to delete removed ticket description image", deleteError)
+                }
+            }
+
             const ticketData = {
                 title: formData.title,
                 description: formData.description,
@@ -214,6 +291,7 @@ export function StaffTicketManagement() {
                 timeSpent: formData.timeSpent,
                 category: formData.category,
                 project: formData.project,
+                descriptionImage: nextDescriptionImage,
                 updatedAt: new Date().toISOString()
             }
 
@@ -230,6 +308,10 @@ export function StaffTicketManagement() {
                 toast({ title: "Created", description: "Ticket created successfully." })
             }
             setIsModalOpen(false)
+            setRemoveDescriptionImage(false)
+            if (descriptionImageInputRef.current) {
+                descriptionImageInputRef.current.value = ""
+            }
         } catch (error) {
             console.error(error)
             toast({ variant: "destructive", title: "Error", description: "Failed to save ticket." })
@@ -243,6 +325,14 @@ export function StaffTicketManagement() {
     const confirmDelete = async () => {
         if (!ticketToDelete) return
         try {
+            const ticket = tickets.find(t => t.id === ticketToDelete)
+            if (ticket?.descriptionImage) {
+                try {
+                    await deleteUploadedFile(ticket.descriptionImage)
+                } catch (deleteError) {
+                    console.warn("Failed to delete ticket description image", deleteError)
+                }
+            }
             await remove(ref(database, `staffdashboard/tickets/${ticketToDelete}`))
             toast({ title: "Deleted", description: "Ticket deleted." })
         } catch (error) {
@@ -367,6 +457,11 @@ export function StaffTicketManagement() {
                             <div>
                                 <h3 className="font-semibold text-white truncate pr-2">{ticket.title}</h3>
                                 <p className="text-xs text-gray-400 mt-1 line-clamp-2 h-[2.5em]">{ticket.description}</p>
+                                {ticket.descriptionImage && (
+                                    <div className="mt-2 rounded border border-gray-700 bg-gray-800/40 p-1 w-fit">
+                                        <img src={ticket.descriptionImage} alt="Ticket description" className="h-16 w-28 object-cover rounded" />
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex items-center justify-between text-xs text-gray-500">
@@ -433,6 +528,31 @@ export function StaffTicketManagement() {
                         <div className="space-y-2">
                             <Label>Description</Label>
                             <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="bg-gray-800 border-gray-700 min-h-[100px]" />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Description Image</Label>
+                            <Input
+                                ref={descriptionImageInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleDescriptionImageChange}
+                                className="bg-gray-800 border-gray-700"
+                            />
+                            {descriptionImagePreview && (
+                                <div className="relative rounded-md border border-gray-700 bg-gray-800/40 p-2 w-fit">
+                                    <img src={descriptionImagePreview} alt="Ticket description preview" className="h-28 w-auto rounded object-contain" />
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="icon"
+                                        onClick={handleRemoveDescriptionImage}
+                                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2">

@@ -85,3 +85,45 @@ export function validateImageFile(file: File): { isValid: boolean; error?: strin
 
   return { isValid: true };
 }
+
+/**
+ * Delete a previously uploaded file from Hostinger server.
+ * Accepts values like "/description_image/file.png" or full URL containing that path.
+ */
+export async function deleteUploadedFile(filePath: string): Promise<void> {
+  if (!filePath) return;
+
+  let normalizedPath = filePath.trim();
+  if (!normalizedPath) return;
+
+  try {
+    if (normalizedPath.startsWith("http://") || normalizedPath.startsWith("https://")) {
+      const parsed = new URL(normalizedPath);
+      normalizedPath = parsed.pathname;
+    }
+  } catch {
+    return;
+  }
+
+  if (!normalizedPath.startsWith("/")) {
+    normalizedPath = `/${normalizedPath}`;
+  }
+
+  const response = await fetch('/delete_file.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ path: normalizedPath }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to delete uploaded file');
+  }
+
+  const result = await response.json();
+  if (!result?.success) {
+    throw new Error(result?.error || 'Failed to delete uploaded file');
+  }
+}

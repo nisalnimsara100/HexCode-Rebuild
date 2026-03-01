@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { database } from "@/lib/firebase"
 import { ref, push, update, remove, onValue } from "firebase/database"
 import {
@@ -57,6 +57,7 @@ import {
     UserPlus,
     X
 } from "lucide-react"
+import { createImagePreview, deleteUploadedFile, uploadFile, validateImageFile } from "@/lib/imageUpload"
 
 // Types
 interface Task {
@@ -78,6 +79,7 @@ interface Task {
     assigneeNames?: string[]
     assigneeAvatars?: string[]
     category?: string
+    descriptionImage?: string
     assigneeProgress?: Record<string, 'planning' | 'in-progress' | 'completed'>
     isArchived?: boolean
     archivedAt?: string
@@ -133,6 +135,7 @@ export function StaffTaskAssignments() {
         estimatedHours: string
         progress: number
         category: string
+        descriptionImage: string
     }>({
         title: "",
         description: "",
@@ -144,8 +147,14 @@ export function StaffTaskAssignments() {
         dueTime: "",
         estimatedHours: "",
         progress: 0,
-        category: "frontend"
+        category: "frontend",
+        descriptionImage: ""
     })
+    const [descriptionImageFile, setDescriptionImageFile] = useState<File | null>(null)
+    const [descriptionImagePreview, setDescriptionImagePreview] = useState<string>("")
+    const [removeDescriptionImage, setRemoveDescriptionImage] = useState(false)
+    const createDescriptionImageInputRef = useRef<HTMLInputElement | null>(null)
+    const editDescriptionImageInputRef = useRef<HTMLInputElement | null>(null)
 
     // --- Fetch Data ---
     useEffect(() => {
@@ -371,6 +380,11 @@ export function StaffTaskAssignments() {
         }
 
         try {
+            let uploadedDescriptionImage = ""
+            if (descriptionImageFile) {
+                uploadedDescriptionImage = await uploadFile(descriptionImageFile, "description_image")
+            }
+
             const composedDueDate = composeDueDateTime(formData.dueDate, formData.dueTime)
             const assigneeProgress = formData.assignedTo.reduce((acc, uid) => {
                 acc[uid] = 'planning'
@@ -384,7 +398,8 @@ export function StaffTaskAssignments() {
                 assignedBy: "Admin",
                 progress: 0,
                 status: "pending",
-                assigneeProgress
+                assigneeProgress,
+                descriptionImage: uploadedDescriptionImage
             }
 
             await push(ref(database, 'staffdashboard/tasks'), newTask)
@@ -401,6 +416,30 @@ export function StaffTaskAssignments() {
     const handleEditTask = async () => {
         if (!selectedTask) return
         try {
+            let nextDescriptionImage = selectedTask.descriptionImage || ""
+
+            if (removeDescriptionImage) {
+                nextDescriptionImage = ""
+            }
+
+            if (descriptionImageFile) {
+                const uploadedDescriptionImage = await uploadFile(descriptionImageFile, "description_image")
+                if (selectedTask.descriptionImage && selectedTask.descriptionImage !== uploadedDescriptionImage) {
+                    try {
+                        await deleteUploadedFile(selectedTask.descriptionImage)
+                    } catch (deleteError) {
+                        console.warn("Failed to delete previous task description image", deleteError)
+                    }
+                }
+                nextDescriptionImage = uploadedDescriptionImage
+            } else if (removeDescriptionImage && selectedTask.descriptionImage) {
+                try {
+                    await deleteUploadedFile(selectedTask.descriptionImage)
+                } catch (deleteError) {
+                    console.warn("Failed to delete removed task description image", deleteError)
+                }
+            }
+
             const composedDueDate = composeDueDateTime(formData.dueDate, formData.dueTime)
             const existingProgress = selectedTask.assigneeProgress || {}
             const updatedAssigneeProgress = formData.assignedTo.reduce((acc, uid) => {
@@ -419,7 +458,8 @@ export function StaffTaskAssignments() {
                 projectId: formData.projectId,
                 assignedTo: formData.assignedTo, // Full replacement of array
                 category: formData.category,
-                assigneeProgress: updatedAssigneeProgress
+                assigneeProgress: updatedAssigneeProgress,
+                descriptionImage: nextDescriptionImage
             })
             toast({ title: "Updated", description: "Task details updated." })
             setIsEditModalOpen(false)
@@ -531,16 +571,70 @@ export function StaffTaskAssignments() {
             dueTime: task.dueTime || extractTimePart(task.dueDate),
             estimatedHours: task.estimatedHours as string,
             progress: task.progress,
-            category: task.category || "frontend"
+            category: task.category || "frontend",
+            descriptionImage: task.descriptionImage || ""
         })
+        setDescriptionImageFile(null)
+        setDescriptionImagePreview(task.descriptionImage || "")
+        setRemoveDescriptionImage(false)
+        if (editDescriptionImageInputRef.current) {
+            editDescriptionImageInputRef.current.value = ""
+        }
         setIsEditModalOpen(true)
     }
 
     const resetFormData = () => {
         setFormData({
             title: "", description: "", projectId: "", assignedTo: [],
-            status: "pending", priority: "medium", dueDate: "", dueTime: "", estimatedHours: "", progress: 0, category: "frontend"
+            status: "pending", priority: "medium", dueDate: "", dueTime: "", estimatedHours: "", progress: 0, category: "frontend", descriptionImage: ""
         })
+        setDescriptionImageFile(null)
+        setDescriptionImagePreview("")
+        setRemoveDescriptionImage(false)
+        if (createDescriptionImageInputRef.current) {
+            createDescriptionImageInputRef.current.value = ""
+        }
+        if (editDescriptionImageInputRef.current) {
+            editDescriptionImageInputRef.current.value = ""
+        }
+    }
+
+    const handleDescriptionImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (!file) return
+
+        const validation = validateImageFile(file)
+        if (!validation.isValid) {
+            toast({ title: "Invalid image", description: validation.error || "Please select a valid image file.", variant: "destructive" })
+            event.target.value = ""
+            return
+        }
+
+        try {
+            const preview = await createImagePreview(file)
+            setDescriptionImageFile(file)
+            setDescriptionImagePreview(preview)
+            setRemoveDescriptionImage(false)
+        } catch {
+            toast({ title: "Error", description: "Failed to preview image", variant: "destructive" })
+        }
+    }
+
+    const handleRemoveDescriptionImage = () => {
+        const hasPersistedImage = !!(selectedTask?.descriptionImage || formData.descriptionImage)
+        setDescriptionImageFile(null)
+        setDescriptionImagePreview("")
+        setFormData(prev => ({ ...prev, descriptionImage: "" }))
+        setRemoveDescriptionImage(hasPersistedImage)
+        if (isEditModalOpen) {
+            if (editDescriptionImageInputRef.current) {
+                editDescriptionImageInputRef.current.value = ""
+            }
+        } else {
+            if (createDescriptionImageInputRef.current) {
+                createDescriptionImageInputRef.current.value = ""
+            }
+        }
     }
 
     const extractDatePart = (dateValue?: string) => {
@@ -697,7 +791,7 @@ export function StaffTaskAssignments() {
                                                     </Badge>
                                                 )
                                             })()}
-                                            {task.category && (
+                                            {task.category && task.category.toLowerCase() !== 'other' && (
                                                 <Badge variant="outline" className={`${getCategoryColor(task.category)} uppercase border ml-2.5`}>
                                                     {task.category}
                                                 </Badge>
@@ -734,45 +828,49 @@ export function StaffTaskAssignments() {
                                                     </PopoverContent>
                                                 </Popover>
 
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Badge variant="outline" className="cursor-pointer bg-blue-500/20 text-blue-300 border-blue-500/40">
-                                                            In Progress {progressSummary.inProgressCount}/{progressSummary.totalMembers} ({formatPercent(progressSummary.inProgressPercent)})
-                                                        </Badge>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent side="top" className="w-72 bg-gray-900 border-gray-700 text-white p-3 z-[9999]">
-                                                        <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">In Progress By</h4>
-                                                        {progressSummary.inProgressMemberNames.length === 0 ? (
-                                                            <p className="text-xs text-gray-400">No staff member is in progress for this task yet.</p>
-                                                        ) : (
-                                                            <div className="space-y-1">
-                                                                {progressSummary.inProgressMemberNames.map((name, idx) => (
-                                                                    <p key={`${name}-${idx}`} className="text-xs text-gray-200">• {name}</p>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </PopoverContent>
-                                                </Popover>
+                                                {(progressSummary.totalMembers === 0 || progressSummary.completedCount < progressSummary.totalMembers) && (
+                                                    <>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <Badge variant="outline" className="cursor-pointer bg-blue-500/20 text-blue-300 border-blue-500/40">
+                                                                    In Progress {progressSummary.inProgressCount}/{progressSummary.totalMembers} ({formatPercent(progressSummary.inProgressPercent)})
+                                                                </Badge>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent side="top" className="w-72 bg-gray-900 border-gray-700 text-white p-3 z-[9999]">
+                                                                <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">In Progress By</h4>
+                                                                {progressSummary.inProgressMemberNames.length === 0 ? (
+                                                                    <p className="text-xs text-gray-400">No staff member is in progress for this task yet.</p>
+                                                                ) : (
+                                                                    <div className="space-y-1">
+                                                                        {progressSummary.inProgressMemberNames.map((name, idx) => (
+                                                                            <p key={`${name}-${idx}`} className="text-xs text-gray-200">• {name}</p>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </PopoverContent>
+                                                        </Popover>
 
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Badge variant="outline" className="cursor-pointer bg-yellow-500/20 text-yellow-300 border-yellow-500/40">
-                                                            Planning {progressSummary.planningCount}/{progressSummary.totalMembers}
-                                                        </Badge>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent side="top" className="w-72 bg-gray-900 border-gray-700 text-white p-3 z-[9999]">
-                                                        <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">Planning By</h4>
-                                                        {progressSummary.planningMemberNames.length === 0 ? (
-                                                            <p className="text-xs text-gray-400">No staff member is in planning for this task.</p>
-                                                        ) : (
-                                                            <div className="space-y-1">
-                                                                {progressSummary.planningMemberNames.map((name, idx) => (
-                                                                    <p key={`${name}-${idx}`} className="text-xs text-gray-200">• {name}</p>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </PopoverContent>
-                                                </Popover>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <Badge variant="outline" className="cursor-pointer bg-yellow-500/20 text-yellow-300 border-yellow-500/40">
+                                                                    Planning {progressSummary.planningCount}/{progressSummary.totalMembers}
+                                                                </Badge>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent side="top" className="w-72 bg-gray-900 border-gray-700 text-white p-3 z-[9999]">
+                                                                <h4 className="font-semibold text-xs mb-2 text-gray-300 border-b border-gray-700 pb-1">Planning By</h4>
+                                                                {progressSummary.planningMemberNames.length === 0 ? (
+                                                                    <p className="text-xs text-gray-400">No staff member is in planning for this task.</p>
+                                                                ) : (
+                                                                    <div className="space-y-1">
+                                                                        {progressSummary.planningMemberNames.map((name, idx) => (
+                                                                            <p key={`${name}-${idx}`} className="text-xs text-gray-200">• {name}</p>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 
@@ -1096,6 +1194,31 @@ export function StaffTaskAssignments() {
                                 />
                             </div>
 
+                            <div className="space-y-2 col-span-2">
+                                <Label>Description Image</Label>
+                                <Input
+                                    ref={createDescriptionImageInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleDescriptionImageChange}
+                                    className="bg-gray-800 border-gray-700"
+                                />
+                                {descriptionImagePreview && (
+                                    <div className="relative rounded-md border border-gray-700 bg-gray-800/40 p-2 w-fit">
+                                        <img src={descriptionImagePreview} alt="Task description preview" className="h-28 w-auto rounded object-contain" />
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="icon"
+                                            onClick={handleRemoveDescriptionImage}
+                                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="space-y-2">
                                 <Label>Estimated Hours</Label>
                                 <Input
@@ -1136,7 +1259,7 @@ export function StaffTaskAssignments() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="outline" className={`${getStatusColor(task.status)} uppercase border`}>{task.status}</Badge>
-                                                {task.category && (
+                                                {task.category && task.category.toLowerCase() !== 'other' && (
                                                     <Badge variant="outline" className={`${getCategoryColor(task.category)} uppercase border`}>
                                                         {task.category}
                                                     </Badge>
@@ -1175,12 +1298,16 @@ export function StaffTaskAssignments() {
                                                 <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
                                                     Completed {progressSummary.completedCount}/{progressSummary.totalMembers}
                                                 </Badge>
-                                                <Badge variant="outline" className="bg-blue-500/20 text-blue-300 border-blue-500/40">
-                                                    In Progress {progressSummary.inProgressCount}/{progressSummary.totalMembers}
-                                                </Badge>
-                                                <Badge variant="outline" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/40">
-                                                    Planning {progressSummary.planningCount}/{progressSummary.totalMembers}
-                                                </Badge>
+                                                {(progressSummary.totalMembers === 0 || progressSummary.completedCount < progressSummary.totalMembers) && (
+                                                    <>
+                                                        <Badge variant="outline" className="bg-blue-500/20 text-blue-300 border-blue-500/40">
+                                                            In Progress {progressSummary.inProgressCount}/{progressSummary.totalMembers}
+                                                        </Badge>
+                                                        <Badge variant="outline" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/40">
+                                                            Planning {progressSummary.planningCount}/{progressSummary.totalMembers}
+                                                        </Badge>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 
@@ -1402,6 +1529,31 @@ export function StaffTaskAssignments() {
                                     onChange={e => setFormData({ ...formData, description: e.target.value })}
                                     className="bg-gray-800 border-gray-700"
                                 />
+                            </div>
+
+                            <div className="space-y-2 col-span-2">
+                                <Label>Description Image</Label>
+                                <Input
+                                    ref={editDescriptionImageInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleDescriptionImageChange}
+                                    className="bg-gray-800 border-gray-700"
+                                />
+                                {descriptionImagePreview && (
+                                    <div className="relative rounded-md border border-gray-700 bg-gray-800/40 p-2 w-fit">
+                                        <img src={descriptionImagePreview} alt="Task description preview" className="h-28 w-auto rounded object-contain" />
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="icon"
+                                            onClick={handleRemoveDescriptionImage}
+                                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="space-y-2">

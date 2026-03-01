@@ -65,6 +65,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { deleteUploadedFile } from "@/lib/imageUpload";
 
 // --- Types ---
 interface TeamMember {
@@ -328,13 +329,25 @@ export function StaffProjectManagement() {
       if (tasksSnapshot.exists()) {
         const tasksData = tasksSnapshot.val();
         const taskEntries = Object.entries(tasksData) as [string, any][];
-        const relatedTaskIds = taskEntries
+        const relatedTasks = taskEntries
           .filter(([, task]) => task?.projectId === deleteId)
-          .map(([taskId]) => taskId);
+          .map(([taskId, task]) => ({ id: taskId, descriptionImage: task?.descriptionImage as string | undefined }));
 
-        if (relatedTaskIds.length > 0) {
+        await Promise.all(
+          relatedTasks.map(async (task) => {
+            if (task.descriptionImage) {
+              try {
+                await deleteUploadedFile(task.descriptionImage);
+              } catch (deleteImageError) {
+                console.warn(`Failed to delete description image for task ${task.id}`, deleteImageError);
+              }
+            }
+          })
+        );
+
+        if (relatedTasks.length > 0) {
           await Promise.all(
-            relatedTaskIds.map((taskId) => remove(ref(database, `staffdashboard/tasks/${taskId}`)))
+            relatedTasks.map((task) => remove(ref(database, `staffdashboard/tasks/${task.id}`)))
           );
         }
       }

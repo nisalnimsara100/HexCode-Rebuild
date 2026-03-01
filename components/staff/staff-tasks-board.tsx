@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CountdownTimer } from "@/components/ui/countdown-timer";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-context";
 import { database } from "@/lib/firebase";
 import { onValue, ref, update } from "firebase/database";
-import { Briefcase, Calendar, Clock, MessageSquare, Users } from "lucide-react";
+import { Briefcase, Calendar, Clock, MessageSquare, Users, ZoomIn, ZoomOut, X } from "lucide-react";
 
 type TaskStatus = "pending" | "in-progress" | "completed" | "overdue";
 type AssigneeStage = "planning" | "in-progress" | "completed";
@@ -33,6 +34,7 @@ interface TaskItem {
   estimatedHours?: number | string;
   progress?: number;
   comments?: unknown[];
+  descriptionImage?: string;
   assigneeProgress?: Record<string, AssigneeStage>;
   isArchived?: boolean;
 }
@@ -174,6 +176,8 @@ export function StaffTasksBoard() {
   const [activeDropColumn, setActiveDropColumn] = useState<BoardColumn["key"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [imageViewerSrc, setImageViewerSrc] = useState<string | null>(null);
+  const [imageZoom, setImageZoom] = useState(1);
 
   useEffect(() => {
     if (!userProfile?.uid) {
@@ -405,6 +409,16 @@ export function StaffTasksBoard() {
     setDraggedTaskId(null);
   };
 
+  const openImageViewer = (imagePath: string) => {
+    setImageViewerSrc(imagePath);
+    setImageZoom(1);
+  };
+
+  const closeImageViewer = () => {
+    setImageViewerSrc(null);
+    setImageZoom(1);
+  };
+
   if (loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
@@ -525,7 +539,7 @@ export function StaffTasksBoard() {
       </div>
 
       <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTaskId(null)}>
-        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[760px]">
+        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[760px] max-h-[88vh] overflow-hidden">
           {selectedTask && (() => {
             const details = getTaskProgressSummary(selectedTask);
             const memberRows = getAssignedMemberIds(selectedTask).map((uid) => {
@@ -553,7 +567,7 @@ export function StaffTasksBoard() {
                   <DialogTitle className="text-2xl font-bold">{selectedTask.title}</DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-5 py-2">
+                <div className="space-y-5 py-2 pr-1 max-h-[74vh] overflow-y-auto custom-scrollbar">
                   <div className="flex flex-wrap gap-2">
                     <Badge className={getPriorityClass(selectedTask.priority)}>
                       {(selectedTask.priority || "other").toUpperCase()}
@@ -569,6 +583,23 @@ export function StaffTasksBoard() {
                       {selectedTask.description || "No description provided."}
                     </div>
                   </div>
+
+                  {selectedTask.descriptionImage && (
+                    <div className="space-y-2">
+                      <h4 className="text-xs uppercase tracking-wider text-gray-400">Description Image</h4>
+                      <button
+                        type="button"
+                        className="rounded-lg border border-gray-700 bg-gray-800/50 p-2 hover:border-orange-500/60 transition-colors"
+                        onClick={() => openImageViewer(selectedTask.descriptionImage as string)}
+                      >
+                        <img
+                          src={selectedTask.descriptionImage}
+                          alt="Task description"
+                          className="max-h-56 w-auto rounded object-contain"
+                        />
+                      </button>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                     <div className="rounded border border-gray-700 bg-gray-800/40 p-3">
@@ -650,6 +681,53 @@ export function StaffTasksBoard() {
               </>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!imageViewerSrc} onOpenChange={(open) => !open && closeImageViewer()}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[96vw] max-h-[92vh] p-4">
+          {imageViewerSrc && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                  onClick={() => setImageZoom((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))))}
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                  onClick={() => setImageZoom((prev) => Math.min(3, Number((prev + 0.25).toFixed(2))))}
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                  onClick={closeImageViewer}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="w-full max-h-[78vh] overflow-auto rounded border border-gray-700 bg-gray-950/70 p-4 flex items-center justify-center">
+                <img
+                  src={imageViewerSrc}
+                  alt="Description full view"
+                  className="max-w-none transition-transform duration-150"
+                  style={{ transform: `scale(${imageZoom})` }}
+                />
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
