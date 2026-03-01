@@ -50,9 +50,11 @@
   RewriteRule ^staff/forgot-password/?$ staff/forgot-password.html [L]
   RewriteRule ^staff/login/?$ staff/login.html [L]
   RewriteRule ^staff/projects/?$ staff/projects.html [L]
+  RewriteRule ^staff/profile/?$ staff/profile.html [L]
   RewriteRule ^staff/register/?$ staff/register.html [L]
   RewriteRule ^staff/reports/?$ staff/reports.html [L]
   RewriteRule ^staff/settings/?$ staff/settings.html [L]
+  RewriteRule ^staff/tasks/?$ staff/tasks.html [L]
   RewriteRule ^staff/teams/?$ staff/teams.html [L]
   RewriteRule ^staff/tickets/?$ staff/tickets.html [L]
 
