@@ -46,6 +46,7 @@ interface TaskItem {
   status?: string;
   assignedTo?: string | string[];
   dueDate?: string;
+  isArchived?: boolean;
 }
 
 interface TicketItem {
@@ -107,7 +108,7 @@ export function StaffProfilePage() {
 
       const list = Object.entries(snapshot.val() as Record<string, any>)
         .map(([id, value]) => ({ id, ...(value as Record<string, any>) }))
-        .filter((project) => Array.isArray(project.team) && project.team.includes(userProfile.uid));
+        .filter((project: Record<string, any>) => Array.isArray(project.team) && project.team.includes(userProfile.uid));
 
       setProjects(list as ProjectItem[]);
     });
@@ -120,7 +121,7 @@ export function StaffProfilePage() {
 
       const list = Object.entries(snapshot.val() as Record<string, any>)
         .map(([id, value]) => ({ id, ...(value as Record<string, any>) }))
-        .filter((task) => includesUser(task.assignedTo, userProfile.uid));
+        .filter((task: Record<string, any>) => !task.isArchived && includesUser(task.assignedTo, userProfile.uid));
 
       setTasks(list as TaskItem[]);
     });
@@ -133,7 +134,7 @@ export function StaffProfilePage() {
 
       const list = Object.entries(snapshot.val() as Record<string, any>)
         .map(([id, value]) => ({ id, ...(value as Record<string, any>) }))
-        .filter((ticket) => includesUser(ticket.assignedTo, userProfile.uid));
+        .filter((ticket: Record<string, any>) => includesUser(ticket.assignedTo, userProfile.uid));
 
       setTickets(list as TicketItem[]);
     });

@@ -693,7 +693,7 @@ export function StaffReports() {
           }
           return { id, ...val, assignedTo }
         })
-        setTasks(taskList)
+        setTasks(taskList.filter((task: any) => !task.isArchived))
       } else {
         setTasks([])
       }

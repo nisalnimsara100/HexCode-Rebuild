@@ -298,8 +298,9 @@ export function AdminDashboard() {
           status: val.status,
           priority: val.priority,
           assignedTo: val.assignedTo || [],
-          dueDate: val.dueDate
-        }))
+          dueDate: val.dueDate,
+          isArchived: !!val.isArchived
+        })).filter(task => !task.isArchived)
         setTasks(taskList)
       } else {
         setTasks([])

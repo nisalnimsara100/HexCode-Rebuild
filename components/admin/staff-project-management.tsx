@@ -239,7 +239,8 @@ export function StaffProjectManagement() {
           projectId: val.projectId,
           status: val.status,
           progress: typeof val.progress === 'number' ? val.progress : undefined,
-        }));
+          isArchived: !!val.isArchived,
+        })).filter((task: any) => !task.isArchived);
         setProjectTasks(taskList);
       } else {
         setProjectTasks([]);

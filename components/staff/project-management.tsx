@@ -173,7 +173,7 @@ export function ProjectManagement() {
         const taskList: Task[] = Object.entries(data).map(([id, val]: [string, any]) => ({
           id,
           ...val
-        }));
+        })).filter((task: any) => !task.isArchived);
         setAllTasks(taskList);
       } else {
         setAllTasks([]);

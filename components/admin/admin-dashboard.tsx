@@ -110,7 +110,8 @@ function StaffOverviewDashboard({ onNavigate }: { onNavigate: (tab: string) => v
       const tasksRef = ref(database, 'staffdashboard/tasks')
       onValue(tasksRef, (snapshot) => {
         const data = snapshot.val() || {}
-        const tasks = Object.values(data)
+        // @ts-ignore
+        const tasks = Object.values(data).filter((t: any) => !t.isArchived)
         // @ts-ignore
         const completed = tasks.filter((t: any) => t.status === 'completed').length
         const total = tasks.length
@@ -165,7 +166,7 @@ function StaffOverviewDashboard({ onNavigate }: { onNavigate: (tab: string) => v
     onValue(tasksRef, snapshot => {
       const data = snapshot.val() || {}
       // @ts-ignore
-      setOverdueTasksCount(Object.values(data).filter((t: any) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'completed').length)
+      setOverdueTasksCount(Object.values(data).filter((t: any) => !t.isArchived && t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'completed').length)
     })
   }, [])
 

@@ -141,7 +141,7 @@ export function AssignmentSystem() {
         const taskList: Assignment[] = Object.entries(data).map(([id, val]: [string, any]) => ({
           id,
           ...val
-        }));
+        })).filter((task: any) => !task.isArchived);
         setAssignments(taskList);
       } else {
         setAssignments([]);
@@ -213,8 +213,13 @@ export function AssignmentSystem() {
 
     if (confirm("Are you sure you want to delete this assignment permanently?")) {
       try {
-        await remove(ref(database, `staffdashboard/tasks/${id}`));
-        toast({ title: "Deleted", description: "Assignment removed successfully." });
+        await update(ref(database, `staffdashboard/tasks/${id}`), {
+          isArchived: true,
+          archivedAt: new Date().toISOString(),
+          archivedBy: userProfile?.uid || "admin",
+          archiveReason: "Deleted from Assignment System"
+        });
+        toast({ title: "Moved to History", description: "Assignment archived successfully." });
       } catch (err) {
         toast({ title: "Error", description: "Failed to delete assignment.", variant: "destructive" });
       }

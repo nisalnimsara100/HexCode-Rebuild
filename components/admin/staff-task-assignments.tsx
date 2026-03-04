@@ -756,8 +756,8 @@ export function StaffTaskAssignments() {
                 <Card className="bg-gray-800 border-gray-700">
                     <div className="p-4">
                         <h3 className="text-orange-400 font-semibold mb-1">Total Tasks</h3>
-                        <p className="text-2xl font-bold text-white">{tasks.length}</p>
-                        <p className="text-gray-400 text-xs mt-1">All time</p>
+                        <p className="text-2xl font-bold text-white">{activeTasks.length}</p>
+                        <p className="text-gray-400 text-xs mt-1">Active assignments</p>
                     </div>
                 </Card>
             </div>

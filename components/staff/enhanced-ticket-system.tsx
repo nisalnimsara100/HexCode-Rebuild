@@ -49,6 +49,7 @@ import {
   Grid3X3,
   Flag,
   Briefcase,
+  Download,
 } from "lucide-react";
 
 interface TicketItem {
@@ -357,6 +358,25 @@ export function TicketSystem() {
 
   const handleImagePanEnd = () => {
     setIsPanningImage(false);
+  };
+
+  const handleDownloadImage = (imageUrl: string, filePrefix: string) => {
+    const link = document.createElement("a");
+    link.href = imageUrl;
+
+    try {
+      const rawName = imageUrl.split("?")[0].split("/").pop() || "";
+      const safeName = rawName || `${filePrefix}-${Date.now()}.jpg`;
+      link.setAttribute("download", safeName);
+    } catch {
+      link.setAttribute("download", `${filePrefix}-${Date.now()}.jpg`);
+    }
+
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (loading) {
@@ -746,7 +766,19 @@ export function TicketSystem() {
 
                 {selectedTicket.descriptionImage && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-400 mb-2">Description Image</h4>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <h4 className="text-sm font-medium text-gray-400">Description Image</h4>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 border-gray-700 text-gray-300 hover:bg-gray-800"
+                        onClick={() => handleDownloadImage(selectedTicket.descriptionImage as string, "ticket-description-image")}
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1.5" />
+                        Download
+                      </Button>
+                    </div>
                     <button
                       type="button"
                       className="rounded-lg border border-gray-700 bg-gray-800/50 p-2 hover:border-emerald-500/60 transition-colors"
@@ -819,6 +851,15 @@ export function TicketSystem() {
                 </div>
 
                 <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-md border border-gray-700 bg-gray-900/85 p-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                    onClick={() => handleDownloadImage(imageViewerSrc, "ticket-description-image")}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"

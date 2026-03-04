@@ -144,21 +144,25 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
         return;
       }
 
-      const taskList = Object.entries(snapshot.val() as Record<string, any>).map(([id, value]) => ({
+      const taskList: Array<Record<string, any>> = Object.entries(snapshot.val() as Record<string, any>).map(([id, value]) => ({
         id,
         ...(value as Record<string, any>),
       }));
 
-      const assignedTasks = taskList.filter((task) => {
+      const assignedTasks = taskList.filter((task: Record<string, any>) => {
+        if (task.isArchived) {
+          return false;
+        }
+
         if (Array.isArray(task.assignedTo)) {
           return task.assignedTo.includes(userProfile.uid);
         }
         return task.assignedTo === userProfile.uid;
       });
 
-      const activeTaskCount = assignedTasks.filter((task) => task.status !== "completed").length;
+      const activeTaskCount = assignedTasks.filter((task: Record<string, any>) => task.status !== "completed").length;
       const commentExists = assignedTasks.some(
-        (task) => Array.isArray(task.comments) && task.comments.length > 0
+        (task: Record<string, any>) => Array.isArray(task.comments) && task.comments.length > 0
       );
 
       setTaskBadgeCount(activeTaskCount);
@@ -171,12 +175,12 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
         return;
       }
 
-      const ticketList = Object.entries(snapshot.val() as Record<string, any>).map(([id, value]) => ({
+      const ticketList: Array<Record<string, any>> = Object.entries(snapshot.val() as Record<string, any>).map(([id, value]) => ({
         id,
         ...(value as Record<string, any>),
       }));
 
-      const assignedTickets = ticketList.filter((ticket) => {
+      const assignedTickets = ticketList.filter((ticket: Record<string, any>) => {
         if (Array.isArray(ticket.assignedTo)) {
           return ticket.assignedTo.includes(userProfile.uid);
         }
@@ -184,7 +188,7 @@ export function StaffSidebar({ open, setOpen }: StaffSidebarProps) {
       });
 
       const activeTicketCount = assignedTickets.filter(
-        (ticket) => !["closed", "completed"].includes(ticket.status)
+        (ticket: Record<string, any>) => !["closed", "completed"].includes(ticket.status)
       ).length;
 
       setTicketBadgeCount(activeTicketCount);

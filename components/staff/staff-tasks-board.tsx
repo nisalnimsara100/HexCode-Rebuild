@@ -16,7 +16,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/auth-context";
 import { database } from "@/lib/firebase";
 import { onValue, ref, update } from "firebase/database";
-import { Briefcase, Calendar, Clock, MessageSquare, Users, ZoomIn, ZoomOut, X } from "lucide-react";
+import { Briefcase, Calendar, Clock, Download, MessageSquare, Users, ZoomIn, ZoomOut, X } from "lucide-react";
 
 type TaskStatus = "pending" | "in-progress" | "completed" | "overdue";
 type AssigneeStage = "planning" | "in-progress" | "completed";
@@ -235,8 +235,8 @@ export function StaffTasksBoard() {
         return;
       }
 
-      const taskList = Object.entries(snapshot.val() as Record<string, any>)
-        .map(([taskId, taskValue]) => {
+      const taskList: TaskItem[] = Object.entries(snapshot.val() as Record<string, any>)
+        .map(([taskId, taskValue]: [string, any]) => {
           const rawTask = taskValue as Record<string, any>;
           const assignedTo = Array.isArray(rawTask.assignedTo)
             ? rawTask.assignedTo
@@ -248,7 +248,7 @@ export function StaffTasksBoard() {
             id: taskId,
             ...rawTask,
             assignedTo,
-          };
+          } as TaskItem;
         })
         .filter((task) => {
           if (task.isArchived) {
@@ -444,6 +444,25 @@ export function StaffTasksBoard() {
     setIsPanningImage(false);
   };
 
+  const handleDownloadImage = (imageUrl: string, filePrefix: string) => {
+    const link = document.createElement("a");
+    link.href = imageUrl;
+
+    try {
+      const rawName = imageUrl.split("?")[0].split("/").pop() || "";
+      const safeName = rawName || `${filePrefix}-${Date.now()}.jpg`;
+      link.setAttribute("download", safeName);
+    } catch {
+      link.setAttribute("download", `${filePrefix}-${Date.now()}.jpg`);
+    }
+
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
@@ -611,7 +630,19 @@ export function StaffTasksBoard() {
 
                   {selectedTask.descriptionImage && (
                     <div className="space-y-2">
-                      <h4 className="text-xs uppercase tracking-wider text-gray-400">Description Image</h4>
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-xs uppercase tracking-wider text-gray-400">Description Image</h4>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 border-gray-700 text-gray-300 hover:bg-gray-800"
+                          onClick={() => handleDownloadImage(selectedTask.descriptionImage as string, "task-description-image")}
+                        >
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                          Download
+                        </Button>
+                      </div>
                       <button
                         type="button"
                         className="rounded-lg border border-gray-700 bg-gray-800/50 p-2 hover:border-orange-500/60 transition-colors"
@@ -734,6 +765,15 @@ export function StaffTasksBoard() {
                 </div>
 
                 <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-md border border-gray-700 bg-gray-900/85 p-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 border-gray-700 text-gray-300 hover:bg-gray-800"
+                    onClick={() => handleDownloadImage(imageViewerSrc, "task-description-image")}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
